@@ -1,0 +1,23 @@
+[project]
+name = "athenspop"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Dimitris Mantas", email = "dimitris.mantas@outlook.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.4.2",
+    "pandas>=3.0.1",
+    "pydantic>=2.12.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.4",
+]
