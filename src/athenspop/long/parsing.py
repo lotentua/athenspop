@@ -31,21 +31,21 @@ class FlexibleTripColumnSpec:
 
 
 def parse_flexible(
-        trips: pd.DataFrame,
-        spec: FlexibleTripColumnSpec,
-        travel_time_fn: TravelTimeFn,
-        min_act_duration: pydantic.PositiveFloat,
-        refiner: DepartureWindowRefiner,
-        sampler: DepartureWindowSampler,
-        rng: np.random.Generator,
+    trips: pd.DataFrame,
+    spec: FlexibleTripColumnSpec,
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
+    refiner: DepartureWindowRefiner,
+    sampler: DepartureWindowSampler,
+    rng: np.random.Generator,
 ) -> tuple[dict[int, SchedulingSuccess], dict[int, SchedulingFailure]]:
     successes: dict[int, SchedulingSuccess] = {}
     failures: dict[int, SchedulingFailure] = {}
 
     for (
-            # TODO: Validate the variable naming scheme.
-            index,
-            group,
+        # TODO: Validate the variable naming scheme.
+        index,
+        group,
     ) in trips.groupby(spec.pid):
         # TODO: Catch refinement, travel time calculation, and sampling errors.
         try:
@@ -71,13 +71,13 @@ def parse_flexible(
 
 
 def _parse_flexible(
-        trips: pd.DataFrame,
-        spec: FlexibleTripColumnSpec,
-        travel_time_fn: TravelTimeFn,
-        min_act_duration: pydantic.PositiveFloat,
-        refiner: DepartureWindowRefiner,
-        sampler: DepartureWindowSampler,
-        rng: np.random.Generator,
+    trips: pd.DataFrame,
+    spec: FlexibleTripColumnSpec,
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
+    refiner: DepartureWindowRefiner,
+    sampler: DepartureWindowSampler,
+    rng: np.random.Generator,
 ):
     # TODO: Validate the trip column specification.
     # TODO: Sort the trips by earliest departure.

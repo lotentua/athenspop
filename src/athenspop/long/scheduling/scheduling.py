@@ -33,12 +33,12 @@ SchedulingResult: TypeAlias = SchedulingSuccess | SchedulingFailure
 # TODO: Add multiple schedule sampling.
 # TODO: Add a convenience function for inspecting refined departure windows.
 def schedule(
-        trip_info: Sequence[FlexibleTripInfo],
-        travel_time_fn: TravelTimeFn,
-        min_act_duration: pydantic.PositiveFloat,
-        refiner: DepartureWindowRefiner,
-        sampler: DepartureWindowSampler,
-        rng: np.random.Generator,
+    trip_info: Sequence[FlexibleTripInfo],
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
+    refiner: DepartureWindowRefiner,
+    sampler: DepartureWindowSampler,
+    rng: np.random.Generator,
 ) -> SchedulingResult:
     try:
         refined_windows = refiner(

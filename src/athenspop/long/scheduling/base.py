@@ -20,7 +20,7 @@ class FlexibleTripInfo(NamedTuple):
 
 class TravelTimeFn(Protocol):
     def __call__(
-            self, ozone: int, dzone: int, mode: str, time: pydantic.PositiveFloat
+        self, ozone: int, dzone: int, mode: str, time: pydantic.PositiveFloat
     ) -> pydantic.PositiveFloat: ...
 
 

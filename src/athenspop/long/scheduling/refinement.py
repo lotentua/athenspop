@@ -27,17 +27,17 @@ class RefinedDepartureWindow(NamedTuple):
 
 class DepartureWindowRefiner(Protocol):
     def __call__(
-            self,
-            trip_info: Sequence[FlexibleTripInfo],
-            travel_time_fn: TravelTimeFn,
-            min_act_duration: pydantic.PositiveFloat,
+        self,
+        trip_info: Sequence[FlexibleTripInfo],
+        travel_time_fn: TravelTimeFn,
+        min_act_duration: pydantic.PositiveFloat,
     ) -> list[RefinedDepartureWindow]: ...
 
 
 def refine_departure_windows(
-        trip_info: Sequence[FlexibleTripInfo],
-        travel_time_fn: TravelTimeFn,
-        min_act_duration: pydantic.PositiveFloat,
+    trip_info: Sequence[FlexibleTripInfo],
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
 ) -> list[RefinedDepartureWindow]:
     earliest_departures = _refine_earliest_departures(
         trip_info, travel_time_fn, min_act_duration
@@ -57,9 +57,9 @@ def refine_departure_windows(
 
 
 def _refine_earliest_departures(
-        trip_info: Sequence[FlexibleTripInfo],
-        travel_time_fn: TravelTimeFn,
-        min_act_duration: pydantic.PositiveFloat,
+    trip_info: Sequence[FlexibleTripInfo],
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
 ) -> list[pydantic.PositiveFloat]:
     earliest_departures = []
     for index, info in enumerate(trip_info):
@@ -93,10 +93,10 @@ def _refine_earliest_departures(
 
 
 def _refine_latest_departures(
-        trip_info: Sequence[FlexibleTripInfo],
-        travel_time_fn: TravelTimeFn,
-        min_act_duration: pydantic.PositiveFloat,
-        earliest_departures: list[pydantic.PositiveFloat],
+    trip_info: Sequence[FlexibleTripInfo],
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
+    earliest_departures: list[pydantic.PositiveFloat],
 ) -> list[pydantic.PositiveFloat]:
     latest_departures = []
     for index, info in reversed(list(enumerate(trip_info))):
@@ -127,10 +127,10 @@ def _refine_latest_departures(
 
 
 def _calculate_latest_departure(
-        trip_info: FlexibleTripInfo,
-        target_arrival: pydantic.PositiveFloat,
-        earliest_departure: pydantic.PositiveFloat,
-        travel_time_fn: TravelTimeFn,
+    trip_info: FlexibleTripInfo,
+    target_arrival: pydantic.PositiveFloat,
+    earliest_departure: pydantic.PositiveFloat,
+    travel_time_fn: TravelTimeFn,
 ) -> pydantic.PositiveFloat:
     earliest_departure, latest_departure = (
         earliest_departure,

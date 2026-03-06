@@ -19,21 +19,21 @@ from athenspop.long.scheduling.refinement import RefinedDepartureWindow
 
 class DepartureWindowSampler(Protocol):
     def __call__(
-            self,
-            trip_info: Sequence[FlexibleTripInfo],
-            windows: Sequence[RefinedDepartureWindow],
-            travel_time_fn: TravelTimeFn,
-            min_act_duration: pydantic.PositiveFloat,
-            rng: np.random.Generator,
-    ) -> list[pydantic.PositiveFloat]: ...
-
-
-def sample_departures(
+        self,
         trip_info: Sequence[FlexibleTripInfo],
         windows: Sequence[RefinedDepartureWindow],
         travel_time_fn: TravelTimeFn,
         min_act_duration: pydantic.PositiveFloat,
         rng: np.random.Generator,
+    ) -> list[pydantic.PositiveFloat]: ...
+
+
+def sample_departures(
+    trip_info: Sequence[FlexibleTripInfo],
+    windows: Sequence[RefinedDepartureWindow],
+    travel_time_fn: TravelTimeFn,
+    min_act_duration: pydantic.PositiveFloat,
+    rng: np.random.Generator,
 ) -> list[pydantic.PositiveFloat]:
     scheduled_departures = []
     for index, window in enumerate(windows):
