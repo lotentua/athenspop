@@ -2,55 +2,54 @@
 #  Copyright (c) 2026 National Technical University of Athens
 #  This software is licensed under the MIT License.
 
+"""Episode models representing activities and trips in a travel diary."""
 
 from abc import ABC
-from typing import Self, TypeAlias
+from functools import cached_property
+from typing import TypeAlias
 
-from pydantic import NonNegativeFloat, PositiveFloat, model_validator
+from pydantic import NonNegativeFloat, PositiveFloat
 
 from athenspop.long.model.base import BaseDataModel
 
 
 class BaseEpisode(BaseDataModel, ABC):
-    """Base episode."""
+    """Abstract base class for all diary episodes.
+
+    An episode is a contiguous time interval during which a person
+    performs an activity or travels between locations.
+    """
 
     otime: NonNegativeFloat
-    """The start time of the episode."""
+    """Start time of the episode, in hours from midnight."""
     dtime: NonNegativeFloat
-    """The end time of the episode."""
+    """End time of the episode, in hours from midnight."""
 
-    @property
+    @cached_property
     def duration(self) -> PositiveFloat:
-        """The duration of the episode."""
+        """Duration of the episode in hours."""
         return self.dtime - self.otime
-
-    @model_validator(mode="after")
-    def _validate_has_positive_duration(self) -> Self:
-        if self.otime <= self.dtime:
-            raise ValueError(
-                f"The start time of the episode: {self.otime!r} must be earlier than the corresponding end time: {self.dtime!r}."
-            )
-        return self
 
 
 class Activity(BaseEpisode):
-    """Activity episode."""
+    """A stationary activity episode at a single location."""
 
     purpose: str
-    """The activity purpose."""
+    """Activity purpose label (e.g. ``"work"``, ``"home"``)."""
     location: int
-    """The activity location."""
+    """Zone identifier of the activity location."""
 
 
 class Trip(BaseEpisode):
-    """Trip episode."""
+    """A travel episode between two locations."""
 
     ozone: int
-    """The trip origin zone."""
+    """Origin zone identifier."""
     dzone: int
-    """The trip destin zone."""
+    """Destination zone identifier."""
     mode: str
-    """"The trip mode."""
+    """Transport mode label (e.g. ``"car"``, ``"bus"``)."""
 
 
 Episode: TypeAlias = Activity | Trip
+"""Union type covering both episode kinds."""
