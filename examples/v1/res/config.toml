@@ -1,0 +1,16 @@
+uuid = "pid"
+home = "home"
+
+[trips]
+dest_pattern = "dest(\\d+)"
+purp_pattern = "purp(\\d+)"
+mode_pattern = "mode(\\d+)"
+
+[trips.time]
+format = "variable"
+min_pattern = "min_time(\\d+)"
+max_pattern = "max_time(\\d+)"
+
+[valid.zones]
+min_value = 1
+max_value = 36

@@ -1,0 +1,4 @@
+pid,gender,age,education,employment,income,car_own,home,dest1,purp1,mode1,time1,dest2,purp2,mode2,time2,dest3,purp3,mode3,time3,dest4,purp4,mode4,time4,dest5,purp5,mode5,time5
+example_1,0: feamale,40,3: bachelor,4: active,,0: no,1,3,1: work,1: car,8,1,7: other,1: car,17,1,2: return home,1: car,19,,,,,,,,
+example_2,1: male,50,3: bachelor,4: active,,1: yes,1,2,1: work,1: car,8,2,7: other,1: car,17,1,2: return home,1: car,18,,,,,,,,
+example_3,0: feamale,25,3: bachelor,3: student,,1: yes,1,5,3: education,3: bus,9,5,5: recreation,7: walk,17,1,2: return home,3: bus,20,,,,,,,,
