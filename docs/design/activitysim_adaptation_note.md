@@ -47,4 +47,4 @@ ActivitySim and PopulationSim are BSD-3-Clause licensed. Copying code is allowed
 - Keep the public scheduling API simple: `schedule_once(...)` for one realization and `generate_schedules(...)` for repeated stochastic realizations.
 - Implement the paper-uniform scheduler first, with only a minimal private helper boundary that can later host ActivitySim-like probability tables or logit choice.
 - Keep sequence analysis, transition-cost construction, optimal matching, and clustering governed by `CSuM2026`, TraMineR/Sequenzo evidence, and local fixtures rather than ActivitySim.
-- Keep the paper example outputs PopulationSim-like in discipline: every source, conversion count, validation report, scheduling diagnostic, sequence array, distance matrix, cluster table, and figure-preparation artifact should have an explicit path and provenance record.
+- Keep the Athens example outputs PopulationSim-like in discipline: every source, conversion count, validation report, scheduling diagnostic, sequence array, distance matrix, cluster table, and figure-preparation artifact should have an explicit path and provenance record.

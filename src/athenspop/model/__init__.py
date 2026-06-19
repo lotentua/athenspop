@@ -1,4 +1,4 @@
-"""Lean internal model for validated canonical travel survey data."""
+"""Lean internal model for validated travel survey data."""
 
 from athenspop.model.survey import (
     Diary,
@@ -6,7 +6,7 @@ from athenspop.model.survey import (
     PersonMetadata,
     SurveyDataset,
     TimeWindow,
-    TravelTimeFn,
+    TravelTimeFunction,
     Trip,
 )
 
@@ -16,6 +16,6 @@ __all__ = [
     "PersonMetadata",
     "SurveyDataset",
     "TimeWindow",
-    "TravelTimeFn",
+    "TravelTimeFunction",
     "Trip",
 ]

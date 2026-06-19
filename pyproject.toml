@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "matplotlib>=3.10.8",
     "numpy>=2.4.2",
     "pandas>=3.0.1",
     "scipy>=1.17.1",
@@ -54,7 +55,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"examples/paper/**" = [
+"examples/athens/**" = [
     "ARG001",
     "D100",
     "D101",

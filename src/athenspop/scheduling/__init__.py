@@ -1,11 +1,11 @@
-"""Canonical scheduling API for validated long-form travel survey diaries."""
+"""Scheduling API for validated long-form travel survey diaries."""
 
 from athenspop.scheduling.engine import (
     ScheduledSurveyDataset,
     SchedulingConfig,
     SchedulingDiagnostics,
     SchedulingIssue,
-    TravelTimeFn,
+    TravelTimeFunction,
     schedule_once,
 )
 
@@ -14,6 +14,6 @@ __all__ = [
     "SchedulingConfig",
     "SchedulingDiagnostics",
     "SchedulingIssue",
-    "TravelTimeFn",
+    "TravelTimeFunction",
     "schedule_once",
 ]

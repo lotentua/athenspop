@@ -12,6 +12,7 @@ from athenspop.sequence.episodes import (
     episodes_from_diary,
     overlap_duration,
     state_sequence_from_diary,
+    trip_mode_state,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "optimal_matching_dissimilarity",
     "overlap_duration",
     "state_sequence_from_diary",
+    "trip_mode_state",
 ]

@@ -6,23 +6,23 @@ This note records the current release-validation evidence for the long-form cano
 
 | Check | Command | Current result |
 | --- | --- | --- |
-| Unit and example tests | `uv run rtk pytest -q tests examples\paper` | `95 passed`. |
+| Unit and example tests | `uv run rtk pytest -q tests examples\athens` | `95 passed`. |
 | Ruff lint | `uv run ruff check .` | Passed. |
-| Ruff format check | `uv run ruff format --check .` | Passed after Ruff formatted `tests/test_paper_reproduction_artifacts.py`. |
+| Ruff format check | `uv run ruff format --check .` | Passed after Ruff formatted `tests/test_athens_reproduction_artifacts.py`. |
 | Static type check | `uv run ty check` | Passed. |
 | Sphinx docs build | `uv run sphinx-build -W -b html docs docs\_build\html` | Passed with 17 documentation sources including the new paper walkthrough. |
 | Package build | `uv build` | Built `dist\athenspop-0.1.0.tar.gz` and `dist\athenspop-0.1.0-py3-none-any.whl`. |
 | Installed-wheel quickstart smoke | Temporary virtual environment plus `uv pip install --python .codex_tmp_release_venv\Scripts\python.exe dist\athenspop-0.1.0-py3-none-any.whl` | Passed with Python 3.12.11, `athenspop==0.1.0`, NumPy 2.4.6, pandas 3.0.3, and SciPy 1.17.1; the documented quickstart dataframe validated, loaded, scheduled, and preserved `departure_second = 0`. |
-| Full paper artifact command | `uv run python -m examples.paper.reproduce` | Passed and wrote validated artifacts to `examples/paper/output/full` in 41.776 seconds in the normal measured run. |
-| Paper walkthrough snippet probe | Focused runtime probe following `docs/user_guide/paper_walkthrough.md` through source verification, input conversion, validation, scheduling, return-home imputation, episode/state checks, toy transition costs, and demographics | Passed. |
+| Full paper artifact command | `uv run python -m examples.athens.reproduce` | Passed and wrote validated artifacts to `examples/athens/output/full` in 41.776 seconds in the normal measured run. |
+| Athens walkthrough snippet probe | Focused runtime probe following `docs/user_guide/athens_walkthrough.md` through source verification, input conversion, validation, scheduling, return-home imputation, episode/state checks, toy transition costs, and demographics | Passed. |
 
 ## Current Release Interpretation
 
 The canonical library surface is `athenspop.validation`, `athenspop.model`, `athenspop.io`, `athenspop.scheduling`, `athenspop.generation`, `athenspop.sequence`, and `athenspop.clustering`, with top-level public imports intentionally re-exported from `athenspop`.
 
-The paper workflow is an example, not the package identity. It is maintained under `examples/paper` and documented through `docs/user_guide/paper_reproduction.md`, `docs/user_guide/paper_walkthrough.md`, `docs/design/paper_method_contract.md`, and `docs/design/paper_output_manifest.md`.
+The paper workflow is an example, not the package identity. It is maintained under `examples/athens` and documented through `docs/user_guide/athens_reproduction.md`, `docs/user_guide/athens_walkthrough.md`, `docs/design/athens_method_contract.md`, and `docs/design/athens_output_manifest.md`.
 
-The generated full paper artifacts are ignored by Git and should be regenerated with `uv run python -m examples.paper.reproduce` when needed. Public docs deliberately point to reproducible output paths rather than checking generated SVGs into the docs build.
+The generated full paper artifacts are ignored by Git and should be regenerated with `uv run python -m examples.athens.reproduce` when needed. Public docs deliberately point to reproducible output paths rather than checking generated SVGs into the docs build.
 
 ## Residual Risks And Deferred Work
 

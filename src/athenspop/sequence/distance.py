@@ -21,16 +21,21 @@ def optimal_matching_dissimilarity(
     """Compute generalized Wagner-Fischer optimal-matching dissimilarity for two sequences.
 
     Args:
-        first: First symbolic state sequence.
-        second: Second symbolic state sequence.
-        substitution_cost: Pairwise substitution costs keyed by `(source_state, target_state)`.
-        indel_cost: Positive insertion/deletion cost.
+        first:
+            First symbolic state sequence.
+        second:
+            Second symbolic state sequence.
+        substitution_cost:
+            Pairwise substitution costs keyed by `(source_state, target_state)`.
+        indel_cost:
+            Positive insertion/deletion cost.
 
     Returns:
         Optimal-matching dissimilarity between the two sequences.
 
     Raises:
-        ValueError: If `indel_cost` is not positive or a required substitution cost is missing.
+        ValueError:
+            If `indel_cost` is not positive or a required substitution cost is missing.
     """
     if indel_cost <= 0:
         raise ValueError(f"`indel_cost` must be positive, got {indel_cost}.")
@@ -59,15 +64,19 @@ def dissimilarity_matrix(
     """Compute a symmetric pairwise optimal-matching dissimilarity matrix.
 
     Args:
-        sequences: Symbolic state sequences to compare pairwise.
-        substitution_cost: Pairwise substitution costs keyed by `(source_state, target_state)`.
-        indel_cost: Positive insertion/deletion cost.
+        sequences:
+            Symbolic state sequences to compare pairwise.
+        substitution_cost:
+            Pairwise substitution costs keyed by `(source_state, target_state)`.
+        indel_cost:
+            Positive insertion/deletion cost.
 
     Returns:
         Square float64 matrix whose `[i, j]` entry is the optimal-matching dissimilarity between sequence `i` and sequence `j`.
 
     Raises:
-        ValueError: If `indel_cost` is not positive or a required substitution cost is missing.
+        ValueError:
+            If `indel_cost` is not positive or a required substitution cost is missing.
 
     Notes:
         Sequences are encoded once and same-length targets are batched to reduce repeated Python-loop overhead.

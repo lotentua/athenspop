@@ -2,7 +2,8 @@
 
 `athenspop` is a small Python library for validating long-form household travel survey tables and working with complete daily mobility diaries.
 
-The library has one plain path: read or build dataframes, validate the dataframe boundary, construct trusted diary objects, schedule feasible trip times when needed, build activity and travel sequences, compute sequence dissimilarities, and cluster diaries. Public code and documentation describe those generic steps; dataset-specific workflows belong in examples.
+The library has one plain path: read or build dataframes, validate the dataframe boundary, construct trusted diary objects, schedule feasible trip times when needed, build activity and travel sequences, compute sequence dissimilarities, and cluster diaries.
+Public code and documentation describe those generic steps; dataset-specific workflows belong in examples.
 
 ```{toctree}
 :maxdepth: 2

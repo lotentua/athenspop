@@ -8,4 +8,4 @@ __pycache__/
 htmlcov/
 dist/
 docs/_build/
-examples/paper/output/
+examples/athens/output/

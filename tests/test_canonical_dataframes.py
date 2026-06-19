@@ -5,15 +5,15 @@ import pytest
 
 from athenspop import SurveyDataset, ValidationError, validate_dataframes
 
-type TravelTimeFn = Callable[[str, str, str, int], int]
+type TravelTimeFunction = Callable[[str, str, str, int], int]
 
 
-def _constant_travel_time(seconds: int) -> TravelTimeFn:
-    def travel_time_fn(origin: str, destination: str, mode: str, departure_second: int) -> int:
+def _constant_travel_time(seconds: int) -> TravelTimeFunction:
+    def travel_time_function(origin: str, destination: str, mode: str, departure_second: int) -> int:
         del origin, destination, mode, departure_second
         return seconds
 
-    return travel_time_fn
+    return travel_time_function
 
 
 def test_validates_and_loads_concrete_trip_with_zero_departure_second() -> None:
@@ -85,10 +85,10 @@ def test_travel_time_function_is_checked_when_model_resolves_duration() -> None:
             }
         ]
     )
-    dataset = SurveyDataset.from_dataframes(trips, travel_time_fn=_constant_travel_time(120))
+    dataset = SurveyDataset.from_dataframes(trips, travel_time_function=_constant_travel_time(120))
     assert dataset.diaries[0].trips[0].arrival_second == 180
     with pytest.raises(ValueError, match="strictly positive integer"):
-        SurveyDataset.from_dataframes(trips, travel_time_fn=_constant_travel_time(0))
+        SurveyDataset.from_dataframes(trips, travel_time_function=_constant_travel_time(0))
 
 
 def test_validation_collects_join_and_timing_errors_without_cascading_from_null_key_row() -> None:
@@ -205,7 +205,7 @@ def test_origin_mismatch_is_warning_not_hard_error() -> None:
     ]
 
 
-def test_methodological_warnings_cover_missing_return_home_and_short_activity() -> None:
+def test_short_activity_duration_is_a_generic_methodological_warning() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -236,22 +236,19 @@ def test_methodological_warnings_cover_missing_return_home_and_short_activity() 
     )
     result = validate_dataframes(trips)
     assert not result.report.has_errors
-    assert [issue.code for issue in result.report.warnings] == [
-        "short_activity_duration",
-        "missing_return_home",
-    ]
+    assert [issue.code for issue in result.report.warnings] == ["short_activity_duration"]
 
 
-def test_missing_return_home_uses_household_home_zone_and_final_recreation_exception() -> None:
+def test_household_metadata_does_not_create_study_specific_chain_warnings() -> None:
     households = pd.DataFrame([{"household_id": "h1", "home_zone": "zone-home"}])
-    no_warning = pd.DataFrame(
+    trips = pd.DataFrame(
         [
             {
                 "household_id": "h1",
                 "person_id": "p1",
                 "trip_id": "t1",
                 "origin": "not-home",
-                "destination": "zone-home",
+                "destination": "somewhere-else",
                 "purpose": "work",
                 "mode": "bus",
                 "departure_second": 0,
@@ -259,26 +256,10 @@ def test_missing_return_home_uses_household_home_zone_and_final_recreation_excep
             }
         ]
     )
-    assert validate_dataframes(no_warning, households=households).report.warnings == ()
-    final_recreation = pd.DataFrame(
-        [
-            {
-                "household_id": "h1",
-                "person_id": "p1",
-                "trip_id": "t1",
-                "origin": "zone-home",
-                "destination": "cinema",
-                "purpose": "recreation",
-                "mode": "walk",
-                "departure_second": 0,
-                "arrival_second": 900,
-            }
-        ]
-    )
-    assert validate_dataframes(final_recreation, households=households).report.warnings == ()
+    assert validate_dataframes(trips, households=households).report.warnings == ()
 
 
-def test_unknown_default_categories_are_warnings_not_hard_errors() -> None:
+def test_user_defined_purpose_and_mode_labels_are_valid() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -296,11 +277,7 @@ def test_unknown_default_categories_are_warnings_not_hard_errors() -> None:
     )
     result = validate_dataframes(trips)
     assert not result.report.has_errors
-    assert [issue.code for issue in result.report.warnings] == [
-        "unknown_default_purpose",
-        "unknown_default_mode",
-        "missing_return_home",
-    ]
+    assert result.report.warnings == ()
 
 
 def test_trip_sequence_orders_model_trips_when_input_rows_are_unsorted() -> None:

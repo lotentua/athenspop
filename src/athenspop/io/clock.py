@@ -17,52 +17,63 @@ MAX_CLOCK_HOUR: Final[int] = 23
 MAX_CLOCK_MINUTE_OR_SECOND: Final[int] = 59
 
 
-def clock_seconds_from_t0(value: ClockValue, *, t0_clock: ClockValue = "04:00") -> int:
-    """Convert one clock-of-day value to integer seconds from `t0_clock` with overnight wrap.
+def clock_seconds_from_time_origin(value: ClockValue, *, time_origin_clock: ClockValue = "04:00") -> int:
+    """Convert one clock-of-day value to integer seconds from the diary time-origin clock with overnight wrap.
 
     Args:
-        value: Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime/time object, a timedelta, a pandas temporal value, or integer seconds after civil midnight.
-        t0_clock: Clock value used as the diary time origin.
+        value:
+            Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime/time object, a timedelta, a pandas temporal value, or integer seconds after civil midnight.
+        time_origin_clock:
+            Clock value used as the diary time origin.
 
     Returns:
-        Integer seconds from `t0_clock`, wrapping overnight within one civil day.
+        Integer seconds from the diary time-origin clock, wrapping overnight within one civil day.
 
     Raises:
-        TypeError: If the value type is unsupported or boolean.
-        ValueError: If the value cannot be represented as whole seconds within one civil day.
+        TypeError:
+            If the value type is unsupported or boolean.
+        ValueError:
+            If the value cannot be represented as whole seconds within one civil day.
     """
     civil_second = _clock_second_of_day(value, parameter_name="value")
-    t0_second = _clock_second_of_day(t0_clock, parameter_name="t0_clock")
-    return (civil_second - t0_second) % SECONDS_PER_DAY
+    time_origin_second = _clock_second_of_day(time_origin_clock, parameter_name="time_origin_clock")
+    return (civil_second - time_origin_second) % SECONDS_PER_DAY
 
 
 def convert_clock_columns(
     frame: pd.DataFrame,
     columns: Mapping[str, str],
     *,
-    t0_clock: ClockValue = "04:00",
+    time_origin_clock: ClockValue = "04:00",
 ) -> pd.DataFrame:
     """Return a copy of `frame` with clock columns converted to normalized second columns.
 
     Args:
-        frame: Input dataframe containing source clock columns.
-        columns: Mapping from source clock column names to target integer-second column names.
-        t0_clock: Clock value used as the diary time origin.
+        frame:
+            Input dataframe containing source clock columns.
+        columns:
+            Mapping from source clock column names to target integer-second column names.
+        time_origin_clock:
+            Clock value used as the diary time origin.
 
     Returns:
         Dataframe copy with converted target columns; missing source values remain missing.
 
     Raises:
-        KeyError: If a requested source column is absent.
-        TypeError: If a non-missing value has an unsupported type.
-        ValueError: If a non-missing value is outside the supported clock domain.
+        KeyError:
+            If a requested source column is absent.
+        TypeError:
+            If a non-missing value has an unsupported type.
+        ValueError:
+            If a non-missing value is outside the supported clock domain.
     """
     result = frame.copy()
     for source_column, target_column in columns.items():
         if source_column not in result.columns:
             raise KeyError(f"Column {source_column!r} is not present in the dataframe.")
         result[target_column] = [
-            None if pd.isna(value) else clock_seconds_from_t0(cast("ClockValue", value), t0_clock=t0_clock) for value in result[source_column]
+            None if pd.isna(value) else clock_seconds_from_time_origin(cast("ClockValue", value), time_origin_clock=time_origin_clock)
+            for value in result[source_column]
         ]
     return result
 

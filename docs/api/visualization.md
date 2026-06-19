@@ -1,6 +1,6 @@
-# Visualization API
+# Visualization
 
-Visualization APIs write small dependency-light SVG summaries for sequence clustering results. The first built-in figure is a cut hierarchical dendrogram whose displayed nodes contain temporal activity-purpose and travel-mode distributions.
+Visualization APIs return Python plotting objects instead of writing files.
 
 ```{eval-rst}
 .. automodule:: athenspop.visualization

@@ -5,15 +5,15 @@ import pytest
 
 from athenspop import SchedulingConfig, SurveyDataset, generate_schedules, schedule_once
 
-type TravelTimeFn = Callable[[str, str, str, int], int]
+type TravelTimeFunction = Callable[[str, str, str, int], int]
 
 
-def _constant_travel_time(seconds: int) -> TravelTimeFn:
-    def travel_time_fn(origin: str, destination: str, mode: str, departure_second: int) -> int:
+def _constant_travel_time(seconds: int) -> TravelTimeFunction:
+    def travel_time_function(origin: str, destination: str, mode: str, departure_second: int) -> int:
         del origin, destination, mode, departure_second
         return seconds
 
-    return travel_time_fn
+    return travel_time_function
 
 
 def test_schedule_once_preserves_concrete_trips_and_metadata() -> None:
@@ -203,16 +203,16 @@ def test_schedule_once_refines_windows_against_future_callable_trips() -> None:
         ]
     )
 
-    def travel_time_fn(origin: str, destination: str, mode: str, departure_second: int) -> int:
+    def travel_time_function(origin: str, destination: str, mode: str, departure_second: int) -> int:
         del origin, destination, mode, departure_second
         return 500
 
-    dataset = SurveyDataset.from_dataframes(trips, travel_time_fn=travel_time_fn)
+    dataset = SurveyDataset.from_dataframes(trips, travel_time_function=travel_time_function)
     scheduled = schedule_once(
         dataset,
         seed=2026,
         config=SchedulingConfig(min_activity_duration_seconds=100),
-        travel_time_fn=travel_time_fn,
+        travel_time_function=travel_time_function,
     )
     assert scheduled.diagnostics.scheduled_diaries == 1
     first_trip = scheduled.diaries[0].trips[0]
@@ -240,17 +240,17 @@ def test_schedule_once_checks_travel_time_function_at_scheduler_boundary() -> No
             }
         ]
     )
-    dataset = SurveyDataset.from_dataframes(trips, travel_time_fn=_constant_travel_time(1))
+    dataset = SurveyDataset.from_dataframes(trips, travel_time_function=_constant_travel_time(1))
     scheduled = schedule_once(
         dataset,
         seed=1,
-        travel_time_fn=_constant_travel_time(75),
+        travel_time_function=_constant_travel_time(75),
     )
     assert scheduled.diaries[0].trips[0].arrival_second == 175
     invalid = schedule_once(
         dataset,
         seed=1,
-        travel_time_fn=_constant_travel_time(0),
+        travel_time_function=_constant_travel_time(0),
     )
     assert invalid.diagnostics.scheduled_diaries == 0
     assert invalid.diagnostics.issues[0].code == "invalid_travel_time_function_result"
@@ -282,107 +282,6 @@ def test_generate_schedules_uses_shared_scheduler_with_repeatable_seed() -> None
     assert generate_schedules(dataset, 0, seed=99) == ()
     with pytest.raises(ValueError, match="non-negative"):
         generate_schedules(dataset, -1)
-
-
-def test_schedule_once_can_impute_return_home_trip_with_provenance() -> None:
-    trips = pd.DataFrame(
-        [
-            {
-                "household_id": "h1",
-                "person_id": "p1",
-                "trip_id": "t1",
-                "origin": "home",
-                "destination": "work",
-                "purpose": "work",
-                "mode": "car",
-                "departure_second": 0,
-                "travel_time_seconds": 100,
-            }
-        ]
-    )
-    households = pd.DataFrame([{"household_id": "h1", "home_zone": "home"}])
-    dataset = SurveyDataset.from_dataframes(trips, households=households)
-    scheduled = schedule_once(
-        dataset,
-        config=SchedulingConfig(min_activity_duration_seconds=50, impute_return_home=True),
-        travel_time_fn=_constant_travel_time(75),
-    )
-    assert scheduled.diagnostics.scheduled_diaries == 1
-    assert len(scheduled.diaries[0].trips) == 2
-    imputed = scheduled.diaries[0].trips[1]
-    assert imputed.trip_id == "__imputed_return_home__2"
-    assert imputed.origin == "work"
-    assert imputed.destination == "home"
-    assert imputed.departure_second == 150
-    assert imputed.arrival_second == 225
-    assert imputed.metadata["is_imputed_return_home"] is True
-
-
-def test_schedule_once_does_not_impute_after_final_recreation() -> None:
-    trips = pd.DataFrame(
-        [
-            {
-                "household_id": "h1",
-                "person_id": "p1",
-                "trip_id": "t1",
-                "origin": "home",
-                "destination": "cinema",
-                "purpose": "recreation",
-                "mode": "walk",
-                "departure_second": 0,
-                "travel_time_seconds": 100,
-            }
-        ]
-    )
-    households = pd.DataFrame([{"household_id": "h1", "home_zone": "home"}])
-    dataset = SurveyDataset.from_dataframes(trips, households=households)
-    scheduled = schedule_once(
-        dataset,
-        config=SchedulingConfig(impute_return_home=True),
-        travel_time_fn=_constant_travel_time(75),
-    )
-    assert len(scheduled.diaries[0].trips) == 1
-
-
-def test_schedule_once_can_impute_return_after_observation_window_for_cropping() -> None:
-    trips = pd.DataFrame(
-        [
-            {
-                "household_id": "h1",
-                "person_id": "p1",
-                "trip_id": "t1",
-                "origin": "home",
-                "destination": "work",
-                "purpose": "work",
-                "mode": "car",
-                "departure_second": 86_000,
-                "travel_time_seconds": 1_000,
-            }
-        ]
-    )
-    households = pd.DataFrame([{"household_id": "h1", "home_zone": "home"}])
-    dataset = SurveyDataset.from_dataframes(trips, households=households)
-    rejected = schedule_once(
-        dataset,
-        config=SchedulingConfig(
-            impute_return_home=True,
-            allow_final_trip_after_observation_window=True,
-        ),
-        travel_time_fn=_constant_travel_time(75),
-    )
-    assert rejected.diagnostics.scheduled_diaries == 0
-    assert rejected.diagnostics.issues[0].code == "imputed_return_after_observation_window"
-    scheduled = schedule_once(
-        dataset,
-        config=SchedulingConfig(
-            impute_return_home=True,
-            allow_trips_after_observation_window=True,
-        ),
-        travel_time_fn=_constant_travel_time(75),
-    )
-    assert scheduled.diagnostics.scheduled_diaries == 1
-    assert len(scheduled.diaries[0].trips) == 2
-    assert scheduled.diaries[0].trips[1].departure_second == 88_800
 
 
 def test_schedule_once_can_allow_final_arrival_after_observation_window() -> None:

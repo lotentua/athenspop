@@ -2,7 +2,8 @@
 
 Install the project in a development checkout with `uv sync`.
 
-Start with a canonical `trips` dataframe. `persons` and `households` are optional, but when provided they attach metadata through the same `household_id` and `person_id` keys.
+Start with a canonical `trips` dataframe.
+`persons` and `households` are optional, but when provided they attach metadata through the same `household_id` and `person_id` keys.
 
 ```python
 import pandas as pd
@@ -33,7 +34,8 @@ assert trip.departure_second == 0
 assert trip.arrival_second == 900
 ```
 
-`departure_second = 0` is valid. It means exactly the diary origin `t0`; choose and document that origin before converting clock times to seconds.
+`departure_second = 0` is valid.
+It means exactly the diary time origin; choose and document that origin before converting clock times to seconds.
 
 Use `validate_dataframes(...)` directly when you want a diagnostic report before loading the model.
 
@@ -44,4 +46,5 @@ result = validate_dataframes(trips)
 result.report.raise_if_invalid()
 ```
 
-The internal model assumes successful validation. Keep raw parsing, clock conversion, column naming, and CSV reading at the boundary.
+The internal model assumes successful validation.
+Keep raw parsing, clock conversion, column naming, and file reading at the boundary.

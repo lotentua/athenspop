@@ -2,11 +2,11 @@
 
 This note compares the CSuM2026 example scheduler policy against ActivitySim-style probabilistic scheduling and records the generic scheduling boundary for `athenspop`.
 
-## Paper Method
+## Athens Method
 
 The paper starts from reported departure-time intervals, not exact observed departure timestamps. It samples one concrete departure time uniformly within each reported interval, subject to trip-chain feasibility and a 30-minute minimum activity duration. It uses travel-time lookup data to infer arrivals and activity durations, discards one fully infeasible diary, imputes return-home trips when the final purpose is neither `home` nor `recreation`, permits recreation to extend beyond the monitoring period, and crops diaries to the 24-hour observation window.
 
-For the paper example, this is the required method because the example target is reproduction of `CSuM2026.pdf`.
+For the Athens example, this is the required method because the example target is reproduction of `CSuM2026.pdf`.
 
 ## ActivitySim Reference Pattern
 
@@ -23,7 +23,7 @@ The important idea for `athenspop` is not ActivitySim's API. The important ideas
 - Expose `schedule_once(dataset, *, seed=None, config=None)` for one concrete realization.
 - Expose `generate_schedules(dataset, n, *, seed=None, config=None)` for repeated realizations through the same engine.
 - Return diagnostics for infeasible diaries rather than silently dropping rows.
-- Keep probability-table or logit scheduling deferred until after the generic uniform path and paper example are correct and tested.
+- Keep probability-table or logit scheduling deferred until after the generic uniform path and Athens example are correct and tested.
 
 ## Future-Compatible Seams
 
@@ -34,7 +34,7 @@ The important idea for `athenspop` is not ActivitySim's API. The important ideas
 
 ## V1 Acceptance Tests
 
-- Concrete trips remain unchanged except for derived arrival when `travel_time_seconds` or `travel_time_fn` supplies duration.
+- Concrete trips remain unchanged except for derived arrival when `travel_time_seconds` or `travel_time_function` supplies duration.
 - Departure-window trips are realized to concrete integer seconds inside `[earliest_departure_second, latest_departure_second]`.
 - Movement travel times are strictly positive integer seconds.
 - The same seed produces the same schedule.

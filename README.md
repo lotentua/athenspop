@@ -1,8 +1,10 @@
 # athenspop
 
-`athenspop` is a Python library for long-form household travel survey diaries. It validates `trips`, optional `persons`, and optional `households` dataframes, builds trusted diary objects, schedules feasible trip times, turns diaries into activity and travel sequences, computes sequence dissimilarities, and clusters daily mobility patterns.
+`athenspop` is a Python library for long-form household travel survey diaries.
+It validates `trips`, optional `persons`, and optional `households` dataframes, builds trusted diary objects, schedules feasible trip times, turns diaries into activity and travel sequences, computes sequence dissimilarities, and clusters daily mobility patterns.
 
-The package expects conventional dataframe columns so that students and maintainers can see the data contract directly. The required trip keys are `household_id`, `person_id`, and `trip_id`; optional respondent and household records attach metadata through the same identifiers.
+The package expects conventional dataframe columns so that students and maintainers can see the data contract directly.
+The required trip keys are `household_id`, `person_id`, and `trip_id`; optional respondent and household records attach metadata through the same identifiers.
 
 ```python
 import pandas as pd
@@ -30,6 +32,8 @@ scheduled = schedule_once(dataset)
 assert scheduled.diaries[0].trips[0].arrival_second == 900
 ```
 
-Use `validate_dataframes(...)` when you want a complete validation report before constructing the model. Use `schedule_once(...)` for one feasible realization and `generate_schedules(...)` for repeated realizations from the same validated survey.
+Use `validate_dataframes(...)` when you want a complete validation report before constructing the model.
+Use `schedule_once(...)` for one feasible realization and `generate_schedules(...)` for repeated realizations from the same validated survey.
 
-Development uses `uv`, Ruff, ty, pytest, and Sphinx. See `docs/index.md` for the documentation source.
+Development uses `uv`, Ruff, ty, pytest, and Sphinx.
+See `docs/index.md` for the documentation source.

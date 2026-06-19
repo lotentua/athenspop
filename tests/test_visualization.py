@@ -1,13 +1,11 @@
-from pathlib import Path
-
 import numpy as np
+from matplotlib.figure import Figure
 
-from athenspop.visualization import (
+from athenspop.clustering import (
     cluster_time_distribution,
-    cut_dendrogram_distribution_svg,
     cut_dendrogram_tree,
-    write_cut_dendrogram_distribution_svg,
 )
+from athenspop.visualization import TemporalDendrogramPlotStyle, plot_cut_dendrogram_state_distribution
 
 
 def test_cluster_time_distribution_returns_bin_level_cluster_shares() -> None:
@@ -48,7 +46,7 @@ def test_cut_dendrogram_tree_keeps_requested_number_of_displayed_clusters() -> N
     assert tree.right.leaf_label == 2
 
 
-def test_cut_dendrogram_distribution_svg_draws_node_local_purpose_and_mode_panels(tmp_path: Path) -> None:
+def test_cut_dendrogram_tree_exposes_members_for_local_visualization_code() -> None:
     linkage_matrix = np.array(
         [
             [0.0, 1.0, 0.1, 2.0],
@@ -57,27 +55,40 @@ def test_cut_dendrogram_distribution_svg_draws_node_local_purpose_and_mode_panel
         ],
         dtype=np.float64,
     )
+    tree = cut_dendrogram_tree(linkage_matrix, n_clusters=2)
+
+    assert tree.members == (0, 1, 2, 3)
+    assert tree.left is not None
+    assert tree.right is not None
+    assert tree.left.members == (0, 1)
+    assert tree.right.members == (2, 3)
+
+
+def test_plot_cut_dendrogram_state_distribution_returns_matplotlib_figure() -> None:
     sequences = (
-        ("home", "trip_car", "work", "home"),
-        ("home", "trip_car", "work", "home"),
-        ("home", "trip_bus", "education", "home"),
-        ("home", "trip_walk", "market", "home"),
+        ("home", "car", "work"),
+        ("home", "bus", "home"),
+        ("home", "walk", "shop"),
+    )
+    linkage_matrix = np.array(
+        [
+            [0.0, 1.0, 1.0, 2.0],
+            [2.0, 3.0, 2.0, 3.0],
+        ],
+        dtype=np.float64,
     )
 
-    svg = cut_dendrogram_distribution_svg(linkage_matrix, sequences, n_clusters=2)
+    figure = plot_cut_dendrogram_state_distribution(
+        linkage_matrix,
+        sequences,
+        n_clusters=2,
+        style=TemporalDendrogramPlotStyle(
+            state_groups={
+                "Activity": ("home", "shop", "work"),
+                "Travel": ("bus", "car", "walk"),
+            }
+        ),
+    )
 
-    assert "Cut dendrogram with temporal state distributions" in svg
-    assert "Average-linkage diary dendrogram" not in svg
-    assert "ID: 1" in svg
-    assert "Size: 2" in svg
-    assert 'class="travel-mode-panel"' in svg
-    assert 'class="travel-mode-panel-state"' in svg
-    assert 'class="activity-purpose-panel"' in svg
-    assert 'class="activity-purpose-panel-state"' in svg
-    assert "Activity Purpose" in svg
-    assert "Travel Mode" in svg
-
-    output = tmp_path / "cut_dendrogram.svg"
-    write_cut_dendrogram_distribution_svg(linkage_matrix, sequences, output, n_clusters=2)
-
-    assert output.read_text(encoding="utf-8") == svg
+    assert isinstance(figure, Figure)
+    assert figure.axes

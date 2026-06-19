@@ -6,7 +6,7 @@ This note records the current v1 decision for sequence dissimilarities so the pr
 
 ## Checked Sources
 
-- `CSuM2026.zip` and `CSuM2026.pdf`, recorded in `docs/design/paper_method_contract.md`, are the v1 methodological authority.
+- `CSuM2026.zip` and `CSuM2026.pdf`, recorded in `docs/design/athens_method_contract.md`, are the v1 methodological authority.
 - TraMineR `seqtrate` documentation defines transition rates as observed state-to-state transition probabilities and points to their use for optimal-matching substitution costs: https://traminer.unige.ch/doc/seqtrate.html
 - The TraMineR `seqtrate` source computes the denominator for a source state from all positions where that source state appears before the lagged target position, so self transitions contribute to the denominator when present. The current fixture is derived from TraMineR 2.2-12 documentation/source as served by rdrr.io on 2026-06-18; release validation should replace this live-source citation with a CRAN tarball version/hash or an executed pinned TraMineR output before declaring v1 complete: https://rdrr.io/cran/TraMineR/src/R/seqtrate.R
 - Sequenzo describes itself as a Python-native social sequence analysis package inspired by TraMineR and exposes `get_distance_matrix` for OM, OMspell, HAM, DHD, LCP, and related methods: https://github.com/Liang-Team/Sequenzo

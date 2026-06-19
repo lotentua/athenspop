@@ -1,4 +1,4 @@
-"""Public package surface for the canonical long-form travel survey library."""
+"""Public package surface for validated long-form travel survey data."""
 
 from athenspop.clustering import (
     CutDendrogramNode,
@@ -15,7 +15,7 @@ from athenspop.clustering import (
 )
 from athenspop.generation import generate_schedules
 from athenspop.io import (
-    clock_seconds_from_t0,
+    clock_seconds_from_time_origin,
     convert_clock_columns,
 )
 from athenspop.model import (
@@ -24,6 +24,7 @@ from athenspop.model import (
     PersonMetadata,
     SurveyDataset,
     TimeWindow,
+    TravelTimeFunction,
     Trip,
 )
 from athenspop.scheduling import (
@@ -40,6 +41,7 @@ from athenspop.validation import (
     ValidationResult,
     validate_dataframes,
 )
+from athenspop.visualization import TemporalDendrogramPlotStyle, plot_cut_dendrogram_state_distribution
 
 __all__ = [
     "CutDendrogramNode",
@@ -52,14 +54,16 @@ __all__ = [
     "SchedulingDiagnostics",
     "SchedulingIssue",
     "SurveyDataset",
+    "TemporalDendrogramPlotStyle",
     "TimeWindow",
+    "TravelTimeFunction",
     "Trip",
     "ValidationError",
     "ValidationIssue",
     "ValidationReport",
     "ValidationResult",
     "average_linkage",
-    "clock_seconds_from_t0",
+    "clock_seconds_from_time_origin",
     "cluster_size_summary",
     "cluster_state_distribution",
     "cluster_time_distribution",
@@ -70,6 +74,7 @@ __all__ = [
     "flat_cluster_labels",
     "generate_schedules",
     "leaf_order",
+    "plot_cut_dendrogram_state_distribution",
     "schedule_once",
     "validate_dataframes",
 ]

@@ -28,7 +28,7 @@ exclude_patterns = [
     ".DS_Store",
     "design/**",
     "plans/**",
-    "../examples/paper/output/**",
+    "../examples/athens/output/**",
 ]
 
 html_theme = "pydata_sphinx_theme"

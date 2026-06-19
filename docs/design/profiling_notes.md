@@ -8,7 +8,7 @@ The v1 release threshold in the plan is 10 minutes wall-clock time and 4 GB peak
 
 ## Normal Full Command Timing
 
-`uv run python -m examples.paper.reproduce` completed successfully in 41.776 seconds and validated the full artifact set under `examples/paper/output/full`.
+`uv run python -m examples.athens.reproduce` completed successfully in 41.776 seconds and validated the full artifact set under `examples/athens/output/full`.
 
 ## Stage Timing Probe
 
@@ -40,7 +40,7 @@ The dominant cost is the local optimal-matching distance computation, which acco
 
 The `cProfile` plus `tracemalloc` full artifact run completed in 161.544 seconds with a 52.616 MB peak Python allocation trace. The instrumentation slows the NumPy-batched dynamic-programming loop substantially, so the instrumented wall time should not be used as the user-facing runtime estimate.
 
-The top cumulative functions in the instrumented run were `examples.paper.reproduce.write_full_artifacts`, `examples.paper_reproduction_smoke.run_pipeline`, `examples.paper.method.paper_dissimilarity_matrix`, `athenspop.sequence.distance.dissimilarity_matrix`, and `athenspop.sequence.distance._batch_optimal_matching_dissimilarities`.
+The top cumulative functions in the instrumented run were `examples.athens.reproduce.write_full_artifacts`, `examples.athens_reproduction_smoke.run_pipeline`, `examples.athens.method.athens_dissimilarity_matrix`, `athenspop.sequence.distance.dissimilarity_matrix`, and `athenspop.sequence.distance._batch_optimal_matching_dissimilarities`.
 
 ## Decision
 

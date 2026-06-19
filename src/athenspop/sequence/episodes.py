@@ -1,10 +1,12 @@
 """Generic episode construction and fixed-interval state sequencing."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from athenspop.model import Diary
+from athenspop.model import Diary, Trip
+
+type TravelStateLabeler = Callable[[Trip], str]
 
 SECONDS_PER_HOUR: Final[int] = 3600
 DEFAULT_WINDOW_SECONDS: Final[int] = 24 * SECONDS_PER_HOUR
@@ -16,9 +18,12 @@ class Episode:
     """Continuous activity or travel interval in integer seconds from the diary origin.
 
     Attributes:
-        state: Activity label or travel state label for the interval.
-        start_second: Inclusive interval start in seconds from the diary time origin.
-        end_second: Exclusive interval end in seconds from the diary time origin.
+        state:
+            Activity label or travel state label for the interval.
+        start_second:
+            Inclusive interval start in seconds from the diary time origin.
+        end_second:
+            Exclusive interval end in seconds from the diary time origin.
     """
 
     state: str
@@ -30,9 +35,12 @@ def overlap_duration(episode: Episode, interval_start_second: int, interval_end_
     """Return the integer-second overlap between one episode and one interval.
 
     Args:
-        episode: Continuous activity or travel episode.
-        interval_start_second: Inclusive interval start in seconds.
-        interval_end_second: Exclusive interval end in seconds.
+        episode:
+            Continuous activity or travel episode.
+        interval_start_second:
+            Inclusive interval start in seconds.
+        interval_end_second:
+            Exclusive interval end in seconds.
 
     Returns:
         Non-negative overlap duration in integer seconds.
@@ -53,16 +61,21 @@ def discretize_episodes(
     """Assign each fixed-width interval to the state with maximum overlap duration.
 
     Args:
-        episodes: Continuous episodes that partition the requested observation window.
-        window_start_second: Inclusive observation-window start in seconds.
-        window_end_second: Exclusive observation-window end in seconds.
-        interval_seconds: Width of each sequence bin in integer seconds.
+        episodes:
+            Continuous episodes that partition the requested observation window.
+        window_start_second:
+            Inclusive observation-window start in seconds.
+        window_end_second:
+            Exclusive observation-window end in seconds.
+        interval_seconds:
+            Width of each sequence bin in integer seconds.
 
     Returns:
         Tuple of state labels, one label per fixed-width interval.
 
     Raises:
-        ValueError: If `interval_seconds` is not positive or an interval has no overlapping episode.
+        ValueError:
+            If `interval_seconds` is not positive or an interval has no overlapping episode.
     """
     if interval_seconds <= 0:
         raise ValueError(f"`interval_seconds` must be positive, got {interval_seconds}.")
@@ -78,29 +91,38 @@ def discretize_episodes(
 def episodes_from_diary(
     diary: Diary,
     *,
-    initial_activity_state: str = "home",
+    initial_activity_state: str,
+    travel_state_labeler: TravelStateLabeler | None = None,
     window_start_second: int = 0,
     window_end_second: int = DEFAULT_WINDOW_SECONDS,
 ) -> tuple[Episode, ...]:
     """Build continuous activity and travel episodes from one scheduled diary.
 
     Args:
-        diary: Scheduled diary whose trips all have concrete departure and arrival seconds.
-        initial_activity_state: State assigned before the first observed trip departure.
-        window_start_second: Inclusive observation-window start in seconds.
-        window_end_second: Exclusive observation-window end in seconds.
+        diary:
+            Scheduled diary whose trips all have concrete departure and arrival seconds.
+        initial_activity_state:
+            State assigned before the first observed trip departure.
+        travel_state_labeler:
+            Optional callable that converts each movement trip into a sequence state; defaults to the trip mode label.
+        window_start_second:
+            Inclusive observation-window start in seconds.
+        window_end_second:
+            Exclusive observation-window end in seconds.
 
     Returns:
         Continuous episodes cropped to the observation window and covering it exactly.
 
     Raises:
-        ValueError: If the observation window is invalid, a trip is unscheduled, trips overlap, or the produced episodes do not partition the window.
+        ValueError:
+            If the observation window is invalid, a trip is unscheduled, trips overlap, or the produced episodes do not partition the window.
     """
     if window_start_second < 0 or window_end_second <= window_start_second:
         raise ValueError("The observation window must have non-negative start and positive duration.")
     episodes: list[Episode] = []
     current_second = window_start_second
     current_activity_state = initial_activity_state
+    resolved_travel_state_labeler = trip_mode_state if travel_state_labeler is None else travel_state_labeler
     for trip in diary.trips:
         departure_second = trip.departure_second
         arrival_second = trip.arrival_second
@@ -130,7 +152,7 @@ def episodes_from_diary(
         travel_end_second = min(arrival_second, window_end_second)
         episodes.append(
             Episode(
-                state=f"trip_{trip.mode}",
+                state=resolved_travel_state_labeler(trip),
                 start_second=travel_start_second,
                 end_second=travel_end_second,
             )
@@ -158,17 +180,24 @@ def episodes_from_diary(
 def state_sequence_from_diary(
     diary: Diary,
     *,
-    initial_activity_state: str = "home",
+    initial_activity_state: str,
+    travel_state_labeler: TravelStateLabeler | None = None,
     window_end_second: int = DEFAULT_WINDOW_SECONDS,
     interval_seconds: int = DEFAULT_INTERVAL_SECONDS,
 ) -> tuple[str, ...]:
     """Convert one scheduled diary into fixed-interval activity and trip states.
 
     Args:
-        diary: Scheduled diary whose trips all have concrete departure and arrival seconds.
-        initial_activity_state: State assigned before the first observed trip departure.
-        window_end_second: Exclusive observation-window end in seconds.
-        interval_seconds: Width of each sequence bin in integer seconds.
+        diary:
+            Scheduled diary whose trips all have concrete departure and arrival seconds.
+        initial_activity_state:
+            State assigned before the first observed trip departure.
+        travel_state_labeler:
+            Optional callable that converts each movement trip into a sequence state; defaults to the trip mode label.
+        window_end_second:
+            Exclusive observation-window end in seconds.
+        interval_seconds:
+            Width of each sequence bin in integer seconds.
 
     Returns:
         Tuple of fixed-interval state labels suitable for sequence dissimilarity calculations.
@@ -176,9 +205,23 @@ def state_sequence_from_diary(
     episodes = episodes_from_diary(
         diary,
         initial_activity_state=initial_activity_state,
+        travel_state_labeler=travel_state_labeler,
         window_end_second=window_end_second,
     )
     return discretize_episodes(episodes, window_end_second=window_end_second, interval_seconds=interval_seconds)
+
+
+def trip_mode_state(trip: Trip) -> str:
+    """Return the trip mode as the default movement sequence state.
+
+    Args:
+        trip:
+            Scheduled movement trip.
+
+    Returns:
+        The mode label stored on the trip.
+    """
+    return trip.mode
 
 
 def _state_for_interval(episodes: Sequence[Episode], interval_start_second: int, interval_end_second: int) -> str:

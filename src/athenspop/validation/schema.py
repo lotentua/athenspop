@@ -10,7 +10,7 @@ import pandas as pd
 
 from athenspop.validation.report import ValidationReport, ValidationReportBuilder
 
-type TravelTimeFn = Callable[[str, str, str, int], int]
+type TravelTimeFunction = Callable[[str, str, str, int], int]
 type ScalarValue = str | int | float | bool | np.integer | np.floating | np.bool_ | None
 type IntegerSecondValue = int | np.integer
 
@@ -55,11 +55,16 @@ class TimingPattern(StrEnum):
     """Supported per-row timing patterns for trip rows.
 
     Attributes:
-        DEPARTURE_ARRIVAL: Row supplies concrete departure and arrival seconds.
-        DEPARTURE_DURATION: Row supplies concrete departure seconds and travel duration seconds.
-        DEPARTURE_TRAVEL_TIME_FUNCTION: Row supplies concrete departure seconds and relies on a travel-time callable.
-        DEPARTURE_WINDOW_DURATION: Row supplies a departure window and travel duration seconds.
-        DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION: Row supplies a departure window and relies on a travel-time callable.
+        DEPARTURE_ARRIVAL:
+            Row supplies concrete departure and arrival seconds.
+        DEPARTURE_DURATION:
+            Row supplies concrete departure seconds and travel duration seconds.
+        DEPARTURE_TRAVEL_TIME_FUNCTION:
+            Row supplies concrete departure seconds and relies on a travel-time callable.
+        DEPARTURE_WINDOW_DURATION:
+            Row supplies a departure window and travel duration seconds.
+        DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION:
+            Row supplies a departure window and relies on a travel-time callable.
     """
 
     DEPARTURE_ARRIVAL = "departure_arrival"
@@ -74,9 +79,12 @@ class NormalizedTables:
     """Copies of validated boundary tables ready for trusted model construction.
 
     Attributes:
-        trips: Trip table copy sorted into validated diary order and annotated with `timing_pattern`.
-        persons: Optional person table copy after table/key/join validation.
-        households: Optional household table copy after table/key validation.
+        trips:
+            Trip table copy sorted into validated diary order and annotated with `timing_pattern`.
+        persons:
+            Optional person table copy after table/key/join validation.
+        households:
+            Optional household table copy after table/key validation.
     """
 
     trips: pd.DataFrame
@@ -89,8 +97,10 @@ class ValidationResult:
     """Validation output separated from normalized tables so reports stay diagnostic-only.
 
     Attributes:
-        report: Validation diagnostics collected from all independent checks.
-        normalized_tables: Validated table copies when no hard errors were found, otherwise `None`.
+        report:
+            Validation diagnostics collected from all independent checks.
+        normalized_tables:
+            Validated table copies when no hard errors were found, otherwise `None`.
     """
 
     report: ValidationReport
@@ -102,15 +112,19 @@ def validate_dataframes(
     persons: pd.DataFrame | None = None,
     households: pd.DataFrame | None = None,
     *,
-    travel_time_fn: TravelTimeFn | None = None,
+    travel_time_function: TravelTimeFunction | None = None,
 ) -> ValidationResult:
     """Validate long-form survey input dataframes and return independent diagnostics at once.
 
     Args:
-        trips: Required trip table containing identity, movement, and timing columns.
-        persons: Optional person/respondent table keyed by `household_id` and `person_id`.
-        households: Optional household table keyed by `household_id`.
-        travel_time_fn: Optional callable used only to classify timing patterns that intentionally omit duration and arrival columns.
+        trips:
+            Required trip table containing identity, movement, and timing columns.
+        persons:
+            Optional person/respondent table keyed by `household_id` and `person_id`.
+        households:
+            Optional household table keyed by `household_id`.
+        travel_time_function:
+            Optional callable used only to classify timing patterns that intentionally omit duration and arrival columns.
 
     Returns:
         Validation result containing a report and normalized tables when no hard errors exist.
@@ -159,7 +173,7 @@ def validate_dataframes(
         normalized_persons if table_is_usable[PERSONS_TABLE] else None,
         normalized_households if table_is_usable[HOUSEHOLDS_TABLE] else None,
     )
-    timing_patterns = _validate_trip_rows(builder, normalized_trips, travel_time_fn=travel_time_fn)
+    timing_patterns = _validate_trip_rows(builder, normalized_trips, travel_time_function=travel_time_function)
     if timing_patterns is not None:
         normalized_trips["timing_pattern"] = timing_patterns
     ordered_trip_rows = _validate_trip_chains(builder, normalized_trips)
@@ -301,7 +315,7 @@ def _validate_trip_rows(
     builder: ValidationReportBuilder,
     trips: pd.DataFrame,
     *,
-    travel_time_fn: TravelTimeFn | None,
+    travel_time_function: TravelTimeFunction | None,
 ) -> pd.Series | None:
     """Validate per-trip domain fields and classify exactly one supported timing pattern per usable row."""
     patterns: dict[Hashable, str] = {}
@@ -343,7 +357,7 @@ def _validate_trip_rows(
                         row_identifier=row_identifier,
                         column=column,
                         bad_value=_format_value(value),
-                        message=f"`trips` row {row_identifier} has `{column}`={_format_value(value)}. Time values must be integer seconds from `t0`.",
+                        message=f"`trips` row {row_identifier} has `{column}`={_format_value(value)}. Time values must be integer seconds from the diary time origin.",
                     )
                     break
                 if second_value is not None and int(second_value) < 0:
@@ -358,7 +372,7 @@ def _validate_trip_rows(
                     break
         if row_identifier in builder.blocked_rows:
             continue
-        pattern = _detect_timing_pattern(row, travel_time_fn=travel_time_fn)
+        pattern = _detect_timing_pattern(row, travel_time_function=travel_time_function)
         if pattern is None:
             builder.add_error(
                 code="invalid_timing_pattern",
@@ -405,7 +419,6 @@ def _validate_trip_chains(
         ordered_rows.extend(ordered_group.index.to_list())
         previous_destination: str | None = None
         previous_arrival: int | None = None
-        chain_is_valid = True
         for row_index, row in ordered_group.iterrows():
             origin = str(row["origin"])
             if previous_destination is not None and origin != previous_destination:
@@ -435,7 +448,6 @@ def _validate_trip_chains(
                     message=f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} departs before the previous trip in {chain_identifier} has arrived.",
                 )
                 builder.mark_chain_invalid(chain_identifier)
-                chain_is_valid = False
                 break
             if previous_arrival is not None and departure_second is not None and departure_second - previous_arrival < DEFAULT_MIN_ACTIVITY_DURATION_SECONDS:
                 builder.add_warning(
@@ -533,7 +545,7 @@ def _resolve_concrete_departure_order(builder: ValidationReportBuilder, group: p
     return "departure_second"
 
 
-def _detect_timing_pattern(row: pd.Series, *, travel_time_fn: TravelTimeFn | None) -> TimingPattern | None:
+def _detect_timing_pattern(row: pd.Series, *, travel_time_function: TravelTimeFunction | None) -> TimingPattern | None:
     """Detect the single supported timing pattern represented by one row's populated timing columns."""
     has_departure = _has_value(row, "departure_second")
     has_arrival = _has_value(row, "arrival_second")
@@ -545,11 +557,11 @@ def _detect_timing_pattern(row: pd.Series, *, travel_time_fn: TravelTimeFn | Non
         candidates.append(TimingPattern.DEPARTURE_ARRIVAL)
     if has_departure and has_travel_time and not has_arrival and not has_earliest and not has_latest:
         candidates.append(TimingPattern.DEPARTURE_DURATION)
-    if has_departure and travel_time_fn is not None and not has_arrival and not has_travel_time and not has_earliest and not has_latest:
+    if has_departure and travel_time_function is not None and not has_arrival and not has_travel_time and not has_earliest and not has_latest:
         candidates.append(TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION)
     if has_earliest and has_latest and has_travel_time and not has_departure and not has_arrival:
         candidates.append(TimingPattern.DEPARTURE_WINDOW_DURATION)
-    if has_earliest and has_latest and travel_time_fn is not None and not has_departure and not has_arrival and not has_travel_time:
+    if has_earliest and has_latest and travel_time_function is not None and not has_departure and not has_arrival and not has_travel_time:
         candidates.append(TimingPattern.DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION)
     return candidates[0] if len(candidates) == 1 else None
 
