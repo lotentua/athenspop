@@ -1,16 +1,16 @@
 [project]
 name = "athenspop"
 version = "0.1.0"
-description = "Add your description here"
+description = "Long-form travel survey diary validation, scheduling, sequence analysis, and clustering."
 readme = "README.md"
 authors = [
     { name = "Dimitris Mantas", email = "dimitris.mantas@outlook.com" }
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.4.2",
     "pandas>=3.0.1",
-    "pydantic>=2.12.5",
+    "scipy>=1.17.1",
 ]
 
 [build-system]
@@ -18,6 +18,96 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "ruff>=0.15.4",
+docs = [
+    "myst-parser>=5.1.0",
+    "pydata-sphinx-theme>=0.19.0",
+    "sphinx>=9.1.0",
 ]
+dev = [
+    { include-group = "docs" },
+    "nbmake>=1.5.5",
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.4",
+    "ty>=0.0.50",
+]
+
+[tool.ruff]
+target-version = "py312"
+src = ["src", "tests", "examples"]
+line-length = 160
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812", # Ruff formatter owns trailing comma layout.
+    "D203", # Google-style class docstrings use no blank line before the class docstring.
+    "D213", # Google-style summaries start on the first docstring line.
+    "E501", # The project does not hard-wrap prose; use the formatter for code wrapping.
+    "EM101", # Direct exception messages are clearer than one-use temporary variables in validation-heavy code.
+    "EM102", # Direct formatted exception messages are clearer than one-use temporary variables in validation-heavy code.
+    "S311", # The package uses pseudo-random generators for deterministic simulation, never for cryptography.
+    "TRY003", # User-facing validation messages belong at the call site because they include row, column, and method context.
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"examples/paper/**" = [
+    "ARG001",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "FBT001",
+    "FBT003",
+    "PERF401",
+    "PLC0206",
+    "PLC2701",
+    "PLR0911",
+    "PLR0913",
+    "PLR2004",
+    "RUF007",
+    "RUF046",
+    "S101",
+    "SIM101",
+    "SLF001",
+    "T201",
+    "TC001",
+    "TC003",
+    "TRY004",
+]
+"tests/**" = [
+    "D100",
+    "D103",
+    "PD011",
+    "PLR2004",
+    "S101",
+]
+"docs/conf.py" = [
+    "INP001",
+]
+"src/athenspop/scheduling/engine.py" = [
+    "PLR0911",
+    "PLR0913",
+]
+"src/athenspop/sequence/episodes.py" = [
+    "C901",
+]
+"src/athenspop/validation/report.py" = [
+    "PLR0913",
+]
+"src/athenspop/validation/schema.py" = [
+    "C901",
+    "PLR0912",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ty.environment]
+python-version = "3.12"
