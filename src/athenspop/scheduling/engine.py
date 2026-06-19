@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from random import Random
-from types import MappingProxyType
 
 from athenspop.model import (
     Diary,
@@ -27,9 +26,6 @@ class SchedulingConfig:
         allow_trips_after_observation_window: Whether any trip may depart or arrive after the observation window.
         allow_final_trip_after_observation_window: Whether only the final trip may arrive after the observation window.
         refine_callable_departure_windows: Whether callable travel-time trips use bisection to tighten feasible departure windows against later fixed trips.
-        impute_return_home: Whether to add a simple final return-home trip when a diary ends away from home.
-        home_location_metadata_key: Household metadata key used as the home location for return-home imputation.
-        imputed_trip_id_prefix: Prefix used when creating an imputed return-home trip identifier.
     """
 
     min_activity_duration_seconds: int = 1800
@@ -37,9 +33,6 @@ class SchedulingConfig:
     allow_trips_after_observation_window: bool = False
     allow_final_trip_after_observation_window: bool = False
     refine_callable_departure_windows: bool = True
-    impute_return_home: bool = False
-    home_location_metadata_key: str = "home_zone"
-    imputed_trip_id_prefix: str = "__imputed_return_home__"
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,18 +234,6 @@ def _schedule_diary(
             return _InfeasibleDiary(issues=tuple(issues))
         scheduled_trips.append(realized)
         previous_arrival_second = realized.arrival_second
-    if config.impute_return_home and scheduled_trips:
-        imputed = _maybe_impute_return_home(
-            diary,
-            scheduled_trips,
-            previous_arrival_second=previous_arrival_second,
-            config=config,
-            travel_time_fn=travel_time_fn,
-        )
-        if isinstance(imputed, SchedulingIssue):
-            return _InfeasibleDiary(issues=(imputed,))
-        if imputed is not None:
-            scheduled_trips.append(imputed)
     return _ScheduledDiary(diary=replace(diary, trips=tuple(scheduled_trips)))
 
 
@@ -467,67 +448,6 @@ def _call_travel_time_fn(travel_time_fn: TravelTimeFn, trip: Trip, departure_sec
             trip,
         )
     return result
-
-
-def _maybe_impute_return_home(
-    diary: Diary,
-    scheduled_trips: list[Trip],
-    *,
-    previous_arrival_second: int | None,
-    config: SchedulingConfig,
-    travel_time_fn: TravelTimeFn | None,
-) -> Trip | SchedulingIssue | None:
-    """Optionally append a simple return-home trip using household home-location metadata."""
-    last_trip = scheduled_trips[-1]
-    if last_trip.purpose in {"home", "recreation"}:
-        return None
-    if diary.household is None or config.home_location_metadata_key not in diary.household.values:
-        return _issue(
-            "missing_home_location",
-            f"Return-home imputation requires household metadata `{config.home_location_metadata_key}`.",
-            last_trip,
-        )
-    home_location = str(diary.household.values[config.home_location_metadata_key])
-    if last_trip.destination == home_location:
-        return None
-    if previous_arrival_second is None:
-        return _issue(
-            "missing_previous_arrival",
-            "Return-home imputation requires the previous trip arrival time.",
-            last_trip,
-        )
-    departure_second = previous_arrival_second + config.min_activity_duration_seconds
-    if departure_second > config.observation_window_seconds and not config.allow_trips_after_observation_window:
-        return _issue(
-            "imputed_return_after_observation_window",
-            f"The imputed return-home departure {departure_second} is after the observation window end at {config.observation_window_seconds}.",
-            last_trip,
-        )
-    imputed = Trip(
-        household_id=last_trip.household_id,
-        person_id=last_trip.person_id,
-        trip_id=_imputed_trip_id(config.imputed_trip_id_prefix, scheduled_trips),
-        origin=last_trip.destination,
-        destination=home_location,
-        purpose="home",
-        mode=last_trip.mode,
-        departure_second=departure_second,
-        arrival_second=None,
-        travel_time_seconds=None,
-        departure_window=None,
-        timing_pattern=TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION,
-        metadata=MappingProxyType({"is_imputed_return_home": True}),
-    )
-    return _with_arrival(imputed, departure_second=departure_second, travel_time_fn=travel_time_fn)
-
-
-def _imputed_trip_id(prefix: str, scheduled_trips: list[Trip]) -> str:
-    """Create an imputed trip identifier that does not collide with scheduled trip ids."""
-    existing_ids = {trip.trip_id for trip in scheduled_trips}
-    suffix = len(scheduled_trips) + 1
-    while f"{prefix}{suffix}" in existing_ids:
-        suffix += 1
-    return f"{prefix}{suffix}"
 
 
 def _issue(code: str, message: str, trip: Trip) -> SchedulingIssue:

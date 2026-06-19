@@ -48,10 +48,7 @@ SECOND_COLUMNS: Final[tuple[str, ...]] = (
     "earliest_arrival_second",
     "latest_arrival_second",
 )
-DEFAULT_ACTIVITY_STATES: Final[frozenset[str]] = frozenset({"home", "education", "work", "market", "recreation", "service", "other"})
-DEFAULT_MODE_STATES: Final[frozenset[str]] = frozenset({"bicycle", "bus", "car", "escooter", "motorcycle", "taxi", "train", "walk"})
 DEFAULT_MIN_ACTIVITY_DURATION_SECONDS: Final[int] = 1800
-HOME_LOCATION_COLUMN: Final[str] = "home_zone"
 
 
 class TimingPattern(StrEnum):
@@ -165,7 +162,7 @@ def validate_dataframes(
     timing_patterns = _validate_trip_rows(builder, normalized_trips, travel_time_fn=travel_time_fn)
     if timing_patterns is not None:
         normalized_trips["timing_pattern"] = timing_patterns
-    ordered_trip_rows = _validate_trip_chains(builder, normalized_trips, households=normalized_households)
+    ordered_trip_rows = _validate_trip_chains(builder, normalized_trips)
     report = builder.build()
     if report.has_errors:
         return ValidationResult(report=report, normalized_tables=None)
@@ -382,7 +379,6 @@ def _validate_trip_rows(
                 message=f"`trips` row {row_identifier} {message}",
             )
             continue
-        _warn_unknown_default_categories(builder, row, row_identifier)
         patterns[row_index] = pattern.value
     if not patterns and len(trips.index) > 0:
         return None
@@ -392,8 +388,6 @@ def _validate_trip_rows(
 def _validate_trip_chains(
     builder: ValidationReportBuilder,
     trips: pd.DataFrame,
-    *,
-    households: pd.DataFrame | None,
 ) -> list[Hashable]:
     """Validate diary ordering and chain-level warnings, returning row labels in trusted diary order."""
     valid_trip_rows = [index for index in trips.index if _row_identifier(TRIPS_TABLE, index) not in builder.blocked_rows]
@@ -402,7 +396,6 @@ def _validate_trip_chains(
     sortable = trips.loc[valid_trip_rows].copy()
     sortable["_input_order"] = range(len(sortable))
     ordered_rows: list[Hashable] = []
-    home_locations = _home_locations(households)
     for (household_id, person_id), group in sortable.groupby(["household_id", "person_id"], sort=False):
         chain_identifier = f"household_id={household_id}; person_id={person_id}"
         order_column = _resolve_trip_order_column(builder, group, chain_identifier)
@@ -454,78 +447,7 @@ def _validate_trip_chains(
                 )
             previous_destination = str(row["destination"])
             previous_arrival = computed_arrival
-        if chain_is_valid:
-            _warn_missing_return_home(
-                builder,
-                ordered_group,
-                chain_identifier=chain_identifier,
-                home_location=home_locations.get(str(household_id)),
-            )
     return ordered_rows
-
-
-def _warn_unknown_default_categories(builder: ValidationReportBuilder, row: pd.Series, row_identifier: str) -> None:
-    """Warn when purpose or mode values are outside the package defaults but still valid user-defined labels."""
-    purpose = str(row["purpose"])
-    if purpose not in DEFAULT_ACTIVITY_STATES:
-        builder.add_warning(
-            code="unknown_default_purpose",
-            table=TRIPS_TABLE,
-            row_identifier=row_identifier,
-            column="purpose",
-            bad_value=repr(purpose),
-            message=f"`trips` row {row_identifier} has purpose `{purpose}`, which is outside the default activity labels. Sequence construction may need an explicit mapping before analysis.",
-        )
-    mode = str(row["mode"])
-    if mode not in DEFAULT_MODE_STATES:
-        builder.add_warning(
-            code="unknown_default_mode",
-            table=TRIPS_TABLE,
-            row_identifier=row_identifier,
-            column="mode",
-            bad_value=repr(mode),
-            message=f"`trips` row {row_identifier} has mode `{mode}`, which is outside the default mode labels. Sequence construction may need an explicit mapping before analysis.",
-        )
-
-
-def _warn_missing_return_home(
-    builder: ValidationReportBuilder,
-    ordered_group: pd.DataFrame,
-    *,
-    chain_identifier: str,
-    home_location: str | None,
-) -> None:
-    """Warn when a diary ends away from the inferred or supplied home location."""
-    if ordered_group.empty:
-        return
-    first_row = ordered_group.iloc[0]
-    last_row = ordered_group.iloc[-1]
-    last_purpose = str(last_row["purpose"])
-    if last_purpose in {"home", "recreation"}:
-        return
-    expected_home_location = str(first_row["origin"]) if home_location is None else home_location
-    last_destination = str(last_row["destination"])
-    if last_destination == expected_home_location:
-        return
-    row_identifier = _row_identifier(TRIPS_TABLE, ordered_group.index[-1])
-    builder.add_warning(
-        code="missing_return_home",
-        table=TRIPS_TABLE,
-        row_identifier=row_identifier,
-        column="destination",
-        message=f"`trips` row {row_identifier} ends {chain_identifier} at `{last_destination}` instead of home location `{expected_home_location}`. The workflow may need return-home imputation unless this is an intentional final non-home activity.",
-    )
-
-
-def _home_locations(households: pd.DataFrame | None) -> dict[str, str]:
-    """Read household home locations used for return-home warnings when the optional column exists."""
-    if households is None or HOME_LOCATION_COLUMN not in households.columns:
-        return {}
-    return {
-        str(row["household_id"]): str(row[HOME_LOCATION_COLUMN])
-        for _, row in households.iterrows()
-        if not _is_missing(cast("ScalarValue", row[HOME_LOCATION_COLUMN]))
-    }
 
 
 def _resolve_trip_order_column(builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str) -> str | None:
