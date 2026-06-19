@@ -35,6 +35,12 @@ TRIP_TIMING_COLUMNS: Final[tuple[str, ...]] = (
     "earliest_departure_second",
     "latest_departure_second",
 )
+TRIP_RESERVED_COLUMNS: Final[tuple[str, ...]] = (
+    *TRIP_REQUIRED_COLUMNS,
+    *TRIP_TIMING_COLUMNS,
+    "trip_sequence",
+    "timing_pattern",
+)
 UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS: Final[tuple[str, ...]] = (
     "earliest_arrival_second",
     "latest_arrival_second",
@@ -173,6 +179,11 @@ def validate_dataframes(
         normalized_persons if table_is_usable[PERSONS_TABLE] else None,
         normalized_households if table_is_usable[HOUSEHOLDS_TABLE] else None,
     )
+    _validate_metadata_values(builder, normalized_trips, table=TRIPS_TABLE, reserved_columns=TRIP_RESERVED_COLUMNS)
+    if normalized_persons is not None and table_is_usable[PERSONS_TABLE]:
+        _validate_metadata_values(builder, normalized_persons, table=PERSONS_TABLE, reserved_columns=PERSON_KEY_COLUMNS)
+    if normalized_households is not None and table_is_usable[HOUSEHOLDS_TABLE]:
+        _validate_metadata_values(builder, normalized_households, table=HOUSEHOLDS_TABLE, reserved_columns=HOUSEHOLD_KEY_COLUMNS)
     timing_patterns = _validate_trip_rows(builder, normalized_trips, travel_time_function=travel_time_function)
     if timing_patterns is not None:
         normalized_trips["timing_pattern"] = timing_patterns
@@ -309,6 +320,45 @@ def _validate_joins(
                         message=f"`persons` row {_row_identifier(PERSONS_TABLE, row_index)} references a household that is not present in `households`.",
                         suppress_row=False,
                     )
+
+
+def _validate_metadata_values(
+    builder: ValidationReportBuilder,
+    frame: pd.DataFrame,
+    *,
+    table: str,
+    reserved_columns: tuple[str, ...],
+) -> None:
+    """Validate user metadata columns before trusted model construction preserves them."""
+    metadata_columns = [column for column in frame.columns if str(column) not in reserved_columns]
+    for row_index, row in frame.iterrows():
+        row_identifier = _row_identifier(table, row_index)
+        if row_identifier in builder.blocked_rows:
+            continue
+        for column in metadata_columns:
+            if not pd.api.types.is_scalar(row[column]):
+                builder.add_error(
+                    code="unsupported_metadata_value",
+                    table=table,
+                    row_identifier=row_identifier,
+                    column=str(column),
+                    bad_value=repr(row[column]),
+                    message=f"`{table}` row {row_identifier} has non-scalar metadata in `{column}`. Extra metadata columns must contain simple scalar values.",
+                )
+                break
+            value = cast("ScalarValue", row[column])
+            if _is_missing(value):
+                continue
+            if not isinstance(value, str | int | float | bool | np.integer | np.floating | np.bool_):
+                builder.add_error(
+                    code="unsupported_metadata_value",
+                    table=table,
+                    row_identifier=row_identifier,
+                    column=str(column),
+                    bad_value=repr(row[column]),
+                    message=f"`{table}` row {row_identifier} has unsupported metadata in `{column}`. Extra metadata columns must contain strings, numbers, booleans, or missing values.",
+                )
+                break
 
 
 def _validate_trip_rows(

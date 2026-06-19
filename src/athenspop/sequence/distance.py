@@ -67,7 +67,7 @@ def dissimilarity_matrix(
         sequences:
             Symbolic state sequences to compare pairwise.
         substitution_cost:
-            Pairwise substitution costs keyed by `(source_state, target_state)`.
+            Symmetric pairwise substitution costs keyed by `(source_state, target_state)`.
         indel_cost:
             Positive insertion/deletion cost.
 
@@ -76,7 +76,7 @@ def dissimilarity_matrix(
 
     Raises:
         ValueError:
-            If `indel_cost` is not positive or a required substitution cost is missing.
+            If `indel_cost` is not positive, a required substitution cost is missing, or an observed substitution cost differs from its reverse direction.
 
     Notes:
         Sequences are encoded once and same-length targets are batched to reduce repeated Python-loop overhead.
@@ -106,7 +106,7 @@ def dissimilarity_matrix(
 
 
 def _lookup_substitution_cost(source: str, target: str, substitution_cost: dict[tuple[str, str], float]) -> float:
-    """Return zero for identical states or look up the explicit asymmetric substitution cost."""
+    """Return zero for identical states or look up the explicit substitution cost."""
     if source == target:
         return 0.0
     try:
@@ -122,6 +122,7 @@ def _encode_sequences(
 ) -> tuple[tuple[tuple[int, ...], ...], CostMatrix]:
     """Encode string sequences as integer codes and build the corresponding dense substitution-cost matrix."""
     states = tuple(sorted({state for sequence in sequences for state in sequence}))
+    _validate_symmetric_substitution_costs(states, substitution_cost)
     state_codes = {state: code for code, state in enumerate(states)}
     cost_matrix = np.zeros((len(states), len(states)), dtype=np.float64)
     for source in states:
@@ -131,6 +132,18 @@ def _encode_sequences(
             cost_matrix[source_code, target_code] = _lookup_substitution_cost(source, target, substitution_cost)
     encoded_sequences = tuple(tuple(state_codes[state] for state in sequence) for sequence in sequences)
     return encoded_sequences, cast("CostMatrix", cost_matrix)
+
+
+def _validate_symmetric_substitution_costs(states: Sequence[str], substitution_cost: dict[tuple[str, str], float]) -> None:
+    """Reject directed substitution costs before building a symmetric dissimilarity matrix."""
+    for source_index, source in enumerate(states):
+        for target in states[source_index + 1 :]:
+            forward_cost = _lookup_substitution_cost(source, target, substitution_cost)
+            reverse_cost = _lookup_substitution_cost(target, source, substitution_cost)
+            if not np.isclose(forward_cost, reverse_cost, rtol=1e-12, atol=1e-12):
+                raise ValueError(
+                    f"`dissimilarity_matrix` requires symmetric substitution costs for clustering; got {forward_cost} for {source!r} -> {target!r} and {reverse_cost} for {target!r} -> {source!r}."
+                )
 
 
 def _batch_optimal_matching_dissimilarities(

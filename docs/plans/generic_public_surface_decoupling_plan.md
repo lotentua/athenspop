@@ -148,7 +148,7 @@ tests/
 ## Test Decoupling Plan
 
 - Keep top-level `tests/` focused on generic library contracts: input-table validation, optional persons/households, timing patterns, scheduling, generation, IO boundaries, episodes, sequence discretization, optimal matching, clustering, object-returning visualization, portability across mentioned survey families after local mapping, and public imports.
-- Move `tests/test_athens_demographics.py`, `tests/test_athens_imputation.py`, `tests/test_athens_input_conversion.py`, `tests/test_athens_reproduction_artifacts.py`, `tests/test_athens_reproduction_smoke_example.py`, and `tests/test_athens_visualization.py` into `examples/athens/tests`.
+- Athens-specific tests now live under `examples/athens/tests`, including `test_demographics.py`, `test_imputation.py`, `test_input_conversion.py`, `test_reproduction_artifacts.py`, `test_smoke.py`, `test_travel_time.py`, and `test_visualization.py`.
 - Move or merge `examples/athens/test_method.py` and `examples/athens/test_travel_time.py` into the same `examples/athens/tests` package so all example tests have one home.
 - Rename imports from `examples.athens_reproduction_smoke` to `examples.athens.smoke` after moving the smoke module.
 - Keep Athens example tests runnable with `uv run pytest -q examples/athens/tests` but separate from the generic package quality gate when a maintainer wants to test only the library.
@@ -184,7 +184,7 @@ tests/
 
 ### Phase 2: Internal And Example Documentation Relocation
 
-- Move `docs/user_guide/athens_reproduction.md`, `docs/user_guide/athens_walkthrough.md`, `docs/design/athens_method_contract.md`, and `docs/design/athens_output_manifest.md` into `examples/athens/docs`.
+- Completed migration target: `examples/athens/docs/athens_reproduction.md`, `examples/athens/docs/athens_walkthrough.md`, `examples/athens/docs/athens_method_contract.md`, and `examples/athens/docs/athens_output_manifest.md`.
 - Move first-release evidence notes such as `docs/design/release_readiness.md`, `docs/design/profiling_notes.md`, and `docs/plans/long_canonical_rewrite_plan.md` out of the public Sphinx toctree; keep them as internal retained history excluded from Sphinx if still useful.
 - Convert `docs/design/scheduling_method_note.md`, `docs/design/activitysim_adaptation_note.md`, and `docs/design/sequenzo_decision_gate.md` into generic concept or development notes by removing paper and first-release authority language, or move them to internal/example docs if they remain paper-specific.
 - Update `docs/conf.py` `exclude_patterns` with source-relative patterns such as `plans/**` so internal plans and generated example outputs never appear in public builds by accident.

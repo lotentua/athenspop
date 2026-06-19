@@ -170,6 +170,74 @@ def test_float_seconds_are_rejected_even_when_integer_valued() -> None:
     assert [issue.code for issue in result.report.errors] == ["invalid_second"]
 
 
+def test_mixed_timing_patterns_accept_nullable_integer_second_columns() -> None:
+    trips = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "bus",
+                "trip_sequence": 1,
+                "earliest_departure_second": 0,
+                "latest_departure_second": 10,
+                "travel_time_seconds": 20,
+            },
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t2",
+                "origin": "work",
+                "destination": "home",
+                "purpose": "home",
+                "mode": "bus",
+                "trip_sequence": 2,
+                "departure_second": 100,
+                "travel_time_seconds": 20,
+            },
+        ]
+    )
+    for column in (
+        "trip_sequence",
+        "departure_second",
+        "travel_time_seconds",
+        "earliest_departure_second",
+        "latest_departure_second",
+    ):
+        trips[column] = trips[column].astype("Int64")
+    result = validate_dataframes(trips)
+    assert not result.report.has_errors
+    dataset = SurveyDataset.from_dataframes(trips)
+    assert dataset.diaries[0].trips[0].departure_window is not None
+    assert dataset.diaries[0].trips[1].departure_second == 100
+
+
+def test_non_scalar_metadata_is_rejected_at_validation_boundary() -> None:
+    trips = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "bus",
+                "departure_second": 0,
+                "arrival_second": 900,
+            }
+        ]
+    )
+    persons = pd.DataFrame([{"household_id": "h1", "person_id": "p1", "tags": ["student", "worker"]}])
+    result = validate_dataframes(trips, persons=persons)
+    assert [issue.code for issue in result.report.errors] == ["unsupported_metadata_value"]
+    with pytest.raises(ValidationError, match="1 error"):
+        SurveyDataset.from_dataframes(trips, persons=persons)
+
+
 def test_origin_mismatch_is_warning_not_hard_error() -> None:
     trips = pd.DataFrame(
         [

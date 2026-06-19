@@ -6,6 +6,7 @@ from athenspop.model import Diary, Trip
 from athenspop.sequence import (
     Episode,
     discretize_episodes,
+    dissimilarity_matrix,
     episodes_from_diary,
     overlap_duration,
     state_sequence_from_diary,
@@ -261,3 +262,14 @@ def test_sequence_bridge_accepts_scheduled_dataset_from_public_loader() -> None:
         interval_seconds=900,
     )
     assert states == ("home", "trip_bus", "work")
+
+
+def test_dissimilarity_matrix_rejects_asymmetric_substitution_costs() -> None:
+    with pytest.raises(ValueError, match="requires symmetric substitution costs"):
+        dissimilarity_matrix(
+            (("home",), ("work",)),
+            substitution_cost={
+                ("home", "work"): 1.0,
+                ("work", "home"): 5.0,
+            },
+        )

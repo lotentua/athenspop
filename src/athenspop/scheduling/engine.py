@@ -30,6 +30,7 @@ class SchedulingConfig:
             Whether only the final trip may arrive after the observation window.
         refine_callable_departure_windows:
             Whether callable travel-time trips use bisection to tighten feasible departure windows against later fixed trips.
+            Keep this enabled only when the travel-time callable is deterministic and FIFO over the searched window, meaning later departures cannot produce earlier arrivals.
     """
 
     min_activity_duration_seconds: int = 1800
@@ -153,6 +154,7 @@ def schedule_once(
             Optional scheduling policy; defaults are used when omitted.
         travel_time_function:
             Optional callable returning positive integer travel seconds for trips whose duration is not already concrete.
+            When callable departure-window refinement is enabled, this function must make departure second plus travel time monotone nondecreasing over each searched departure window.
 
     Returns:
         A scheduled dataset containing only feasible diaries plus diagnostics for attempted and infeasible diaries.

@@ -102,4 +102,4 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 - The sequence stage must report shape `(512, 96)` for the final paper state sequences.
 - The cost stage must report a symmetric substitution matrix with zero diagonal, scalar indel `1`, and a dedicated self-transition exclusion fixture.
 - The clustering stage must report average linkage and a 10-cluster presentation.
-- The output manifest in `docs/design/athens_output_manifest.md` lists the required public artifacts and their v1 acceptance rules.
+- The output manifest in `examples/athens/docs/athens_output_manifest.md` lists the required example artifacts and their acceptance rules.

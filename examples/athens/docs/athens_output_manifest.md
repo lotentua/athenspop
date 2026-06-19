@@ -6,7 +6,7 @@ This manifest lists the v1 paper-reproduction artifacts that must be generated o
 
 | Artifact | Target path | Deterministic inputs | Acceptance rule |
 | --- | --- | --- | --- |
-| Source hash report | `examples/athens/output/full/source_hashes.json` | `CSuM2026.zip`, `CSuM2026.pdf`, and key members inside `CSuM2026.zip` | SHA256 values match `docs/design/athens_method_contract.md`. |
+| Source hash report | `examples/athens/output/full/source_hashes.json` | `CSuM2026.zip`, `CSuM2026.pdf`, and key members inside `CSuM2026.zip` | SHA256 values match `examples/athens/docs/athens_method_contract.md`. |
 | Migrated wide diary source | `examples/athens/data/raw_diaries_athens_wide.csv` | Legacy 513-row survey export migrated from the removed `examples/v1` surface | 513 rows and the expected CSuM-style wide columns; the converter test reports 1347 canonical trips. |
 | Input stage report | `examples/athens/output/full/input_stage_report.json` | Canonical input conversion | Reports raw diary count, canonical trip count, person count, household count, source fixture or full source path, and whether the run is smoke or full paper data. |
 | Canonical trips table | `examples/athens/output/full/data/trips.csv` | Legacy raw survey export plus documented preprocessing | Long-form table with required canonical columns and exactly one supported timing pattern per row. |

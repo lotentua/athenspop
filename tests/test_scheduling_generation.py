@@ -223,6 +223,60 @@ def test_schedule_once_refines_windows_against_future_callable_trips() -> None:
     assert second_trip.departure_second == 1_200
 
 
+def test_schedule_once_can_disable_callable_refinement_for_non_fifo_functions() -> None:
+    trips = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "car",
+                "trip_sequence": 1,
+                "earliest_departure_second": 0,
+                "latest_departure_second": 6,
+            },
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t2",
+                "origin": "work",
+                "destination": "home",
+                "purpose": "home",
+                "mode": "car",
+                "trip_sequence": 2,
+                "departure_second": 10,
+                "arrival_second": 11,
+            },
+        ],
+        dtype=object,
+    )
+
+    def non_fifo_travel_time(origin: str, destination: str, mode: str, departure_second: int) -> int:
+        del origin, destination, mode
+        return 100 if departure_second < 5 else 1
+
+    dataset = SurveyDataset.from_dataframes(trips, travel_time_function=non_fifo_travel_time)
+    refined = schedule_once(
+        dataset,
+        seed=0,
+        config=SchedulingConfig(min_activity_duration_seconds=0),
+        travel_time_function=non_fifo_travel_time,
+    )
+    unrefined = schedule_once(
+        dataset,
+        seed=0,
+        config=SchedulingConfig(min_activity_duration_seconds=0, refine_callable_departure_windows=False),
+        travel_time_function=non_fifo_travel_time,
+    )
+    assert refined.diagnostics.scheduled_diaries == 0
+    assert unrefined.diagnostics.scheduled_diaries == 1
+    assert unrefined.diaries[0].trips[0].departure_second == 6
+    assert unrefined.diaries[0].trips[0].arrival_second == 7
+
+
 def test_schedule_once_checks_travel_time_function_at_scheduler_boundary() -> None:
     trips = pd.DataFrame(
         [

@@ -23,3 +23,5 @@ It keeps probability-table and logit scheduling out of the public API until thos
 
 Travel-time callables must return strictly positive integer seconds.
 Seeded reproducibility is guaranteed only when user travel-time callables are deterministic with respect to their inputs and stable external data.
+The default callable-window refinement assumes FIFO travel times: `departure_second + travel_time_function(origin, destination, mode, departure_second)` must be monotone nondecreasing over the searched departure window.
+Set `SchedulingConfig(refine_callable_departure_windows=False)` when a callable is stochastic or can produce later departures that arrive earlier.
