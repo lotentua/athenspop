@@ -47,9 +47,7 @@ def period_label(second: int) -> int:
         return 3
     if 12 * 3600 <= second < 15 * 3600:
         return 4
-    raise ValueError(
-        f"`second` must be in [0, {ATHENS_WINDOW_SECONDS}], got {second}."
-    )
+    raise ValueError(f"`second` must be in [0, {ATHENS_WINDOW_SECONDS}], got {second}.")
 
 
 def compound_sequence_from_diary(
@@ -59,7 +57,9 @@ def compound_sequence_from_diary(
     window_end_second: int = ATHENS_WINDOW_SECONDS,
     interval_seconds: int = ATHENS_DELTA_SECONDS,
 ) -> tuple[str, ...]:
-    """Convert one scheduled diary into the reduced compound state-period sequence used by the Athens example."""
+    """Convert one scheduled diary into the reduced compound state-period sequence
+    used by the Athens example.
+    """
     states = state_sequence_from_diary(
         diary,
         initial_activity_state=initial_activity_state,
@@ -86,7 +86,7 @@ def compound_period_sequence(
 
 
 def reduce_athens_state(state: str) -> str:
-    """Reduce an activity or `trip_` mode state according to the Athens example alphabet."""
+    "Reduce an activity or `trip_` mode state according to the Athens example alphabet."
     if state in _ACTIVITY_REDUCTION:
         return _ACTIVITY_REDUCTION[state]
     if state.startswith("trip_"):
@@ -99,7 +99,7 @@ def reduce_athens_state(state: str) -> str:
 def transition_counts(
     sequences: Iterable[Sequence[str]],
 ) -> dict[tuple[str, str], int]:
-    """Count non-self transitions across state sequences using the CSuM2026 example rule."""
+    "Count non-self transitions across state sequences using the CSuM2026 example rule."
     counts: dict[tuple[str, str], int] = {}
     for sequence in sequences:
         for source, target in zip(sequence, sequence[1:], strict=False):
@@ -113,14 +113,14 @@ def transition_counts(
 def transition_probabilities(
     sequences: Iterable[Sequence[str]],
 ) -> dict[tuple[str, str], float]:
-    """Compute empirical transition probabilities with self-transitions excluded from denominators."""
+    """Compute empirical transition probabilities with self-transitions excluded
+    from denominators.
+    """
     materialized_sequences = tuple(tuple(sequence) for sequence in sequences)
     states = _states(materialized_sequences)
     counts = transition_counts(materialized_sequences)
     denominators = {
-        state: sum(
-            count for (source, _), count in counts.items() if source == state
-        )
+        state: sum(count for (source, _), count in counts.items() if source == state)
         for state in states
     }
     probabilities: dict[tuple[str, str], float] = {}
@@ -160,7 +160,9 @@ def substitution_costs(
 def athens_dissimilarity_matrix(
     sequences: Sequence[Sequence[str]], *, indel_cost: float = 1.0
 ) -> DissimilarityMatrix:
-    """Compute the Athens example pairwise OM matrix using local CSuM2026 substitution costs."""
+    """Compute the Athens example pairwise OM matrix using local CSuM2026
+    substitution costs.
+    """
     materialized = tuple(tuple(sequence) for sequence in sequences)
     return dissimilarity_matrix(
         materialized,
@@ -170,6 +172,4 @@ def athens_dissimilarity_matrix(
 
 
 def _states(sequences: Sequence[Sequence[str]]) -> tuple[str, ...]:
-    return tuple(
-        sorted({state for sequence in sequences for state in sequence})
-    )
+    return tuple(sorted({state for sequence in sequences for state in sequence}))

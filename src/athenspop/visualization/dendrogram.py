@@ -106,18 +106,20 @@ def plot_cut_dendrogram_state_distribution(
         linkage_matrix:
             SciPy linkage matrix defining the hierarchy over the supplied observations.
         sequences:
-            Equal-length state sequences aligned with the observations used to compute `linkage_matrix`.
+            Equal-length state sequences aligned with the observations used to
+            compute `linkage_matrix`.
         n_clusters:
             Number of displayed cut clusters.
         style:
             Optional display settings, including optional state grouping and labels.
 
     Returns:
-        Matplotlib figure containing one axis with a generic cut-dendrogram visualization.
+        Matplotlib figure containing one generic cut-dendrogram axis.
 
     Raises:
         ValueError:
-            If the sequence count does not match the linkage observation count, if sequences are not equal length, or if a state group names a state that does not appear in `sequences`.
+            If the sequence and linkage counts differ, sequences are not equal
+            length, or a state group names an absent state.
 
     Notes:
         The function returns a figure and never writes files.
@@ -128,7 +130,8 @@ def plot_cut_dendrogram_state_distribution(
     expected_sequence_count = int(linkage_matrix.shape[0]) + 1
     if len(materialized_sequences) != expected_sequence_count:
         raise ValueError(
-            f"`sequences` must contain {expected_sequence_count} rows for this linkage matrix, got {len(materialized_sequences)}."
+            f"`sequences` must contain {expected_sequence_count} rows for this "
+            f"linkage matrix, got {len(materialized_sequences)}."
         )
 
     groups = _state_groups(materialized_sequences, resolved_style.state_groups)
@@ -337,9 +340,7 @@ def _state_shares(
     for member in node.members:
         for bin_index, state in enumerate(sequences[member]):
             if state in state_set:
-                counts[(bin_index, state)] = (
-                    counts.get((bin_index, state), 0) + 1
-                )
+                counts[(bin_index, state)] = counts.get((bin_index, state), 0) + 1
     denominator = len(node.members)
     return {key: count / denominator for key, count in counts.items()}
 
@@ -364,7 +365,8 @@ def _state_groups(
         unknown = sorted(set(materialized_group) - state_set)
         if unknown:
             raise ValueError(
-                f"State group {title!r} contains unknown state(s): {', '.join(unknown)}."
+                f"State group {title!r} contains unknown state(s): "
+                f"{', '.join(unknown)}."
             )
         groups.append((str(title), materialized_group))
     return tuple(groups)
@@ -372,22 +374,16 @@ def _state_groups(
 
 def _states(sequences: tuple[tuple[str, ...], ...]) -> tuple[str, ...]:
     """Return sorted unique states from materialized sequences."""
-    return tuple(
-        sorted({state for sequence in sequences for state in sequence})
-    )
+    return tuple(sorted({state for sequence in sequences for state in sequence}))
 
 
 def _state_color_map(
     sequences: tuple[tuple[str, ...], ...], style: TemporalDendrogramPlotStyle
 ) -> dict[str, str]:
     """Return a complete state color mapping."""
-    explicit_colors = (
-        {} if style.state_colors is None else dict(style.state_colors)
-    )
+    explicit_colors = {} if style.state_colors is None else dict(style.state_colors)
     return {
-        state: explicit_colors.get(
-            state, _DEFAULT_COLORS[index % len(_DEFAULT_COLORS)]
-        )
+        state: explicit_colors.get(state, _DEFAULT_COLORS[index % len(_DEFAULT_COLORS)])
         for index, state in enumerate(_states(sequences))
     }
 
@@ -396,9 +392,7 @@ def _state_label_map(
     sequences: tuple[tuple[str, ...], ...], style: TemporalDendrogramPlotStyle
 ) -> dict[str, str]:
     """Return a complete state label mapping."""
-    explicit_labels = (
-        {} if style.state_labels is None else dict(style.state_labels)
-    )
+    explicit_labels = {} if style.state_labels is None else dict(style.state_labels)
     return {
         state: explicit_labels.get(state, state.replace("_", " ").title())
         for state in _states(sequences)
@@ -419,11 +413,7 @@ def _node_top_left(
     node: CutDendrogramNode, style: TemporalDendrogramPlotStyle
 ) -> tuple[float, float]:
     """Return top-left coordinates for one displayed node."""
-    center_x = (
-        style.margin_x
-        + style.node_width / 2.0
-        + node.order * style.leaf_spacing
-    )
+    center_x = style.margin_x + style.node_width / 2.0 + node.order * style.leaf_spacing
     top_y = style.margin_top + node.depth * style.depth_spacing
     return center_x - style.node_width / 2.0, top_y
 
@@ -454,7 +444,5 @@ def _node_anchor_bottom(
 def _required_child(node: CutDendrogramNode | None) -> CutDendrogramNode:
     """Return a required immutable displayed child."""
     if node is None:
-        raise ValueError(
-            "Expanded displayed dendrogram nodes must have both children."
-        )
+        raise ValueError("Expanded displayed dendrogram nodes must have both children.")
     return node

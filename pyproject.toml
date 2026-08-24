@@ -3,8 +3,19 @@ name = "athenspop"
 version = "0.1.0"
 description = "Long-form travel survey diary validation, scheduling, sequence analysis, and clustering."
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Dimitris Mantas", email = "dimitris.mantas@outlook.com" }
+]
+keywords = ["activity-travel", "clustering", "scheduling", "travel-survey"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -12,6 +23,9 @@ dependencies = [
     "pandas>=3.0.1",
     "scipy>=1.17.1",
 ]
+
+[project.urls]
+Repository = "https://github.com/lotentua/athenspop"
 
 [project.optional-dependencies]
 visualization = [
@@ -24,25 +38,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/docs",
-    "/examples",
     "/src",
-    "/tests",
     "/LICENSE",
     "/README.md",
     "/pyproject.toml",
     "/uv.lock",
 ]
-exclude = [
-    "/.claude",
-    "/CSuM2026.pdf",
-    "/CSuM2026.zip",
-    "/docs/_build",
-    "/docs/design",
-    "/docs/plans",
-    "/examples/athens/data",
-    "/tests/example_data",
-]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/athenspop"]
 
 [dependency-groups]
 docs = [
@@ -53,89 +57,14 @@ docs = [
 dev = [
     { include-group = "docs" },
     "matplotlib>=3.10.8",
-    "nbmake>=1.5.5",
     "pytest>=9.0.0",
-    "pytest-cov>=7.0.0",
-    "ruff>=0.15.4",
+    "ruff>=0.15.8",
     "ty>=0.0.50",
 ]
 
-[tool.ruff]
-target-version = "py312"
-src = ["src", "tests", "examples"]
-line-length = 80
-
 [tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-    "COM812", # Ruff formatter owns trailing comma layout.
-    "D203", # Google-style class docstrings use no blank line before the class docstring.
-    "D213", # Google-style summaries start on the first docstring line.
-    "E501", # The project does not hard-wrap prose; use the formatter for code wrapping.
-    "EM101", # Direct exception messages are clearer than one-use temporary variables in validation-heavy code.
-    "EM102", # Direct formatted exception messages are clearer than one-use temporary variables in validation-heavy code.
-    "S311", # The package uses pseudo-random generators for deterministic simulation, never for cryptography.
-    "TRY003", # User-facing validation messages belong at the call site because they include row, column, and method context.
-]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.lint.per-file-ignores]
-"examples/athens/**" = [
-    "ARG001",
-    "D100",
-    "D101",
-    "D102",
-    "D103",
-    "D104",
-    "D105",
-    "D107",
-    "FBT001",
-    "FBT003",
-    "PERF401",
-    "PLC0206",
-    "PLC2701",
-    "PLR0911",
-    "PLR0913",
-    "PLR2004",
-    "RUF007",
-    "RUF046",
-    "S101",
-    "SIM101",
-    "SLF001",
-    "T201",
-    "TC001",
-    "TC003",
-    "TRY004",
-]
-"tests/**" = [
-    "D100",
-    "D103",
-    "PD011",
-    "PLR2004",
-    "S101",
-]
-"docs/conf.py" = [
-    "INP001",
-]
-"src/athenspop/scheduling/engine.py" = [
-    "PLR0911",
-    "PLR0913",
-]
-"src/athenspop/sequence/episodes.py" = [
-    "C901",
-]
-"src/athenspop/validation/report.py" = [
-    "PLR0913",
-]
-"src/athenspop/validation/schema.py" = [
-    "C901",
-    "PLR0912",
-]
+select = ["E", "W", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
 testpaths = ["tests", "examples/athens/tests"]
-
-[tool.ty.environment]
-python-version = "3.12"

@@ -108,15 +108,40 @@ def test_travel_time_function_is_checked_when_model_resolves_duration() -> None:
         trips, travel_time_function=_constant_travel_time(120)
     )
     assert dataset.diaries[0].trips[0].arrival_second == 180
-    with pytest.raises(ValueError, match="strictly positive integer"):
+    with pytest.raises(ValidationError) as error:
         SurveyDataset.from_dataframes(
             trips, travel_time_function=_constant_travel_time(0)
         )
+    assert error.value.report.errors[0].code == ("invalid_travel_time_function_result")
 
 
-def test_validation_collects_join_and_timing_errors_without_cascade() -> (
-    None
-):
+def test_callable_resolution_is_included_in_final_chain_validation() -> None:
+    trips = pd.DataFrame(
+        [
+            _trip_row(
+                trip_id="t1",
+                trip_sequence=1,
+                arrival_second=None,
+            ),
+            _trip_row(
+                trip_id="t2",
+                trip_sequence=2,
+                origin="work",
+                destination="home",
+                purpose="home",
+                departure_second=50,
+                arrival_second=60,
+            ),
+        ],
+        dtype=object,
+    )
+
+    result = validate_dataframes(trips, travel_time_function=_constant_travel_time(100))
+
+    assert "overlapping_trips" in {issue.code for issue in result.report.errors}
+
+
+def test_validation_collects_join_and_timing_errors_without_cascade() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -170,9 +195,7 @@ def test_ambiguous_timing_pattern_raises_concise_validation_error() -> None:
         ]
     )
     result = validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == [
-        "invalid_timing_pattern"
-    ]
+    assert [issue.code for issue in result.report.errors] == ["invalid_timing_pattern"]
     with pytest.raises(ValidationError):
         result.report.raise_if_invalid()
 
@@ -192,12 +215,68 @@ def test_table_level_validation_diagnostic_codes_are_reported() -> None:
         "duplicate_columns"
     ]
 
-    missing_columns = validate_dataframes(
-        pd.DataFrame([{"household_id": "h1"}])
-    )
+    missing_columns = validate_dataframes(pd.DataFrame([{"household_id": "h1"}]))
     assert [issue.code for issue in missing_columns.report.errors] == [
         "missing_required_columns"
     ]
+
+
+@pytest.mark.parametrize("table_name", ["persons", "households"])
+def test_invalid_optional_table_type_returns_validation_report(
+    table_name: str,
+) -> None:
+    invalid_table = cast("pd.DataFrame", 42)
+    result = (
+        validate_dataframes(pd.DataFrame([_trip_row()]), persons=invalid_table)
+        if table_name == "persons"
+        else validate_dataframes(pd.DataFrame([_trip_row()]), households=invalid_table)
+    )
+
+    assert [issue.code for issue in result.report.errors] == ["table_not_dataframe"]
+    assert result.normalized_tables is None
+
+
+def test_duplicate_dataframe_index_is_rejected_before_row_mutation() -> None:
+    trips = pd.DataFrame(
+        [
+            _trip_row(trip_id="t1"),
+            _trip_row(
+                trip_id="t2",
+                departure_second=1_800,
+                arrival_second=2_700,
+            ),
+        ],
+        index=[0, 0],
+    )
+
+    result = validate_dataframes(trips)
+
+    assert [issue.code for issue in result.report.errors] == ["duplicate_index"]
+
+
+def test_metadata_column_names_must_be_unique_after_string_normalization() -> None:
+    trips = pd.DataFrame([_trip_row()])
+    trips[1] = "first"
+    trips["1"] = "second"
+
+    result = validate_dataframes(trips)
+
+    assert [issue.code for issue in result.report.errors] == [
+        "normalized_column_collision"
+    ]
+
+
+def test_non_callable_travel_time_function_returns_boundary_diagnostic() -> None:
+    trips = pd.DataFrame([_trip_row(arrival_second=None)])
+
+    result = validate_dataframes(
+        trips,
+        travel_time_function=cast("TravelTimeFunction", 42),
+    )
+
+    assert "travel_time_function_not_callable" in {
+        issue.code for issue in result.report.errors
+    }
 
 
 def test_float_seconds_are_rejected_even_when_integer_valued() -> None:
@@ -297,9 +376,7 @@ def test_non_scalar_key_and_movement_values_are_rejected_at_boundary() -> None:
 
 
 def test_trip_row_domain_diagnostic_codes_are_reported_once() -> None:
-    missing_value = validate_dataframes(
-        pd.DataFrame([_trip_row(origin="")])
-    )
+    missing_value = validate_dataframes(pd.DataFrame([_trip_row(origin="")]))
     assert [issue.code for issue in missing_value.report.errors] == [
         "missing_trip_value"
     ]
@@ -427,15 +504,11 @@ def test_origin_mismatch_is_warning_not_hard_error() -> None:
     result = validate_dataframes(trips)
     assert not result.report.has_errors
     assert result.report.has_warnings
-    assert [issue.code for issue in result.report.warnings] == [
-        "origin_mismatch"
-    ]
+    assert [issue.code for issue in result.report.warnings] == ["origin_mismatch"]
     result.report.raise_if_invalid()
 
 
-def test_validation_does_not_assume_scheduler_minimum_activity_duration() -> (
-    None
-):
+def test_validation_does_not_assume_scheduler_minimum_activity_duration() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -469,12 +542,8 @@ def test_validation_does_not_assume_scheduler_minimum_activity_duration() -> (
     assert result.report.warnings == ()
 
 
-def test_household_metadata_does_not_create_study_specific_chain_warnings() -> (
-    None
-):
-    households = pd.DataFrame(
-        [{"household_id": "h1", "home_zone": "zone-home"}]
-    )
+def test_household_metadata_does_not_create_study_specific_chain_warnings() -> None:
+    households = pd.DataFrame([{"household_id": "h1", "home_zone": "zone-home"}])
     trips = pd.DataFrame(
         [
             {
@@ -490,9 +559,7 @@ def test_household_metadata_does_not_create_study_specific_chain_warnings() -> (
             }
         ]
     )
-    assert (
-        validate_dataframes(trips, households=households).report.warnings == ()
-    )
+    assert validate_dataframes(trips, households=households).report.warnings == ()
 
 
 def test_user_defined_purpose_and_mode_labels_are_valid() -> None:
@@ -516,9 +583,7 @@ def test_user_defined_purpose_and_mode_labels_are_valid() -> None:
     assert result.report.warnings == ()
 
 
-def test_trip_sequence_orders_model_trips_when_input_rows_are_unsorted() -> (
-    None
-):
+def test_trip_sequence_orders_model_trips_when_input_rows_are_unsorted() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -574,9 +639,7 @@ def test_departure_window_requires_explicit_trip_sequence() -> None:
         ]
     )
     result = validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == [
-        "unresolved_trip_order"
-    ]
+    assert [issue.code for issue in result.report.errors] == ["unresolved_trip_order"]
     assert result.report.invalid_chains == ("household_id=h1; person_id=p1",)
 
 
@@ -608,9 +671,7 @@ def test_duplicate_concrete_departures_require_trip_sequence() -> None:
         ]
     )
     result = validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == [
-        "unresolved_trip_order"
-    ]
+    assert [issue.code for issue in result.report.errors] == ["unresolved_trip_order"]
 
 
 def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
@@ -630,9 +691,9 @@ def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
             }
         ]
     )
-    assert [
-        issue.code for issue in validate_dataframes(invalid).report.errors
-    ] == ["invalid_trip_sequence"]
+    assert [issue.code for issue in validate_dataframes(invalid).report.errors] == [
+        "invalid_trip_sequence"
+    ]
     duplicate = pd.DataFrame(
         [
             {
@@ -661,9 +722,9 @@ def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
             },
         ]
     )
-    assert [
-        issue.code for issue in validate_dataframes(duplicate).report.errors
-    ] == ["duplicate_trip_sequence"]
+    assert [issue.code for issue in validate_dataframes(duplicate).report.errors] == [
+        "duplicate_trip_sequence"
+    ]
 
 
 def test_join_and_chain_diagnostic_codes_are_reported() -> None:
@@ -691,8 +752,7 @@ def test_join_and_chain_diagnostic_codes_are_reported() -> None:
 
     missing_sequence = pd.DataFrame([_trip_row(trip_sequence=None)])
     assert [
-        issue.code
-        for issue in validate_dataframes(missing_sequence).report.errors
+        issue.code for issue in validate_dataframes(missing_sequence).report.errors
     ] == ["missing_trip_sequence"]
 
     overlapping = pd.DataFrame(
@@ -711,6 +771,6 @@ def test_join_and_chain_diagnostic_codes_are_reported() -> None:
             ),
         ]
     )
-    assert [
-        issue.code for issue in validate_dataframes(overlapping).report.errors
-    ] == ["overlapping_trips"]
+    assert [issue.code for issue in validate_dataframes(overlapping).report.errors] == [
+        "overlapping_trips"
+    ]

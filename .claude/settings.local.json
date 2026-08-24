@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:www.sciencedirect.com)"
-    ]
-  }
-}

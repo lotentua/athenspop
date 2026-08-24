@@ -12,7 +12,8 @@ class ValidationIssue:
 
     Attributes:
         severity:
-            Diagnostic severity, either `error` for hard failures or `warning` for methodological/data-quality concerns.
+            Diagnostic severity: `error` for hard failures or `warning` for
+            methodological and data-quality concerns.
         code:
             Stable machine-readable diagnostic code.
         table:
@@ -63,7 +64,8 @@ class ValidationReport:
         errors:
             Hard validation issues that prevent trusted model construction.
         warnings:
-            Methodological or data-quality issues that do not prevent model construction.
+            Methodological or data-quality issues that do not prevent model
+            construction.
         invalid_rows:
             Row identifiers that failed row-level validation.
         invalid_chains:
@@ -98,9 +100,13 @@ class ValidationReport:
         """Return a compact human-readable diagnostic summary.
 
         Returns:
-            Summary string with counts for errors, warnings, invalid rows, and invalid chains.
+            Counts for errors, warnings, invalid rows, and invalid chains.
         """
-        return f"{len(self.errors)} error(s), {len(self.warnings)} warning(s), {len(self.invalid_rows)} invalid row(s), {len(self.invalid_chains)} invalid chain(s)"
+        return (
+            f"{len(self.errors)} error(s), {len(self.warnings)} warning(s), "
+            f"{len(self.invalid_rows)} invalid row(s), "
+            f"{len(self.invalid_chains)} invalid chain(s)"
+        )
 
     def raise_if_invalid(self) -> None:
         """Raise `ValidationError` if any hard errors were collected.

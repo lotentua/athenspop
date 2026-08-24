@@ -54,15 +54,20 @@ class Trip:
         mode:
             Travel mode label used for sequence states and travel-time lookup.
         departure_second:
-            Concrete departure second from the survey time origin, or `None` when the scheduler still has to realize a departure window.
+            Concrete departure second from the survey time origin, or `None` when the
+            scheduler still has to realize a departure window.
         arrival_second:
-            Concrete arrival second from the survey time origin, or `None` when it must be derived from a duration or travel-time callable.
+            Concrete arrival second from the survey time origin, or `None` when it
+            must be derived from a duration or travel-time callable.
         travel_time_seconds:
-            Positive integer travel duration, or `None` when it must be supplied by a travel-time callable.
+            Positive integer travel duration, or `None` when it must be supplied by a
+            travel-time callable.
         departure_window:
-            Optional feasible departure range for trips that are not concrete at load time.
+            Optional feasible departure range for trips that are not concrete at
+            load time.
         timing_pattern:
-            Validation-classified timing pattern that explains which timing columns supplied the trip.
+            Validation-classified timing pattern that explains which timing columns
+            supplied the trip.
         metadata:
             Additional non-key input columns preserved as immutable typed metadata.
     """
@@ -88,10 +93,7 @@ class Trip:
         Returns:
             `True` when both `departure_second` and `arrival_second` are present.
         """
-        return (
-            self.departure_second is not None
-            and self.arrival_second is not None
-        )
+        return self.departure_second is not None and self.arrival_second is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,7 +106,8 @@ class PersonMetadata:
         person_id:
             Person identifier shared with the diary.
         values:
-            Immutable mapping of additional person table columns after boundary normalization.
+            Immutable mapping of additional person table columns after boundary
+            normalization.
     """
 
     household_id: str
@@ -120,7 +123,8 @@ class HouseholdMetadata:
         household_id:
             Household identifier shared with diaries and persons.
         values:
-            Immutable mapping of additional household table columns after boundary normalization.
+            Immutable mapping of additional household table columns after boundary
+            normalization.
     """
 
     household_id: str
@@ -159,14 +163,19 @@ class SurveyDataset:
         diaries:
             Person-level travel diaries built from the trip table.
         households:
-            Optional household metadata records that were supplied at the dataframe boundary.
+            Optional household metadata records that were supplied at the dataframe
+            boundary.
         persons:
-            Optional person metadata records that were supplied at the dataframe boundary.
+            Optional person metadata records that were supplied at the dataframe
+            boundary.
+        travel_time_function:
+            Optional default resolver retained for unresolved departure-window trips.
     """
 
     diaries: tuple[Diary, ...]
     households: tuple[HouseholdMetadata, ...]
     persons: tuple[PersonMetadata, ...]
+    travel_time_function: TravelTimeFunction | None = None
 
     @classmethod
     def from_dataframes(
@@ -183,11 +192,14 @@ class SurveyDataset:
             trips:
                 Required long-form trip table.
             persons:
-                Optional person/respondent table keyed by `household_id` and `person_id`.
+                Optional person/respondent table keyed by `household_id` and
+                `person_id`.
             households:
                 Optional household table keyed by `household_id`.
             travel_time_function:
-                Optional callable returning positive integer travel seconds for timing patterns that provide a departure time but no duration or arrival time.
+                Optional callable returning positive integer travel seconds for timing
+                patterns that provide a departure time but no duration or arrival
+                time.
 
         Returns:
             A trusted `SurveyDataset` containing immutable diaries and metadata records.
@@ -198,10 +210,12 @@ class SurveyDataset:
             RuntimeError:
                 If validation reports success but does not provide normalized tables.
             ValueError:
-                If `travel_time_function` is needed during model construction and returns an invalid value.
+                If `travel_time_function` is needed during model construction and
+                returns an invalid value.
 
         Notes:
-            Internal code treats the returned objects as complete and trusted; validation belongs at this dataframe/file boundary.
+            Internal code treats the returned objects as complete and trusted;
+            validation belongs at this dataframe/file boundary.
         """
         result = validate_dataframes(
             trips,
@@ -212,25 +226,21 @@ class SurveyDataset:
         result.report.raise_if_invalid()
         if result.normalized_tables is None:
             raise RuntimeError(
-                "Validation unexpectedly produced no normalized tables after passing `raise_if_invalid`."
+                "Validation unexpectedly produced no normalized tables after passing "
+                "`raise_if_invalid`."
             )
-        household_records = _build_households(
-            result.normalized_tables.households
-        )
+        household_records = _build_households(result.normalized_tables.households)
         person_records = _build_persons(result.normalized_tables.persons)
-        household_by_id = {
-            record.household_id: record for record in household_records
-        }
+        household_by_id = {record.household_id: record for record in household_records}
         person_by_id = {
-            (record.household_id, record.person_id): record
-            for record in person_records
+            (record.household_id, record.person_id): record for record in person_records
         }
         trips_by_person: dict[tuple[str, str], list[Trip]] = {}
         for _, row in result.normalized_tables.trips.iterrows():
             trip = _build_trip(row, travel_time_function=travel_time_function)
-            trips_by_person.setdefault(
-                (trip.household_id, trip.person_id), []
-            ).append(trip)
+            trips_by_person.setdefault((trip.household_id, trip.person_id), []).append(
+                trip
+            )
         diaries = tuple(
             Diary(
                 household_id=household_id,
@@ -247,13 +257,16 @@ class SurveyDataset:
             diaries=diaries,
             households=household_records,
             persons=person_records,
+            travel_time_function=travel_time_function,
         )
 
 
 def _build_trip(
     row: pd.Series, *, travel_time_function: TravelTimeFunction | None
 ) -> Trip:
-    """Build one trusted trip from a normalized row whose timing pattern already passed validation."""
+    """Build one trusted trip from a normalized row whose timing pattern already
+    passed validation.
+    """
     household_id = str(row["household_id"])
     person_id = str(row["person_id"])
     origin = str(row["origin"])
@@ -275,6 +288,7 @@ def _build_trip(
         timing_pattern == TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION
         and travel_time_function is not None
         and departure_second is not None
+        and travel_time_seconds is None
     ):
         travel_time_seconds = _resolve_travel_time(
             travel_time_function, origin, destination, mode, departure_second
@@ -332,17 +346,24 @@ def _resolve_travel_time(
     mode: str,
     departure_second: int,
 ) -> int:
-    """Call a boundary travel-time function and narrow its result to positive integer seconds."""
+    """Call a boundary travel-time function and narrow its result to positive integer
+    seconds.
+    """
     result = travel_time_function(origin, destination, mode, departure_second)
     if isinstance(result, bool) or not isinstance(result, int) or result <= 0:
         raise ValueError(
-            f"`travel_time_function` returned {result!r} for origin={origin!r}, destination={destination!r}, mode={mode!r}, departure_second={departure_second}. It must return a strictly positive integer number of seconds."
+            f"`travel_time_function` returned {result!r} for origin={origin!r}, "
+            f"destination={destination!r}, mode={mode!r}, "
+            f"departure_second={departure_second}. It must return a strictly "
+            "positive integer number of seconds."
         )
     return result
 
 
 def _build_persons(persons: pd.DataFrame | None) -> tuple[PersonMetadata, ...]:
-    """Build immutable person metadata records from a validated optional person table."""
+    """Build immutable person metadata records from a validated optional person
+    table.
+    """
     if persons is None:
         return ()
     records: list[PersonMetadata] = []
@@ -360,7 +381,9 @@ def _build_persons(persons: pd.DataFrame | None) -> tuple[PersonMetadata, ...]:
 def _build_households(
     households: pd.DataFrame | None,
 ) -> tuple[HouseholdMetadata, ...]:
-    """Build immutable household metadata records from a validated optional household table."""
+    """Build immutable household metadata records from a validated optional household
+    table.
+    """
     if households is None:
         return ()
     records: list[HouseholdMetadata] = []
@@ -375,7 +398,9 @@ def _build_households(
 
 
 def _metadata(row: pd.Series, *, exclude: set[str]) -> Metadata:
-    """Preserve non-domain columns as immutable metadata after converting NumPy scalars to Python scalars."""
+    """Preserve non-domain columns as immutable metadata after converting NumPy
+    scalars to Python scalars.
+    """
     values = {
         str(column): _metadata_value(cast("RawMetadataValue", row[column]))
         for column in row.index

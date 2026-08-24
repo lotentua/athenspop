@@ -32,9 +32,7 @@ from examples.athens.method import (
         (86399, 1),
     ],
 )
-def test_period_label_matches_athens_boundaries(
-    second: int, expected: int
-) -> None:
+def test_period_label_matches_athens_boundaries(second: int, expected: int) -> None:
     assert period_label(second) == expected
 
 
@@ -93,15 +91,11 @@ def test_transition_costs_exclude_self_transitions_from_denominators() -> None:
     assert all(0.0 <= cost <= 2.0 for cost in costs.values())
 
 
-def test_athens_transition_denominator_differs_from_traminer() -> (
-    None
-):
+def test_athens_transition_denominator_differs_from_traminer() -> None:
     sequence = ("A", "A", "B", "A", "A", "C")
     sequences = (sequence,)
     athens_probabilities = transition_probabilities(sequences)
-    traminer_style_probabilities = _self_inclusive_transition_probabilities(
-        sequences
-    )
+    traminer_style_probabilities = _self_inclusive_transition_probabilities(sequences)
     assert athens_probabilities[("A", "B")] == 0.5
     assert athens_probabilities[("A", "C")] == 0.5
     assert athens_probabilities[("A", "A")] == 0.0
@@ -110,9 +104,7 @@ def test_athens_transition_denominator_differs_from_traminer() -> (
     assert traminer_style_probabilities[("A", "A")] == 0.5
 
 
-def test_athens_substitution_costs_differ_from_traminer_trate() -> (
-    None
-):
+def test_athens_substitution_costs_differ_from_traminer_trate() -> None:
     sequences = (("A", "A", "B", "A", "A", "C"),)
     athens_costs = substitution_costs(sequences)
     traminer_style_costs = _self_inclusive_substitution_costs(sequences)
@@ -145,9 +137,7 @@ def test_athens_dissimilarity_fixture_remains_symmetric_and_finite() -> None:
 def _self_inclusive_transition_probabilities(
     sequences: Sequence[Sequence[str]],
 ) -> dict[tuple[str, str], float]:
-    states = tuple(
-        sorted({state for sequence in sequences for state in sequence})
-    )
+    states = tuple(sorted({state for sequence in sequences for state in sequence}))
     counts: dict[tuple[str, str], int] = {}
     denominators = dict.fromkeys(states, 0)
     for sequence in sequences:
@@ -169,9 +159,7 @@ def _self_inclusive_transition_probabilities(
 def _self_inclusive_substitution_costs(
     sequences: Sequence[Sequence[str]],
 ) -> dict[tuple[str, str], float]:
-    states = tuple(
-        sorted({state for sequence in sequences for state in sequence})
-    )
+    states = tuple(sorted({state for sequence in sequences for state in sequence}))
     probabilities = _self_inclusive_transition_probabilities(sequences)
     costs: dict[tuple[str, str], float] = {}
     for source in states:

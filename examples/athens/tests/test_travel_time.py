@@ -10,35 +10,27 @@ from examples.athens.travel_time import (
 )
 
 
-def test_athens_travel_time_resolver_returns_integer_seconds_for_known_od() -> (
-    None
-):
+def test_athens_travel_time_resolver_returns_integer_seconds_for_known_od() -> None:
     resolver = _resolver()
     assert resolver("1", "2", "car", 0) == 1080
     assert resolver("1", "2", "walk", 0) == 8640
     assert resolver("1", "2", "bus", 0) == 2160
 
 
-def test_athens_travel_time_uses_time_origin_for_civil_hour() -> (
-    None
-):
+def test_athens_travel_time_uses_time_origin_for_civil_hour() -> None:
     resolver = _resolver()
     assert resolver("1", "2", "car", 0) == 1080
     assert resolver("1", "2", "car", 7_200) == 1440
 
 
-def test_athens_travel_time_resolver_falls_back_for_nan_and_unknown_zones() -> (
-    None
-):
+def test_athens_travel_time_resolver_falls_back_for_nan_and_unknown_zones() -> None:
     resolver = _resolver()
     assert resolver("2", "1", "car", 0) == 960
     assert resolver("999", "1", "car", 0) == 960
     assert resolver("999", "999", "walk", 0) == 2_160
 
 
-def test_athens_travel_time_resolver_can_preserve_strict_missing_samples() -> (
-    None
-):
+def test_athens_travel_time_resolver_can_preserve_strict_missing_samples() -> None:
     resolver = _resolver(missing_sample_policy="strict")
     with pytest.raises(
         ValueError, match="Could not resolve a positive finite travel time"
@@ -73,6 +65,24 @@ def test_athens_travel_time_resolver_rejects_unsupported_modes() -> None:
     resolver = _resolver()
     with pytest.raises(ValueError, match="Unsupported travel mode"):
         resolver("1", "2", "hoverboard", 0)
+
+
+def test_athens_travel_time_resolver_rejects_misaligned_resources() -> None:
+    with pytest.raises(ValueError, match="same shape"):
+        AthensTravelTimeResolver(
+            driving_matrix_hours=_driving_matrix(),
+            transit_matrix_hours=np.ones((12, 3, 3), dtype=np.float64),
+            zonal_lengths_km=np.ones(2, dtype=np.float64),
+            zone_encoder={"1": 0, "2": 1},
+        )
+
+    with pytest.raises(ValueError, match="one value per"):
+        AthensTravelTimeResolver(
+            driving_matrix_hours=_driving_matrix(),
+            transit_matrix_hours=_transit_matrix(),
+            zonal_lengths_km=np.ones(3, dtype=np.float64),
+            zone_encoder={"1": 0, "2": 1},
+        )
 
 
 def _resolver(

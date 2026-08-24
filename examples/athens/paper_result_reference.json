@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "status": "archived_paper_result_reference",
+  "claim_boundary": "These invariants identify the retained numerical result behind the paper. They do not show that the migrated workflow regenerates that result.",
+  "known_method_deviation": "The retained state sequences contain 13 labels because the historical implementation merged service into other and taxi into car before sequence construction; the manuscript describes 15 states before reduction.",
+  "source_commit": "75d1cd5ae186ece22c3f0f7eabb58c2a4659df0f",
+  "historical_randomness": {
+    "library": "numpy.random",
+    "generator": "Generator with PCG64",
+    "seed": 0,
+    "stream": "one stream continued from scheduling into return-home imputation",
+    "compatibility_boundary": "NumPy does not guarantee identical Generator streams across versions; the historical environment is not fully recoverable from the retained lock metadata."
+  },
+  "observation_keys": {
+    "encoding": "UTF-8 compact JSON array of ordered [household_id, person_id] string pairs",
+    "inference_boundary": "The order is inferred from the historical sorted person grouping and exclusion of person 549; no retained key array was stored beside the numerical arrays.",
+    "count": 512,
+    "sha256": "2162A6CB823E1A70D4BFA3D8F8262404264DD96C4298882A46E1CF3F1516C20B"
+  },
+  "state_sequences": {
+    "path_at_source_commit": "examples/v1/state_sequences.npy",
+    "file_sha256": "ECDF4A6727D9C33D9926882F4AA206D92A0677B2CFC7EA22528A173C88896E3F",
+    "shape": [512, 96]
+  },
+  "dissimilarity_matrix": {
+    "path_at_source_commit": "examples/v1/distance_matrix.npy",
+    "file_sha256": "393C7242ACE634A3E3C6A17935634D54ADB3AC1E7BC2CFA24FC2A942ABDB63A8",
+    "shape": [512, 512],
+    "maximum": 188.1507639519005
+  },
+  "clustering": {
+    "distance_normalization": "divide by the matrix maximum",
+    "condensation": "upper triangle in SciPy squareform order",
+    "linkage_method": "average",
+    "optimal_leaf_ordering": true,
+    "candidate_cophenetic_correlations_without_optimal_ordering": {
+      "single": 0.49342098406523316,
+      "complete": 0.692702678017037,
+      "average": 0.7481951595137182,
+      "weighted": 0.5642911093972763
+    },
+    "normalized_linkage_little_endian_float64_sha256": "E63F2D7A09E3DB98C6943D30A3CC1754855CFC25CEC9FCD36D52923DE8D6B481",
+    "membership_encoding": "sorted zero-based member indices as little-endian int64 bytes",
+    "displayed_clusters": [
+      {"id": 1, "size": 5, "normalized_height": 0.60606712808, "members_sha256": "C069916482AB98FC1D01107F15AFC3C6DA26FB09C95E1E3E764509ED326FACD5"},
+      {"id": 2, "size": 1, "normalized_height": 0.0, "members_sha256": "370079CA52DE8DE3602A18837E48BFB97BE40FD31BF595E95474ED890F9FF624"},
+      {"id": 3, "size": 13, "normalized_height": 0.259410022807, "members_sha256": "E5635C61E6EE4F5224621034E3A708D97F70A9AA07E21BA96E938AC170C60DD0"},
+      {"id": 4, "size": 83, "normalized_height": 0.582642696157, "members_sha256": "521514A5EBD26ADC1D731A8853EFBF8B4ECA9600A321312446CE671ED0B17F74"},
+      {"id": 5, "size": 3, "normalized_height": 0.538943932229, "members_sha256": "A8BAE155B21DBC55E720B7FE67BF4C8BCA902EEDE1DD24632E4BF4F5F1E29B0C"},
+      {"id": 6, "size": 89, "normalized_height": 0.49902293975, "members_sha256": "D5E36F1ECCFDC8DE055DDD5D5336365096075B34964E3FEE741377A0690F9577"},
+      {"id": 7, "size": 8, "normalized_height": 0.388509620084, "members_sha256": "F2B212B6E3605A611E3E8EFE9FA9333E0F7848EDC201313269772980A2A2AA32"},
+      {"id": 8, "size": 101, "normalized_height": 0.549541983483, "members_sha256": "910158378043792C3AC49ECA2C08D1D3D0392526E8C3AA6FA68140B4D4CB368D"},
+      {"id": 9, "size": 207, "normalized_height": 0.453006896704, "members_sha256": "EE57D2AEA891291AF883FD2D03C1E411DCB40EA4DDE83CD8A39711CA060BF834"},
+      {"id": 10, "size": 2, "normalized_height": 0.463571659861, "members_sha256": "FA180ED72060620F9DD4917B24CB7327E9BD90BF7C1823499A3912D86E69C27B"}
+    ]
+  },
+  "paper_displayed_cluster_sizes": [5, 1, 13, 83, 3, 89, 8, 101, 207, 2],
+  "paper_displayed_cluster_heights_rounded": [0.61, 0.0, 0.26, 0.58, 0.54, 0.5, 0.39, 0.55, 0.45, 0.46],
+  "demographics": {
+    "complete_records": 461,
+    "age_bins": [0, 9, 19, 29, 39, 49, 59, 69, 79, "infinity"],
+    "bias_corrected_cramers_v": {
+      "employment_status|monthly_income": 0.4573093033275265,
+      "age_group|employment_status": 0.45214118722057955,
+      "education|employment_status": 0.410251653543263,
+      "education|monthly_income": 0.3921678366572207
+    }
+  }
+}

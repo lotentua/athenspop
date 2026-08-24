@@ -9,7 +9,16 @@ The package sequence layer is generic:
 - Cluster with average-linkage hierarchical clustering on the precomputed dissimilarity matrix.
 
 ```python
-from athenspop.clustering import average_linkage, cluster_size_summary, cluster_state_distribution, cluster_time_distribution, cut_dendrogram_tree, dendrogram_layout, flat_cluster_labels, leaf_order
+from athenspop.clustering import (
+    average_linkage,
+    cluster_size_summary,
+    cluster_state_distribution,
+    cluster_time_distribution,
+    cut_dendrogram_tree,
+    dendrogram_layout,
+    flat_cluster_labels,
+    leaf_order,
+)
 from athenspop.sequence import dissimilarity_matrix, state_sequence_from_diary
 
 sequences = [

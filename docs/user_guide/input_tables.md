@@ -44,3 +44,4 @@ Ordinary pandas construction can upcast integer-looking values to `float64` when
 
 Clock strings belong in the IO boundary.
 Convert them before calling `SurveyDataset.from_dataframes(...)`.
+`convert_clock_columns(...)` uses midnight as its generic default origin. Dataset-specific workflows, such as the Athens example, pass their documented origin explicitly.

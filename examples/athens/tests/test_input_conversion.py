@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pandas as pd
+import pytest
+
 from athenspop import (
     SchedulingConfig,
     SurveyDataset,
@@ -9,6 +12,7 @@ from athenspop import (
 from examples.athens.inputs import (
     load_athens_wide_diaries,
     load_wide_diary_fixture,
+    wide_diaries_to_canonical,
 )
 from examples.athens.travel_time import AthensTravelTimeResolver
 
@@ -41,18 +45,47 @@ def test_load_wide_diary_fixture_converts_to_canonical_tables() -> None:
     assert len(dataset.diaries) == 3
 
 
-def test_load_athens_wide_diaries_matches_migrated_source_stage_counts() -> (
-    None
-):
+def test_load_athens_wide_diaries_matches_migrated_source_stage_counts() -> None:
     tables = load_athens_wide_diaries()
     assert tables.raw_diaries == 513
     assert tables.canonical_trips == 1347
     assert tables.persons.shape[0] == 513
     assert tables.households.shape[0] == 513
+    assert (tables.trips["purpose"] == "service").sum() == 9
+    assert (tables.trips["mode"] == "taxi").sum() == 52
     result = validate_dataframes(
         tables.trips, persons=tables.persons, households=tables.households
     )
     assert not result.report.has_errors
+
+
+def test_wide_diary_conversion_rejects_missing_columns() -> None:
+    wide = pd.read_csv("tests/example_data/NEW_diaries_athens_final.csv").drop(
+        columns="mode1"
+    )
+
+    with pytest.raises(ValueError, match="missing required column.*mode1"):
+        wide_diaries_to_canonical(wide)
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "message"),
+    [
+        ("time1", 7.5, "integer hour"),
+        ("time1", 24, "between 0 and 23"),
+        ("purp1", "unknown", "Unsupported raw trip purpose"),
+        ("mode1", "unknown", "Unsupported raw trip mode"),
+    ],
+)
+def test_wide_diary_conversion_rejects_malformed_trip_cells(
+    column: str, value: object, message: str
+) -> None:
+    wide = pd.read_csv("tests/example_data/NEW_diaries_athens_final.csv").head(1)
+    wide[column] = wide[column].astype(object)
+    wide.loc[wide.index[0], column] = value
+
+    with pytest.raises(ValueError, match=message):
+        wide_diaries_to_canonical(wide)
 
 
 def test_load_athens_wide_diaries_can_emit_travel_time_function_rows() -> None:
@@ -86,9 +119,7 @@ def test_migrated_athens_source_schedules_with_cropping_policy() -> None:
     assert scheduled.diagnostics.issues == ()
 
 
-def test_migrated_athens_source_schedules_with_real_travel_time_resolver() -> (
-    None
-):
+def test_migrated_athens_source_schedules_with_real_travel_time_resolver() -> None:
     tables = load_athens_wide_diaries(fixture_travel_time_seconds=None)
     resolver = AthensTravelTimeResolver.from_files()
     dataset = SurveyDataset.from_dataframes(
@@ -111,13 +142,9 @@ def test_migrated_athens_source_schedules_with_real_travel_time_resolver() -> (
     assert scheduled.diagnostics.issues == ()
 
 
-def test_athens_source_strict_routing_matches_legacy_exclusion() -> (
-    None
-):
+def test_athens_source_strict_routing_matches_legacy_exclusion() -> None:
     tables = load_athens_wide_diaries(fixture_travel_time_seconds=None)
-    resolver = AthensTravelTimeResolver.from_files(
-        missing_sample_policy="strict"
-    )
+    resolver = AthensTravelTimeResolver.from_files(missing_sample_policy="strict")
     dataset = SurveyDataset.from_dataframes(
         tables.trips,
         persons=tables.persons,

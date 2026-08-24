@@ -8,6 +8,7 @@ from athenspop.clustering import (
     cluster_size_summary,
     cluster_state_distribution,
     cophenetic_correlation,
+    cut_dendrogram_tree,
     dendrogram_layout,
     flat_cluster_labels,
     leaf_order,
@@ -28,9 +29,7 @@ def test_optimal_matching_uses_substitution_when_cheaper_than_indels() -> None:
     )
 
 
-def test_optimal_matching_uses_indels_for_shifted_equal_length_sequences() -> (
-    None
-):
+def test_optimal_matching_uses_indels_for_shifted_equal_length_sequences() -> None:
     costs = {
         ("A", "B"): 2.0,
         ("B", "A"): 2.0,
@@ -67,9 +66,7 @@ def test_optimal_matching_rejects_non_numeric_indel_cost() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    "substitution_cost", [-1.0, float("nan"), float("inf")]
-)
+@pytest.mark.parametrize("substitution_cost", [-1.0, float("nan"), float("inf")])
 def test_optimal_matching_rejects_invalid_substitution_costs(
     substitution_cost: float,
 ) -> None:
@@ -101,9 +98,7 @@ def test_dissimilarity_matrix_is_symmetric_with_zero_diagonal() -> None:
     np.testing.assert_allclose(np.diag(matrix), np.zeros(3))
 
 
-def test_dissimilarity_matrix_matches_scalar_optimal_matching_reference() -> (
-    None
-):
+def test_dissimilarity_matrix_matches_scalar_optimal_matching_reference() -> None:
     sequences = (
         ("A", "B", "C"),
         ("A", "C"),
@@ -116,9 +111,7 @@ def test_dissimilarity_matrix_matches_scalar_optimal_matching_reference() -> (
         for source in states
         for target in states
     }
-    matrix = dissimilarity_matrix(
-        sequences, substitution_cost=costs, indel_cost=1.0
-    )
+    matrix = dissimilarity_matrix(sequences, substitution_cost=costs, indel_cost=1.0)
     expected = np.zeros((len(sequences), len(sequences)), dtype=np.float64)
     for row_index, first in enumerate(sequences):
         for column_index, second in enumerate(sequences):
@@ -175,6 +168,8 @@ def test_average_linkage_accepts_precomputed_dissimilarity_matrix() -> None:
         np.array([[0.0, np.inf], [np.inf, 0.0]], dtype=np.float64),
         np.array([[0.0, 1.0], [2.0, 0.0]], dtype=np.float64),
         np.array([[1.0, 1.0], [1.0, 0.0]], dtype=np.float64),
+        np.array([[1e-9, 1.0], [1.0, 0.0]], dtype=np.float64),
+        np.array([[0.0, 100.0], [100.0005, 0.0]], dtype=np.float64),
     ],
 )
 def test_average_linkage_rejects_invalid_dissimilarity_matrices(
@@ -184,9 +179,7 @@ def test_average_linkage_rejects_invalid_dissimilarity_matrices(
         average_linkage(matrix)
 
 
-def test_dendrogram_layout_returns_geometry_without_rendering() -> (
-    None
-):
+def test_dendrogram_layout_returns_geometry_without_rendering() -> None:
     matrix = np.array(
         [[0.0, 1.0, 4.0], [1.0, 0.0, 5.0], [4.0, 5.0, 0.0]], dtype=np.float64
     )
@@ -205,6 +198,28 @@ def test_flat_cluster_labels_rejects_non_positive_cluster_count() -> None:
     linkage_matrix = average_linkage(matrix)
     with pytest.raises(ValueError, match="positive"):
         flat_cluster_labels(linkage_matrix, n_clusters=0)
+
+
+def test_flat_labels_and_display_tree_share_exact_partition_with_ties() -> None:
+    matrix = np.ones((4, 4), dtype=np.float64)
+    np.fill_diagonal(matrix, 0.0)
+    linkage_matrix = average_linkage(matrix)
+
+    labels = flat_cluster_labels(linkage_matrix, n_clusters=2)
+    tree = cut_dendrogram_tree(linkage_matrix, n_clusters=2)
+
+    assert len(set(labels.tolist())) == 2
+    assert tree.left is not None
+    assert tree.right is not None
+    flat_partition = {
+        frozenset(np.flatnonzero(labels == label).tolist())
+        for label in set(labels.tolist())
+    }
+    displayed_partition = {
+        frozenset(tree.left.members),
+        frozenset(tree.right.members),
+    }
+    assert flat_partition == displayed_partition
 
 
 @pytest.mark.parametrize(
@@ -245,17 +260,13 @@ def test_cluster_size_summary_returns_counts_and_shares() -> None:
         cluster_size_summary((1, 0))
 
 
-@pytest.mark.parametrize(
-    "labels", [(1.0,), (float("nan"),), (float("inf"),), (None,)]
-)
+@pytest.mark.parametrize("labels", [(1.0,), (float("nan"),), (float("inf"),), (None,)])
 def test_cluster_labels_must_be_positive_integers(labels: object) -> None:
     with pytest.raises(ValueError, match="positive integers"):
         cluster_size_summary(cast("tuple[int, ...]", labels))
 
 
-def test_cluster_state_distribution_returns_within_cluster_state_shares() -> (
-    None
-):
+def test_cluster_state_distribution_returns_within_cluster_state_shares() -> None:
     distribution = cluster_state_distribution(
         (("home", "work"), ("home", "home"), ("work", "bus")),
         (1, 1, 2),

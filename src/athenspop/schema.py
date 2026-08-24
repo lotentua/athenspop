@@ -58,7 +58,8 @@ class TimingPattern(StrEnum):
         DEPARTURE_DURATION:
             Row supplies concrete departure seconds and travel duration seconds.
         DEPARTURE_TRAVEL_TIME_FUNCTION:
-            Row supplies concrete departure seconds and relies on a travel-time callable.
+            Row supplies concrete departure seconds and relies on a travel-time
+            callable.
         DEPARTURE_WINDOW_DURATION:
             Row supplies a departure window and travel duration seconds.
         DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION:
@@ -69,9 +70,7 @@ class TimingPattern(StrEnum):
     DEPARTURE_DURATION = "departure_duration"
     DEPARTURE_TRAVEL_TIME_FUNCTION = "departure_travel_time_function"
     DEPARTURE_WINDOW_DURATION = "departure_window_duration"
-    DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION = (
-        "departure_window_travel_time_function"
-    )
+    DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION = "departure_window_travel_time_function"
 
 
 __all__: Final[tuple[str, ...]] = (

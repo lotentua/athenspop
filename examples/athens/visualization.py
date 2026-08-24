@@ -40,7 +40,8 @@ def write_cut_dendrogram_distribution_svg(
         linkage_matrix:
             SciPy linkage matrix defining the observation hierarchy.
         sequences:
-            Equal-length Athens state sequences aligned with the observations used to compute `linkage_matrix`.
+            Equal-length Athens state sequences aligned with the observations used to
+            compute `linkage_matrix`.
         path:
             Destination SVG path.
         n_clusters:
@@ -53,9 +54,7 @@ def write_cut_dendrogram_distribution_svg(
         if _state_without_period(state).startswith(ATHENS_MODE_PREFIX)
     )
     mode_state_set = set(mode_states)
-    activity_states = tuple(
-        state for state in states if state not in mode_state_set
-    )
+    activity_states = tuple(state for state in states if state not in mode_state_set)
     figure = plot_cut_dendrogram_state_distribution(
         linkage_matrix,
         sequences,
@@ -75,9 +74,7 @@ def write_cut_dendrogram_distribution_svg(
 
 def _states(sequences: Sequence[Sequence[str]]) -> tuple[str, ...]:
     """Return sorted unique states from example sequences."""
-    return tuple(
-        sorted({str(state) for sequence in sequences for state in sequence})
-    )
+    return tuple(sorted({str(state) for sequence in sequences for state in sequence}))
 
 
 def _state_without_period(state: str) -> str:

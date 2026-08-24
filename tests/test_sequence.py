@@ -25,9 +25,7 @@ def test_overlap_duration_counts_integer_second_intersection() -> None:
     assert overlap_duration(episode, 1200, 1800) == 0
 
 
-def test_discretize_episodes_uses_overlap_and_tie_break() -> (
-    None
-):
+def test_discretize_episodes_uses_overlap_and_tie_break() -> None:
     tied = (
         Episode(state="home", start_second=0, end_second=450),
         Episode(state="work", start_second=450, end_second=900),
@@ -40,9 +38,7 @@ def test_discretize_episodes_uses_overlap_and_tie_break() -> (
     assert discretize_episodes(dominant, window_end_second=900) == ("work",)
 
 
-def test_episodes_from_diary_partitions_activity_and_trip_states() -> (
-    None
-):
+def test_episodes_from_diary_partitions_activity_and_trip_states() -> None:
     diary = Diary(
         household_id="h1",
         person_id="p1",
@@ -156,7 +152,7 @@ def test_state_sequence_from_scheduled_diary() -> None:
         window_end_second=2700,
         interval_seconds=900,
     )
-    assert states == ("home", "car", "market")
+    assert states == ("home", "trip_car", "market")
 
 
 def test_state_sequence_accepts_caller_defined_travel_state_labels() -> None:
@@ -288,9 +284,7 @@ def test_sequence_bridge_accepts_scheduled_dataset_from_public_loader() -> None:
 
 
 def test_dissimilarity_matrix_rejects_asymmetric_substitution_costs() -> None:
-    with pytest.raises(
-        ValueError, match="requires symmetric substitution costs"
-    ):
+    with pytest.raises(ValueError, match="requires symmetric substitution costs"):
         dissimilarity_matrix(
             (("home",), ("work",)),
             substitution_cost={

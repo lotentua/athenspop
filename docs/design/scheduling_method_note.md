@@ -6,7 +6,7 @@ This note compares the CSuM2026 example scheduler policy against ActivitySim-sty
 
 The paper starts from reported departure-time intervals, not exact observed departure timestamps. It samples one concrete departure time uniformly within each reported interval, subject to trip-chain feasibility and a 30-minute minimum activity duration. It uses travel-time lookup data to infer arrivals and activity durations, discards one fully infeasible diary, imputes return-home trips when the final purpose is neither `home` nor `recreation`, permits recreation to extend beyond the monitoring period, and crops diaries to the 24-hour observation window.
 
-For the Athens example, this is the required method because the example target is reproduction of `CSuM2026.pdf`.
+For the Athens example, this is the required scheduling construction. The migrated reanalysis documents its routing-data fallback, return-home imputation, random-number generation and state-retention differences separately; its results are not presented as an end-to-end reproduction of `CSuM2026.pdf`.
 
 ## ActivitySim Reference Pattern
 

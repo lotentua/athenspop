@@ -1,1 +1,1 @@
-"""Athens-specific reproduction example package."""
+"""Athens paper-reference and migrated-reanalysis example package."""

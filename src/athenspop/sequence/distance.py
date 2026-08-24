@@ -20,7 +20,7 @@ def optimal_matching_dissimilarity(
     substitution_cost: dict[tuple[str, str], float],
     indel_cost: float = 1.0,
 ) -> float:
-    """Compute generalized Wagner-Fischer optimal-matching dissimilarity for two sequences.
+    """Compute Wagner-Fischer optimal-matching dissimilarity for two sequences.
 
     Args:
         first:
@@ -37,7 +37,8 @@ def optimal_matching_dissimilarity(
 
     Raises:
         ValueError:
-            If `indel_cost` is not positive or a required substitution cost is missing.
+            If `indel_cost` is not positive or a required substitution cost is
+            missing.
     """
     indel_cost = _validate_positive_cost(indel_cost, name="indel_cost")
     rows = len(first) + 1
@@ -50,12 +51,10 @@ def optimal_matching_dissimilarity(
             target = second[column_index - 1]
             delete_cost = previous[column_index] + indel_cost
             insert_cost = current[column_index - 1] + indel_cost
-            substitute_cost = previous[
-                column_index - 1
-            ] + _lookup_substitution_cost(source, target, substitution_cost)
-            current[column_index] = min(
-                delete_cost, insert_cost, substitute_cost
+            substitute_cost = previous[column_index - 1] + _lookup_substitution_cost(
+                source, target, substitution_cost
             )
+            current[column_index] = min(delete_cost, insert_cost, substitute_cost)
         previous = current
     return previous[-1]
 
@@ -72,19 +71,23 @@ def dissimilarity_matrix(
         sequences:
             Symbolic state sequences to compare pairwise.
         substitution_cost:
-            Symmetric pairwise substitution costs keyed by `(source_state, target_state)`.
+            Symmetric pairwise substitution costs keyed by source and target
+            state.
         indel_cost:
             Positive insertion/deletion cost.
 
     Returns:
-        Square float64 matrix whose `[i, j]` entry is the optimal-matching dissimilarity between sequence `i` and sequence `j`.
+        Square float64 matrix whose `[i, j]` entry is the optimal-matching
+        dissimilarity between sequence `i` and sequence `j`.
 
     Raises:
         ValueError:
-            If `indel_cost` is not positive, a required substitution cost is missing, or an observed substitution cost differs from its reverse direction.
+            If `indel_cost` is not positive, a required substitution cost is
+            missing, or a cost differs from its reverse direction.
 
     Notes:
-        Sequences are encoded once and same-length targets are batched to reduce repeated Python-loop overhead.
+        Sequences are encoded once and same-length targets are batched to reduce
+        repeated Python-loop overhead.
     """
     indel_cost = _validate_positive_cost(indel_cost, name="indel_cost")
     materialized = tuple(tuple(sequence) for sequence in sequences)
@@ -142,10 +145,8 @@ def _encode_sequences(
     *,
     substitution_cost: dict[tuple[str, str], float],
 ) -> tuple[tuple[tuple[int, ...], ...], CostMatrix]:
-    """Encode string sequences as integer codes and build the corresponding dense substitution-cost matrix."""
-    states = tuple(
-        sorted({state for sequence in sequences for state in sequence})
-    )
+    """Encode sequences and build the corresponding dense cost matrix."""
+    states = tuple(sorted({state for sequence in sequences for state in sequence}))
     _validate_symmetric_substitution_costs(states, substitution_cost)
     state_codes = {state: code for code, state in enumerate(states)}
     cost_matrix = np.zeros((len(states), len(states)), dtype=np.float64)
@@ -157,8 +158,7 @@ def _encode_sequences(
                 source, target, substitution_cost
             )
     encoded_sequences = tuple(
-        tuple(state_codes[state] for state in sequence)
-        for sequence in sequences
+        tuple(state_codes[state] for state in sequence) for sequence in sequences
     )
     return encoded_sequences, cast("CostMatrix", cost_matrix)
 
@@ -166,20 +166,16 @@ def _encode_sequences(
 def _validate_symmetric_substitution_costs(
     states: Sequence[str], substitution_cost: dict[tuple[str, str], float]
 ) -> None:
-    """Reject directed substitution costs before building a symmetric dissimilarity matrix."""
+    """Reject directed costs before building a symmetric dissimilarity matrix."""
     for source_index, source in enumerate(states):
         for target in states[source_index + 1 :]:
-            forward_cost = _lookup_substitution_cost(
-                source, target, substitution_cost
-            )
-            reverse_cost = _lookup_substitution_cost(
-                target, source, substitution_cost
-            )
-            if not np.isclose(
-                forward_cost, reverse_cost, rtol=1e-12, atol=1e-12
-            ):
+            forward_cost = _lookup_substitution_cost(source, target, substitution_cost)
+            reverse_cost = _lookup_substitution_cost(target, source, substitution_cost)
+            if not np.isclose(forward_cost, reverse_cost, rtol=1e-12, atol=1e-12):
                 raise ValueError(
-                    f"`dissimilarity_matrix` requires symmetric substitution costs for clustering; got {forward_cost} for {source!r} -> {target!r} and {reverse_cost} for {target!r} -> {source!r}."
+                    "`dissimilarity_matrix` requires symmetric substitution costs "
+                    f"for clustering; got {forward_cost} for {source!r} -> "
+                    f"{target!r} and {reverse_cost} for {target!r} -> {source!r}."
                 )
 
 
@@ -188,15 +184,11 @@ def _validate_positive_cost(value: float, *, name: str) -> float:
     if isinstance(value, bool) or not isinstance(
         value, int | float | np.integer | np.floating
     ):
-        raise TypeError(
-            f"`{name}` must be a finite positive number, got {value!r}."
-        )
+        raise TypeError(f"`{name}` must be a finite positive number, got {value!r}.")
 
     cost = float(value)
     if not isfinite(cost) or cost <= 0.0:
-        raise ValueError(
-            f"`{name}` must be a finite positive number, got {value!r}."
-        )
+        raise ValueError(f"`{name}` must be a finite positive number, got {value!r}.")
 
     return cost
 
@@ -226,7 +218,7 @@ def _batch_optimal_matching_dissimilarities(
     cost_matrix: CostMatrix,
     indel_cost: float,
 ) -> DistanceVector:
-    """Compute optimal-matching distances from one encoded source sequence to a batch of equal-length targets."""
+    """Compute distances from one encoded sequence to equal-length targets."""
     batch_size = targets.shape[0]
     columns = targets.shape[1]
     previous = np.tile(
@@ -241,8 +233,7 @@ def _batch_optimal_matching_dissimilarities(
             delete_costs = previous[:, column_index] + indel_cost
             insert_costs = current[:, column_index - 1] + indel_cost
             substitute_costs = (
-                previous[:, column_index - 1]
-                + cost_matrix[source_code, target_codes]
+                previous[:, column_index - 1] + cost_matrix[source_code, target_codes]
             )
             current[:, column_index] = np.minimum(
                 np.minimum(delete_costs, insert_costs), substitute_costs

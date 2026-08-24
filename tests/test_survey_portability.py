@@ -22,7 +22,6 @@ type PortableTables = tuple[
     pd.DataFrame | None,
     PortableTravelTimeFunction | None,
 ]
-type TableFactory = Callable[[], PortableTables]
 type FixtureMetadataValue = str | int | float | bool
 
 
@@ -42,9 +41,19 @@ class _TripFixtureSpec:
     timing: str
 
 
-def test_mentioned_survey_families_fit_the_same_generic_workflow() -> None:
-    for survey_name, factory in _portable_survey_tables().items():
-        trips, persons, households, travel_time_function = factory()
+def test_supported_timing_patterns_fit_the_same_generic_workflow() -> None:
+    for timing in (
+        "departure_arrival",
+        "departure_duration",
+        "departure_window_duration",
+        "departure_window_function",
+    ):
+        trips, persons, households, travel_time_function = _base_tables(
+            timing,
+            timing=timing,
+            person_extra={"person_weight": 1.25},
+            household_extra={"vehicle_count": 1},
+        )
 
         validation = validate_dataframes(
             trips,
@@ -70,7 +79,7 @@ def test_mentioned_survey_families_fit_the_same_generic_workflow() -> None:
             travel_time_function=travel_time_function,
         )
 
-        assert not scheduled.diagnostics.has_errors, survey_name
+        assert not scheduled.diagnostics.has_errors, timing
 
         sequences = tuple(
             state_sequence_from_diary(
@@ -83,9 +92,7 @@ def test_mentioned_survey_families_fit_the_same_generic_workflow() -> None:
             for diary in scheduled.diaries
         )
         substitution_cost = _unit_substitution_cost(sequences)
-        distances = dissimilarity_matrix(
-            sequences, substitution_cost=substitution_cost
-        )
+        distances = dissimilarity_matrix(sequences, substitution_cost=substitution_cost)
         linkage_matrix = average_linkage(distances)
         labels = flat_cluster_labels(linkage_matrix, n_clusters=2)
         temporal_distribution = cluster_time_distribution(
@@ -95,74 +102,9 @@ def test_mentioned_survey_families_fit_the_same_generic_workflow() -> None:
             linkage_matrix, sequences, n_clusters=2
         )
 
-        assert distances.shape == (3, 3), survey_name
-        assert temporal_distribution.empty is False, survey_name
-        assert isinstance(figure, Figure), survey_name
-
-
-def _portable_survey_tables() -> dict[str, TableFactory]:
-    return {
-        "athens_style_wide_mapping": _athens_style_tables,
-        "uk_nts_pam_style_mapping": _uk_nts_pam_style_tables,
-        "us_nhts_style_mapping": _us_nhts_style_tables,
-        "france_entd_emp_style_mapping": _france_entd_emp_style_tables,
-        "activitysim_style_generated_trips": _activitysim_style_tables,
-        "populationsim_adjacent_metadata": _populationsim_adjacent_tables,
-    }
-
-
-def _athens_style_tables() -> PortableTables:
-    return _base_tables(
-        "athens",
-        timing="departure_arrival",
-        person_extra={"income_band": "medium"},
-        household_extra={"home_zone": "athens_home"},
-    )
-
-
-def _uk_nts_pam_style_tables() -> PortableTables:
-    return _base_tables(
-        "uk",
-        timing="departure_arrival",
-        person_extra={"nts_weight": 1.25},
-        household_extra={"hzone": "uk_home"},
-    )
-
-
-def _us_nhts_style_tables() -> PortableTables:
-    return _base_tables(
-        "nhts",
-        timing="departure_duration",
-        person_extra={"travday": "weekday"},
-        household_extra={"vehicle_count": 1},
-    )
-
-
-def _france_entd_emp_style_tables() -> PortableTables:
-    return _base_tables(
-        "emp",
-        timing="departure_window_duration",
-        person_extra={"selected_individual": True},
-        household_extra={"vehicle_equipment": "car"},
-    )
-
-
-def _activitysim_style_tables() -> PortableTables:
-    return _base_tables(
-        "activitysim",
-        timing="departure_window_function",
-        person_extra={"time_window_id": "available"},
-        household_extra={"sample_rate": 1.0},
-    )
-
-
-def _populationsim_adjacent_tables() -> PortableTables:
-    return _base_tables(
-        "populationsim",
-        timing="departure_duration",
-        person_extra={"synthetic_person_weight": 1.0},
-        household_extra={"synthetic_household_weight": 1.0},
-    )
+        assert distances.shape == (3, 3), timing
+        assert temporal_distribution.empty is False, timing
+        assert isinstance(figure, Figure), timing
 
 
 def _base_tables(

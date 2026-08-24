@@ -81,7 +81,8 @@ def discretize_episodes(
 
     Raises:
         ValueError:
-            If `interval_seconds` is not positive or an interval has no overlapping episode.
+            If `interval_seconds` is not positive or an interval has no
+            overlapping episode.
     """
     if interval_seconds <= 0:
         raise ValueError(
@@ -91,9 +92,7 @@ def discretize_episodes(
     interval_start = window_start_second
     while interval_start < window_end_second:
         interval_end = min(interval_start + interval_seconds, window_end_second)
-        labels.append(
-            _state_for_interval(episodes, interval_start, interval_end)
-        )
+        labels.append(_state_for_interval(episodes, interval_start, interval_end))
         interval_start = interval_end
     return tuple(labels)
 
@@ -114,18 +113,21 @@ def episodes_from_diary(
         initial_activity_state:
             State assigned before the first observed trip departure.
         travel_state_labeler:
-            Optional callable that converts each movement trip into a sequence state; defaults to the trip mode label.
+            Optional callable that converts each movement trip into a sequence
+            state; defaults to a `trip_`-prefixed mode label.
         window_start_second:
             Inclusive observation-window start in seconds.
         window_end_second:
             Exclusive observation-window end in seconds.
 
     Returns:
-        Continuous episodes cropped to the observation window and covering it exactly.
+        Continuous episodes cropped to the observation window and covering it
+        exactly.
 
     Raises:
         ValueError:
-            If the observation window is invalid, a trip is unscheduled, trips overlap, or the produced episodes do not partition the window.
+            If the window is invalid, a trip is unscheduled, trips overlap, or
+            the episodes do not partition the window.
     """
     if window_start_second < 0 or window_end_second <= window_start_second:
         raise ValueError(
@@ -135,20 +137,20 @@ def episodes_from_diary(
     current_second = window_start_second
     current_activity_state = initial_activity_state
     resolved_travel_state_labeler = (
-        trip_mode_state
-        if travel_state_labeler is None
-        else travel_state_labeler
+        trip_mode_state if travel_state_labeler is None else travel_state_labeler
     )
     for trip in diary.trips:
         departure_second = trip.departure_second
         arrival_second = trip.arrival_second
         if departure_second is None or arrival_second is None:
             raise ValueError(
-                f"Trip {trip.trip_id!r} is not scheduled; both departure and arrival seconds are required."
+                f"Trip {trip.trip_id!r} is not scheduled; both departure and "
+                "arrival seconds are required."
             )
         if arrival_second <= departure_second:
             raise ValueError(
-                f"Trip {trip.trip_id!r} arrives at {arrival_second}, which must be after departure {departure_second}."
+                f"Trip {trip.trip_id!r} arrives at {arrival_second}, which must "
+                f"be after departure {departure_second}."
             )
         if arrival_second <= window_start_second:
             current_activity_state = trip.purpose
@@ -159,7 +161,8 @@ def episodes_from_diary(
         )
         if departure_second < current_second and not overlaps_window_start:
             raise ValueError(
-                f"Trip {trip.trip_id!r} departs at {departure_second}, before the previous episode ends at {current_second}."
+                f"Trip {trip.trip_id!r} departs at {departure_second}, before "
+                f"the previous episode ends at {current_second}."
             )
         if current_second >= window_end_second:
             break
@@ -218,14 +221,16 @@ def state_sequence_from_diary(
         initial_activity_state:
             State assigned before the first observed trip departure.
         travel_state_labeler:
-            Optional callable that converts each movement trip into a sequence state; defaults to the trip mode label.
+            Optional callable that converts each movement trip into a sequence
+            state; defaults to a `trip_`-prefixed mode label.
         window_end_second:
             Exclusive observation-window end in seconds.
         interval_seconds:
             Width of each sequence bin in integer seconds.
 
     Returns:
-        Tuple of fixed-interval state labels suitable for sequence dissimilarity calculations.
+        Tuple of fixed-interval state labels suitable for sequence dissimilarity
+        calculations.
     """
     episodes = episodes_from_diary(
         diary,
@@ -241,16 +246,17 @@ def state_sequence_from_diary(
 
 
 def trip_mode_state(trip: Trip) -> str:
-    """Return the trip mode as the default movement sequence state.
+    """Return a namespaced trip mode as the default movement sequence state.
 
     Args:
         trip:
             Scheduled movement trip.
 
     Returns:
-        The mode label stored on the trip.
+        The mode label prefixed by `trip_` so travel and activity domains cannot
+        collide silently.
     """
-    return trip.mode
+    return f"trip_{trip.mode}"
 
 
 def _state_for_interval(
@@ -258,13 +264,11 @@ def _state_for_interval(
     interval_start_second: int,
     interval_end_second: int,
 ) -> str:
-    """Choose the state with greatest overlap in one interval, breaking ties by earliest episode start."""
+    """Choose the greatest-overlap state, breaking ties by earliest start."""
     overlap_by_state: dict[str, int] = {}
     earliest_start_by_state: dict[str, int] = {}
     for episode in episodes:
-        overlap = overlap_duration(
-            episode, interval_start_second, interval_end_second
-        )
+        overlap = overlap_duration(episode, interval_start_second, interval_end_second)
         if overlap == 0:
             continue
         overlap_by_state[episode.state] = (
@@ -276,17 +280,14 @@ def _state_for_interval(
         )
     if not overlap_by_state:
         raise ValueError(
-            f"No episode overlaps interval [{interval_start_second}, {interval_end_second})."
+            "No episode overlaps interval "
+            f"[{interval_start_second}, {interval_end_second})."
         )
     max_overlap = max(overlap_by_state.values())
     candidate_states = [
-        state
-        for state, overlap in overlap_by_state.items()
-        if overlap == max_overlap
+        state for state, overlap in overlap_by_state.items() if overlap == max_overlap
     ]
-    return min(
-        candidate_states, key=lambda state: earliest_start_by_state[state]
-    )
+    return min(candidate_states, key=lambda state: earliest_start_by_state[state])
 
 
 def _verify_episode_partition(
@@ -295,19 +296,19 @@ def _verify_episode_partition(
     window_start_second: int,
     window_end_second: int,
 ) -> None:
-    """Verify that episodes exactly partition the requested observation window without gaps or overlaps."""
+    """Verify that episodes partition the window without gaps or overlaps."""
     expected_start = window_start_second
     for episode in episodes:
         if episode.start_second != expected_start:
             raise ValueError(
-                f"Episodes do not partition the observation window; expected start {expected_start}, got {episode.start_second}."
+                "Episodes do not partition the observation window; expected "
+                f"start {expected_start}, got {episode.start_second}."
             )
         if episode.end_second <= episode.start_second:
-            raise ValueError(
-                f"Episode {episode.state!r} has non-positive duration."
-            )
+            raise ValueError(f"Episode {episode.state!r} has non-positive duration.")
         expected_start = episode.end_second
     if expected_start != window_end_second:
         raise ValueError(
-            f"Episodes do not end at the observation window boundary; expected {window_end_second}, got {expected_start}."
+            "Episodes do not end at the observation window boundary; expected "
+            f"{window_end_second}, got {expected_start}."
         )

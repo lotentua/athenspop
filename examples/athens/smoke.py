@@ -1,4 +1,4 @@
-"""Executable miniature of the canonical paper-reproduction pipeline."""
+"""Executable miniature of the Athens migrated-reanalysis pipeline."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -33,7 +33,7 @@ type ScheduledSurveyTransform = Callable[
 
 @dataclass(frozen=True, slots=True)
 class AthensSmokeOutputs:
-    """Outputs from the miniature paper pipeline."""
+    """Outputs from the miniature migrated-reanalysis pipeline."""
 
     validation_report: ValidationReport
     dataset: SurveyDataset
@@ -63,7 +63,9 @@ def run_pipeline(
     n_clusters: int = 2,
     scheduled_transform: ScheduledSurveyTransform | None = None,
 ) -> AthensSmokeOutputs:
-    """Run the canonical sequence and clustering pipeline for supplied canonical dataframes."""
+    """Run the canonical sequence and clustering pipeline for supplied canonical
+    dataframes.
+    """
     validation = validate_dataframes(
         trips,
         persons=persons,
@@ -87,11 +89,10 @@ def run_pipeline(
         travel_time_function=travel_time_function,
     )
     if scheduled.diagnostics.has_errors and not allow_infeasible_diaries:
-        issue_codes = ", ".join(
-            issue.code for issue in scheduled.diagnostics.issues
-        )
+        issue_codes = ", ".join(issue.code for issue in scheduled.diagnostics.issues)
         raise RuntimeError(
-            f"The paper pipeline expected every supplied diary to schedule, but got: {issue_codes}."
+            "The paper pipeline expected every supplied diary to schedule, but got: "
+            f"{issue_codes}."
         )
     if scheduled_transform is not None:
         scheduled = scheduled_transform(scheduled)
@@ -100,13 +101,14 @@ def run_pipeline(
                 issue.code for issue in scheduled.diagnostics.issues
             )
             raise RuntimeError(
-                f"The paper pipeline expected transformed diaries to schedule, but got: {issue_codes}."
+                "The paper pipeline expected transformed diaries to schedule, but "
+                f"got: {issue_codes}."
             )
     sequences = tuple(
         compound_sequence_from_diary(diary) for diary in scheduled.diaries
     )
     dissimilarity_matrix = athens_dissimilarity_matrix(sequences)
-    linkage_matrix = average_linkage(dissimilarity_matrix)
+    linkage_matrix = average_linkage(dissimilarity_matrix, optimal_ordering=True)
     labels = flat_cluster_labels(linkage_matrix, n_clusters=n_clusters)
     label_tuple = tuple(int(label) for label in labels.tolist())
     diary_labels = tuple(
@@ -126,10 +128,10 @@ def run_pipeline(
     )
 
 
-def build_example_dataframes() -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame
-]:
-    """Return canonical `trips`, `persons`, and `households` dataframes for the smoke example."""
+def build_example_dataframes() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Return canonical `trips`, `persons`, and `households` dataframes for the smoke
+    example.
+    """
     trips = pd.DataFrame(
         [
             _trip(
@@ -264,14 +266,11 @@ def main() -> None:
     """Run the example as a directly executed script and print compact stage counts."""
     outputs = run_example()
     print(
-        f"validated errors={len(outputs.validation_report.errors)} warnings={len(outputs.validation_report.warnings)}"
+        f"validated errors={len(outputs.validation_report.errors)} "
+        f"warnings={len(outputs.validation_report.warnings)}"
     )
-    print(
-        f"scheduled diaries={outputs.scheduled.diagnostics.scheduled_diaries}"
-    )
-    print(
-        f"sequence shape={len(outputs.sequences)}x{len(outputs.sequences[0])}"
-    )
+    print(f"scheduled diaries={outputs.scheduled.diagnostics.scheduled_diaries}")
+    print(f"sequence shape={len(outputs.sequences)}x{len(outputs.sequences[0])}")
     print(outputs.cluster_sizes.to_string(index=False))
 
 

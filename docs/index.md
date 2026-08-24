@@ -7,6 +7,13 @@ Public code and documentation describe those generic steps; dataset-specific wor
 
 ```{toctree}
 :maxdepth: 2
+:caption: Examples
+
+examples/index
+```
+
+```{toctree}
+:maxdepth: 2
 :caption: Concepts
 
 concepts/data_model

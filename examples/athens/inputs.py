@@ -43,12 +43,12 @@ PURPOSE_MAP: Final[dict[str, str]] = {
     "3: education": "education",
     "4: market": "market",
     "5: recreation": "recreation",
-    "6: service": "other",
+    "6: service": "service",
     "7: other": "other",
 }
 MODE_MAP: Final[dict[str, str]] = {
     "1: car": "car",
-    "2: taxi": "car",
+    "2: taxi": "taxi",
     "3: bus": "bus",
     "4: train": "train",
     "5: motorcycle": "motorcycle",
@@ -72,8 +72,7 @@ class AthensInputTables:
 def load_wide_diary_fixture(
     path: Path,
     *,
-    fixture_travel_time_seconds: int
-    | None = DEFAULT_FIXTURE_TRAVEL_TIME_SECONDS,
+    fixture_travel_time_seconds: int | None = DEFAULT_FIXTURE_TRAVEL_TIME_SECONDS,
 ) -> AthensInputTables:
     """Load a wide CSuM-style diary CSV and convert it to canonical long-form tables."""
     wide = pd.read_csv(path)
@@ -85,10 +84,11 @@ def load_wide_diary_fixture(
 def load_athens_wide_diaries(
     path: Path = DEFAULT_ATHENS_WIDE_DIARY_PATH,
     *,
-    fixture_travel_time_seconds: int
-    | None = DEFAULT_FIXTURE_TRAVEL_TIME_SECONDS,
+    fixture_travel_time_seconds: int | None = DEFAULT_FIXTURE_TRAVEL_TIME_SECONDS,
 ) -> AthensInputTables:
-    """Load the migrated 513-row CSuM-style wide diary source and convert it to canonical long-form tables."""
+    """Load the migrated 513-row CSuM-style wide diary source and convert it to
+    canonical long-form tables.
+    """
     return load_wide_diary_fixture(
         path, fixture_travel_time_seconds=fixture_travel_time_seconds
     )
@@ -97,17 +97,16 @@ def load_athens_wide_diaries(
 def wide_diaries_to_canonical(
     wide: pd.DataFrame,
     *,
-    fixture_travel_time_seconds: int
-    | None = DEFAULT_FIXTURE_TRAVEL_TIME_SECONDS,
+    fixture_travel_time_seconds: int | None = DEFAULT_FIXTURE_TRAVEL_TIME_SECONDS,
 ) -> AthensInputTables:
-    """Convert wide diary rows with up to five trips into canonical `trips`, `persons`, and `households` tables."""
+    """Convert wide diary rows with up to five trips into canonical `trips`,
+    `persons`, and `households` tables.
+    """
     _validate_wide_columns(wide)
-    if (
-        fixture_travel_time_seconds is not None
-        and fixture_travel_time_seconds <= 0
-    ):
+    if fixture_travel_time_seconds is not None and fixture_travel_time_seconds <= 0:
         raise ValueError(
-            f"`fixture_travel_time_seconds` must be positive, got {fixture_travel_time_seconds}."
+            "`fixture_travel_time_seconds` must be positive, got "
+            f"{fixture_travel_time_seconds}."
         )
     usable = wide.dropna(subset=["pid", "home"]).copy()
     households = _households_from_wide(usable)
@@ -125,9 +124,7 @@ def wide_diaries_to_canonical(
 
 
 def _validate_wide_columns(wide: pd.DataFrame) -> None:
-    missing = [
-        column for column in WIDE_DIARY_COLUMNS if column not in wide.columns
-    ]
+    missing = [column for column in WIDE_DIARY_COLUMNS if column not in wide.columns]
     for trip_number in range(1, MAX_TRIPS_PER_DIARY + 1):
         for stem in ("dest", "purp", "mode", "time"):
             column = f"{stem}{trip_number}"
@@ -193,15 +190,10 @@ def _trips_from_wide(
             if pd.isna(destination):
                 break
             raw_time_hour = _hour(row[f"time{trip_number}"])
-            if (
-                previous_time_hour is not None
-                and raw_time_hour < previous_time_hour
-            ):
+            if previous_time_hour is not None and raw_time_hour < previous_time_hour:
                 day_offset_hours += 24
             absolute_hour = raw_time_hour + day_offset_hours
-            earliest_second, latest_second = _departure_window_seconds(
-                absolute_hour
-            )
+            earliest_second, latest_second = _departure_window_seconds(absolute_hour)
             trip_row: dict[str, str | int | None] = {
                 "household_id": household_id,
                 "person_id": household_id,
@@ -277,9 +269,7 @@ def _zone(value: RawCell) -> str:
     if pd.isna(value):
         raise ValueError("Zone values cannot be missing.")
     if isinstance(value, float | np.floating):
-        return (
-            str(int(value)) if float(value).is_integer() else str(float(value))
-        )
+        return str(int(value)) if float(value).is_integer() else str(float(value))
     if isinstance(value, int | np.integer):
         return str(int(value))
     return str(value)
@@ -300,7 +290,12 @@ def _hour(value: RawCell) -> int:
         raise ValueError(
             f"Reported departure hour must be an integer hour, got {value!r}."
         )
-    return int(number)
+    hour = int(number)
+    if not 0 <= hour <= 23:
+        raise ValueError(
+            f"Reported departure hour must be between 0 and 23, got {value!r}."
+        )
+    return hour
 
 
 def _purpose(value: RawCell) -> str:

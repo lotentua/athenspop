@@ -1,6 +1,6 @@
 # Comprehensive pivot audit and implementation plan
 
-**Status:** audit complete; implementation not started
+**Status:** release-candidate implementation complete; data authority unresolved
 
 **Audit date:** 2026-08-24
 
@@ -14,16 +14,28 @@
 
 The reusable library is a credible generic implementation of travel-diary validation, stochastic scheduling, sequence construction, optimal-matching dissimilarity, and average-linkage clustering. Its current tests support many local contracts.
 
-The repository is not ready to ship as a reproduction of the attached paper. The current Athens artifacts pass their 86-check validator but do not reproduce the paper's clustering or demographic analysis. The release must preserve and distinguish two claims:
+The implemented release candidate deliberately does not claim end-to-end reproduction of the attached paper. It preserves and distinguishes two evidence surfaces:
 
-1. **Archived-result reproduction:** the historical realization and published paper outputs, validated against an independent paper oracle.
-2. **Refactored reanalysis:** the corrected generic pipeline and any intentionally changed realization, with differences and regenerated interpretations disclosed.
+1. **Paper-result reference:** frozen retained downstream arrays and clustering invariants, validated against an independent reference contract. The respondent-key ordering is an explicitly labeled historical reconstruction.
+2. **Migrated reanalysis:** the corrected generic pipeline and current realization, with routing, imputation, RNG and state-retention differences disclosed.
 
-Neither surface should be removed. They must not share an ambiguous “reproduction” label.
+Neither surface is removed, and neither uses an ambiguous end-to-end reproduction label.
 
 Public release is also conditional on documented redistribution authority for the survey and derived routing resources. The present MIT software license does not establish that authority.
 
+## Implementation checkpoint
+
+The release-candidate implementation completed the engineering work for F01-F04 and F06-F30. The response to F01 and F07 is an explicit evidence split: frozen historical artifacts form a paper-result reference, while newly generated outputs form a migrated reanalysis with recorded realization differences. F08 now uses the narrower missing-routing-data description supported by retained evidence. F09 uses purpose-stratified empirical activity-duration sampling in the migrated reanalysis and records the historical absolute-departure sampler as a paper-result-reference deviation.
+
+The implementation also completed the full- and ultra-mode Ponytail reductions. It removed unused notebook and coverage dependencies, custom lint and type policy, redundant meta-tests, duplicate artifact registries, superseded plans, machine-local Claude permissions, and an unreferenced shapefile fixture. MyST walkthrough pages now live in the Sphinx graph. The software-only source distribution excludes the paper, data, examples, tests, and documentation.
+
+The checkpoint counts below are superseded by the final release-gate results recorded in `docs/design/release_readiness.md`. Ruff lint and formatting, ty, warning-clean Sphinx, distribution builds, an isolated installed-wheel smoke, and a fresh 512-diary reanalysis all passed at the checkpoint.
+
+F05 remains open. The public Git repository and pushed integration branch already expose survey, routing, and manuscript materials whose redistribution authority is not established by the MIT software license. Resolution requires documented authority or removal from public Git history plus an acquisition procedure. The built Python distributions use a narrower software-only boundary, but that does not undo the existing exposure.
+
 ## Scope and method
+
+The findings and implementation phases below are retained as the original audit record. Their future-tense wording and pre-implementation gate counts are historical; the implementation checkpoint above and release-readiness record state the current result.
 
 This audit covered the complete tracked repository, production source, generic tests, Athens tests and example code, the checked-in paper and LaTeX sources, generated full artifacts, packaging, Sphinx documentation, and all refactor plans under `.claude` and `docs/plans`.
 
@@ -354,13 +366,8 @@ Use the following minimal policy:
 addopts = ["--import-mode=importlib"]
 testpaths = ["tests", "examples/athens/tests"]
 
-[tool.ruff]
-target-version = "py312"
-line-length = 80
-src = ["src", "tests", "examples"]
-
 [tool.ruff.lint]
-extend-select = ["E", "W", "F", "I", "UP"]
+select = ["E", "W", "F", "I", "UP"]
 ```
 
 Do not add a `[tool.ty]` section unless a demonstrated project-specific defect requires one; the requested contract is ty defaults. Apply Google Python style to source and tests, use PEP 8 only where Google is silent, and use Refactoring.Guru only to name a demonstrated code smell or established refactoring. Do not introduce design patterns speculatively.
@@ -544,8 +551,8 @@ Then:
 
 ## Owner decisions required before implementation can ship
 
-1. Provide or identify the survey and routing-resource redistribution authority, or approve an acquisition-only public release surface.
-2. Confirm the retained historical workflow is the authoritative implementation oracle for exact reproduction where the manuscript is underspecified.
-3. Provide any surviving evidence for the paper's one-diary infeasibility classification. Without it, the documentation will use the narrower routing-missingness description.
+1. **Open:** provide or identify the survey and routing-resource redistribution authority, or approve an acquisition-only public repository surface.
+2. **Resolved by claim boundary:** the retained historical artifacts are the paper-result oracle. They are not represented as an exact execution of every manuscript method statement.
+3. **Resolved conservatively:** no stronger evidence was found, so the maintained documentation describes the exclusion as missing routing data rather than proven temporal infeasibility.
 
-These decisions do not block implementation of generic correctness fixes, documentation integration, or tooling cleanup. They do block an unqualified public paper-reproduction release.
+The remaining authority decision does not block the software-only build or release-candidate branch. It blocks an unqualified public data-bearing release.

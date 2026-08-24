@@ -27,9 +27,7 @@ from athenspop.validation.report import (
     ValidationReportBuilder,
 )
 
-type ScalarValue = (
-    str | int | float | bool | np.integer | np.floating | np.bool_ | None
-)
+type ScalarValue = str | int | float | bool | np.integer | np.floating | np.bool_ | None
 type IntegerSecondValue = int | np.integer
 
 
@@ -39,7 +37,8 @@ class NormalizedTables:
 
     Attributes:
         trips:
-            Trip table copy sorted into validated diary order and annotated with `timing_pattern`.
+            Trip table copy sorted into validated diary order and annotated with
+            `timing_pattern`.
         persons:
             Optional person table copy after table/key/join validation.
         households:
@@ -53,7 +52,8 @@ class NormalizedTables:
 
 @dataclass(frozen=True, slots=True)
 class ValidationResult:
-    """Validation output separated from normalized tables so reports stay diagnostic-only.
+    """Validation output separated from normalized tables so reports stay
+    diagnostic-only.
 
     Attributes:
         report:
@@ -73,7 +73,8 @@ def validate_dataframes(
     *,
     travel_time_function: TravelTimeFunction | None = None,
 ) -> ValidationResult:
-    """Validate long-form survey input dataframes and return independent diagnostics at once.
+    """Validate long-form survey input dataframes and return independent
+    diagnostics at once.
 
     Args:
         trips:
@@ -83,16 +84,26 @@ def validate_dataframes(
         households:
             Optional household table keyed by `household_id`.
         travel_time_function:
-            Optional callable used only to classify timing patterns that intentionally omit duration and arrival columns.
+            Optional callable used only to classify timing patterns that intentionally
+            omit duration and arrival columns.
 
     Returns:
-        Validation result containing a report and normalized tables when no hard errors exist.
+        Validation result containing a report and normalized tables when no hard errors
+        exist.
 
     Notes:
-        Validation collects independent schema, key, join, timing, and diary-chain diagnostics without cascading row errors after the first row-blocking failure.
-        A result with normalized tables is the boundary after which package internals may trust the model contract.
+        Validation collects independent schema, key, join, timing, and diary-chain
+        diagnostics without cascading row errors after the first row-blocking failure.
+        A result with normalized tables is the boundary after which package internals
+        may trust the model contract.
     """
     builder = ValidationReportBuilder()
+    if travel_time_function is not None and not callable(travel_time_function):
+        builder.add_error(
+            code="travel_time_function_not_callable",
+            table=TRIPS_TABLE,
+            message="`travel_time_function` must be callable when provided.",
+        )
     table_is_usable = {
         TRIPS_TABLE: _validate_table_shape(
             builder, TRIPS_TABLE, trips, required_columns=TRIP_REQUIRED_COLUMNS
@@ -115,8 +126,16 @@ def validate_dataframes(
         report = builder.build()
         return ValidationResult(report=report, normalized_tables=None)
     normalized_trips = trips.copy()
-    normalized_persons = None if persons is None else persons.copy()
-    normalized_households = None if households is None else households.copy()
+    normalized_persons = (
+        persons.copy()
+        if persons is not None and table_is_usable[PERSONS_TABLE]
+        else None
+    )
+    normalized_households = (
+        households.copy()
+        if households is not None and table_is_usable[HOUSEHOLDS_TABLE]
+        else None
+    )
     _validate_keys(
         builder,
         normalized_trips,
@@ -190,7 +209,9 @@ def _validate_table_shape(
     *,
     required_columns: tuple[str, ...],
 ) -> bool:
-    """Validate table type, duplicate columns, and required columns before row-level checks."""
+    """Validate table type, duplicate columns, and required columns before
+    row-level checks.
+    """
     if not isinstance(frame, pd.DataFrame):
         builder.add_error(
             code="table_not_dataframe",
@@ -198,15 +219,41 @@ def _validate_table_shape(
             message=f"`{table}` must be a pandas DataFrame.",
         )
         return False
+    if not frame.index.is_unique:
+        builder.add_error(
+            code="duplicate_index",
+            table=table,
+            message=(
+                f"`{table}` must have a unique dataframe index so diagnostics "
+                "and normalization identify each row unambiguously."
+            ),
+        )
+        return False
     duplicated_columns = [
-        str(column)
-        for column in frame.columns[frame.columns.duplicated()].tolist()
+        str(column) for column in frame.columns[frame.columns.duplicated()].tolist()
     ]
     if duplicated_columns:
         builder.add_error(
             code="duplicate_columns",
             table=table,
-            message=f"`{table}` has duplicate column names: {', '.join(duplicated_columns)}.",
+            message=(
+                f"`{table}` has duplicate column names: "
+                f"{', '.join(duplicated_columns)}."
+            ),
+        )
+        return False
+    string_columns = [str(column) for column in frame.columns]
+    normalized_duplicates = sorted(
+        {column for column in string_columns if string_columns.count(column) > 1}
+    )
+    if normalized_duplicates:
+        builder.add_error(
+            code="normalized_column_collision",
+            table=table,
+            message=(
+                f"`{table}` has column names that collide after string "
+                f"normalization: {', '.join(normalized_duplicates)}."
+            ),
         )
         return False
     missing_columns = [
@@ -216,7 +263,10 @@ def _validate_table_shape(
         builder.add_error(
             code="missing_required_columns",
             table=table,
-            message=f"`{table}` is missing required column(s): {', '.join(missing_columns)}.",
+            message=(
+                f"`{table}` is missing required column(s): "
+                f"{', '.join(missing_columns)}."
+            ),
         )
         return False
     return True
@@ -229,7 +279,9 @@ def _validate_keys(
     table: str,
     key_columns: tuple[str, ...],
 ) -> None:
-    """Validate missing and duplicate table keys while blocking rows that lack identity."""
+    """Validate missing and duplicate table keys while blocking rows that lack
+    identity.
+    """
     for column in key_columns:
         frame[column] = frame[column].astype(object)
 
@@ -244,7 +296,10 @@ def _validate_keys(
                     row_identifier=row_identifier,
                     column=column,
                     bad_value=repr(raw_value),
-                    message=f"`{table}` row {row_identifier} has non-scalar `{column}` key. Key columns must contain simple scalar values.",
+                    message=(
+                        f"`{table}` row {row_identifier} has non-scalar `{column}` "
+                        "key. Key columns must contain simple scalar values."
+                    ),
                 )
                 break
             value = cast("ScalarValue", raw_value)
@@ -255,7 +310,10 @@ def _validate_keys(
                     row_identifier=row_identifier,
                     column=column,
                     bad_value=_format_value(value),
-                    message=f"`{table}` row {row_identifier} has a missing `{column}` key. Fill the key before validation.",
+                    message=(
+                        f"`{table}` row {row_identifier} has a missing `{column}` "
+                        "key. Fill the key before validation."
+                    ),
                 )
                 break
             frame.loc[row_index, column] = str(value)
@@ -274,7 +332,10 @@ def _validate_keys(
                 table=table,
                 row_identifier=row_identifier,
                 column=", ".join(key_columns),
-                message=f"`{table}` row {row_identifier} duplicates the table identity `{', '.join(key_columns)}`. Each identity must appear once.",
+                message=(
+                    f"`{table}` row {row_identifier} duplicates the table identity "
+                    f"`{', '.join(key_columns)}`. Each identity must appear once."
+                ),
             )
 
 
@@ -284,7 +345,9 @@ def _validate_joins(
     persons: pd.DataFrame | None,
     households: pd.DataFrame | None,
 ) -> None:
-    """Validate optional-table joins without suppressing unrelated trip-row domain checks."""
+    """Validate optional-table joins without suppressing unrelated trip-row
+    domain checks.
+    """
     trip_rows = [
         index
         for index in trips.index
@@ -302,49 +365,49 @@ def _validate_joins(
                     table=TRIPS_TABLE,
                     row_identifier=_row_identifier(TRIPS_TABLE, row_index),
                     column=", ".join(PERSON_KEY_COLUMNS),
-                    message=f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} references a person that is not present in `persons`.",
+                    message=(
+                        f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} "
+                        "references a person that is not present in `persons`."
+                    ),
                     suppress_row=False,
                 )
     if households is not None:
         valid_household_keys = {
-            _key_tuple(row, HOUSEHOLD_KEY_COLUMNS)
-            for _, row in households.iterrows()
+            _key_tuple(row, HOUSEHOLD_KEY_COLUMNS) for _, row in households.iterrows()
         }
         for row_index in trip_rows:
             row = trips.loc[row_index]
-            if (
-                _key_tuple(row, HOUSEHOLD_KEY_COLUMNS)
-                not in valid_household_keys
-            ):
+            if _key_tuple(row, HOUSEHOLD_KEY_COLUMNS) not in valid_household_keys:
                 builder.add_error(
                     code="orphan_trip_household",
                     table=TRIPS_TABLE,
                     row_identifier=_row_identifier(TRIPS_TABLE, row_index),
                     column=", ".join(HOUSEHOLD_KEY_COLUMNS),
-                    message=f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} references a household that is not present in `households`.",
+                    message=(
+                        f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} "
+                        "references a household that is not present in `households`."
+                    ),
                     suppress_row=False,
                 )
         if persons is not None:
             person_rows = [
                 index
                 for index in persons.index
-                if _row_identifier(PERSONS_TABLE, index)
-                not in builder.blocked_rows
+                if _row_identifier(PERSONS_TABLE, index) not in builder.blocked_rows
             ]
             for row_index in person_rows:
                 row = persons.loc[row_index]
-                if (
-                    _key_tuple(row, HOUSEHOLD_KEY_COLUMNS)
-                    not in valid_household_keys
-                ):
+                if _key_tuple(row, HOUSEHOLD_KEY_COLUMNS) not in valid_household_keys:
                     builder.add_error(
                         code="orphan_person_household",
                         table=PERSONS_TABLE,
-                        row_identifier=_row_identifier(
-                            PERSONS_TABLE, row_index
-                        ),
+                        row_identifier=_row_identifier(PERSONS_TABLE, row_index),
                         column=", ".join(HOUSEHOLD_KEY_COLUMNS),
-                        message=f"`persons` row {_row_identifier(PERSONS_TABLE, row_index)} references a household that is not present in `households`.",
+                        message=(
+                            f"`persons` row "
+                            f"{_row_identifier(PERSONS_TABLE, row_index)} references "
+                            "a household that is not present in `households`."
+                        ),
                         suppress_row=False,
                     )
 
@@ -356,11 +419,11 @@ def _validate_metadata_values(
     table: str,
     reserved_columns: tuple[str, ...],
 ) -> None:
-    """Validate user metadata columns before trusted model construction preserves them."""
+    """Validate user metadata columns before trusted model construction
+    preserves them.
+    """
     metadata_columns = [
-        column
-        for column in frame.columns
-        if str(column) not in reserved_columns
+        column for column in frame.columns if str(column) not in reserved_columns
     ]
     for row_index, row in frame.iterrows():
         row_identifier = _row_identifier(table, row_index)
@@ -374,7 +437,11 @@ def _validate_metadata_values(
                     row_identifier=row_identifier,
                     column=str(column),
                     bad_value=repr(row[column]),
-                    message=f"`{table}` row {row_identifier} has non-scalar metadata in `{column}`. Extra metadata columns must contain simple scalar values.",
+                    message=(
+                        f"`{table}` row {row_identifier} has non-scalar metadata in "
+                        f"`{column}`. Extra metadata columns must contain simple "
+                        "scalar values."
+                    ),
                 )
                 break
             value = cast("ScalarValue", row[column])
@@ -390,7 +457,11 @@ def _validate_metadata_values(
                     row_identifier=row_identifier,
                     column=str(column),
                     bad_value=repr(row[column]),
-                    message=f"`{table}` row {row_identifier} has unsupported metadata in `{column}`. Extra metadata columns must contain strings, numbers, booleans, or missing values.",
+                    message=(
+                        f"`{table}` row {row_identifier} has unsupported metadata "
+                        f"in `{column}`. Extra metadata columns must contain strings, "
+                        "numbers, booleans, or missing values."
+                    ),
                 )
                 break
 
@@ -401,7 +472,13 @@ def _validate_trip_rows(
     *,
     travel_time_function: TravelTimeFunction | None,
 ) -> pd.Series | None:
-    """Validate per-trip domain fields and classify exactly one supported timing pattern per usable row."""
+    """Validate per-trip domain fields and classify exactly one supported timing
+    pattern per usable row.
+    """
+    if callable(travel_time_function):
+        for column in ("travel_time_seconds", "arrival_second"):
+            if column not in trips.columns:
+                trips[column] = pd.Series(pd.NA, index=trips.index, dtype="Int64")
     patterns: dict[Hashable, str] = {}
     for row_index, row in trips.iterrows():
         row_identifier = _row_identifier(TRIPS_TABLE, row_index)
@@ -416,7 +493,11 @@ def _validate_trip_rows(
                     row_identifier=row_identifier,
                     column=column,
                     bad_value=repr(raw_value),
-                    message=f"`trips` row {row_identifier} has non-scalar `{column}`. Movement and behavior columns must contain simple scalar values.",
+                    message=(
+                        f"`trips` row {row_identifier} has non-scalar `{column}`. "
+                        "Movement and behavior columns must contain simple scalar "
+                        "values."
+                    ),
                 )
                 break
             value = cast("ScalarValue", raw_value)
@@ -427,7 +508,10 @@ def _validate_trip_rows(
                     row_identifier=row_identifier,
                     column=column,
                     bad_value=_format_value(value),
-                    message=f"`trips` row {row_identifier} is missing `{column}`. Fill the movement and behavior columns before loading.",
+                    message=(
+                        f"`trips` row {row_identifier} is missing `{column}`. Fill "
+                        "the movement and behavior columns before loading."
+                    ),
                 )
                 break
         if row_identifier in builder.blocked_rows:
@@ -438,7 +522,11 @@ def _validate_trip_rows(
                 table=TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=", ".join(UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS),
-                message=f"`trips` row {row_identifier} uses an arrival-time range. Provide concrete arrival time, fixed travel time, or a departure window plus travel time.",
+                message=(
+                    f"`trips` row {row_identifier} uses an arrival-time range. "
+                    "Provide concrete arrival time, fixed travel time, or a departure "
+                    "window plus travel time."
+                ),
             )
             continue
         for column in SECOND_COLUMNS:
@@ -452,7 +540,11 @@ def _validate_trip_rows(
                         row_identifier=row_identifier,
                         column=column,
                         bad_value=_format_value(value),
-                        message=f"`trips` row {row_identifier} has `{column}`={_format_value(value)}. Time values must be integer seconds from the diary time origin.",
+                        message=(
+                            f"`trips` row {row_identifier} has `{column}`="
+                            f"{_format_value(value)}. Time values must be integer "
+                            "seconds from the diary time origin."
+                        ),
                     )
                     break
                 if second_value is not None and int(second_value) < 0:
@@ -462,21 +554,26 @@ def _validate_trip_rows(
                         row_identifier=row_identifier,
                         column=column,
                         bad_value=_format_value(value),
-                        message=f"`trips` row {row_identifier} has `{column}`={_format_value(value)}. Time values must be non-negative integer seconds.",
+                        message=(
+                            f"`trips` row {row_identifier} has `{column}`="
+                            f"{_format_value(value)}. Time values must be non-negative "
+                            "integer seconds."
+                        ),
                     )
                     break
         if row_identifier in builder.blocked_rows:
             continue
-        pattern = _detect_timing_pattern(
-            row, travel_time_function=travel_time_function
-        )
+        pattern = _detect_timing_pattern(row, travel_time_function=travel_time_function)
         if pattern is None:
             builder.add_error(
                 code="invalid_timing_pattern",
                 table=TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=", ".join(TRIP_TIMING_COLUMNS),
-                message=f"`trips` row {row_identifier} must match exactly one supported timing pattern.",
+                message=(
+                    f"`trips` row {row_identifier} must match exactly one supported "
+                    "timing pattern."
+                ),
             )
             continue
         pattern_error = _validate_timing_semantics(row, pattern)
@@ -490,17 +587,83 @@ def _validate_trip_rows(
                 message=f"`trips` row {row_identifier} {message}",
             )
             continue
+        if (
+            pattern == TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION
+            and callable(travel_time_function)
+            and not _resolve_concrete_callable_trip(
+                builder,
+                trips,
+                row_index=row_index,
+                row=row,
+                travel_time_function=travel_time_function,
+            )
+        ):
+            continue
         patterns[row_index] = pattern.value
     if not patterns and len(trips.index) > 0:
         return None
     return pd.Series(patterns, name="timing_pattern", dtype="string")
 
 
+def _resolve_concrete_callable_trip(
+    builder: ValidationReportBuilder,
+    trips: pd.DataFrame,
+    *,
+    row_index: Hashable,
+    row: pd.Series,
+    travel_time_function: TravelTimeFunction,
+) -> bool:
+    """Resolve one concrete callable trip before final chain validation."""
+    row_identifier = _row_identifier(TRIPS_TABLE, row_index)
+    departure_second = _required_int(row, "departure_second")
+    try:
+        travel_time_seconds = travel_time_function(
+            str(row["origin"]),
+            str(row["destination"]),
+            str(row["mode"]),
+            departure_second,
+        )
+    except Exception as error:  # noqa: BLE001 - user callback boundary.
+        builder.add_error(
+            code="travel_time_function_error",
+            table=TRIPS_TABLE,
+            row_identifier=row_identifier,
+            column="travel_time_function",
+            message=(
+                f"`trips` row {row_identifier} could not resolve travel time at "
+                f"departure_second={departure_second}: {error}."
+            ),
+        )
+        return False
+    if (
+        isinstance(travel_time_seconds, bool)
+        or not isinstance(travel_time_seconds, int)
+        or travel_time_seconds <= 0
+    ):
+        builder.add_error(
+            code="invalid_travel_time_function_result",
+            table=TRIPS_TABLE,
+            row_identifier=row_identifier,
+            column="travel_time_function",
+            bad_value=repr(travel_time_seconds),
+            message=(
+                f"`trips` row {row_identifier} received {travel_time_seconds!r} "
+                "from `travel_time_function`; expected positive integer seconds."
+            ),
+        )
+        return False
+    trips.loc[row_index, "travel_time_seconds"] = travel_time_seconds
+    trips.loc[row_index, "arrival_second"] = departure_second + travel_time_seconds
+    return True
+
+
 def _validate_trip_chains(
     builder: ValidationReportBuilder,
     trips: pd.DataFrame,
 ) -> list[Hashable]:
-    """Validate diary ordering and chain-level warnings, returning row labels in trusted diary order."""
+    """Validate diary ordering and chain-level warnings, returning row labels in
+    trusted diary order.
+    """
     valid_trip_rows = [
         index
         for index in trips.index
@@ -515,9 +678,7 @@ def _validate_trip_chains(
         ["household_id", "person_id"], sort=False
     ):
         chain_identifier = f"household_id={household_id}; person_id={person_id}"
-        order_column = _resolve_trip_order_column(
-            builder, group, chain_identifier
-        )
+        order_column = _resolve_trip_order_column(builder, group, chain_identifier)
         if order_column is None:
             continue
         ordered_group = group.sort_values(
@@ -528,16 +689,17 @@ def _validate_trip_chains(
         previous_arrival: int | None = None
         for row_index, row in ordered_group.iterrows():
             origin = str(row["origin"])
-            if (
-                previous_destination is not None
-                and origin != previous_destination
-            ):
+            if previous_destination is not None and origin != previous_destination:
                 builder.add_warning(
                     code="origin_mismatch",
                     table=TRIPS_TABLE,
                     row_identifier=_row_identifier(TRIPS_TABLE, row_index),
                     column="origin",
-                    message=f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} starts at `{origin}`, but the previous trip in {chain_identifier} ended at `{previous_destination}`.",
+                    message=(
+                        f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} starts "
+                        f"at `{origin}`, but the previous trip in {chain_identifier} "
+                        f"ended at `{previous_destination}`."
+                    ),
                 )
             departure_second = _optional_int(row, "departure_second")
             arrival_second = _optional_int(row, "arrival_second")
@@ -559,7 +721,11 @@ def _validate_trip_chains(
                     table=TRIPS_TABLE,
                     row_identifier=_row_identifier(TRIPS_TABLE, row_index),
                     column="departure_second",
-                    message=f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} departs before the previous trip in {chain_identifier} has arrived.",
+                    message=(
+                        f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} "
+                        f"departs before the previous trip in {chain_identifier} has "
+                        "arrived."
+                    ),
                 )
                 builder.mark_chain_invalid(chain_identifier)
                 break
@@ -571,7 +737,9 @@ def _validate_trip_chains(
 def _resolve_trip_order_column(
     builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str
 ) -> str | None:
-    """Choose explicit `trip_sequence` ordering or concrete departure ordering for one diary chain."""
+    """Choose explicit `trip_sequence` ordering or concrete departure ordering
+    for one diary chain.
+    """
     if "trip_sequence" in group.columns:
         return _resolve_trip_sequence_order(builder, group, chain_identifier)
     return _resolve_concrete_departure_order(builder, group, chain_identifier)
@@ -580,7 +748,9 @@ def _resolve_trip_order_column(
 def _resolve_trip_sequence_order(
     builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str
 ) -> str | None:
-    """Validate explicit non-negative unique trip sequence values for one diary chain."""
+    """Validate explicit non-negative unique trip sequence values for one diary
+    chain.
+    """
     seen_sequences: dict[int, Hashable] = {}
     for row_index, row in group.iterrows():
         row_identifier = _row_identifier(TRIPS_TABLE, row_index)
@@ -593,7 +763,12 @@ def _resolve_trip_sequence_order(
                 row_identifier=row_identifier,
                 column="trip_sequence",
                 bad_value=_format_value(value),
-                message=f"`trips` row {row_identifier} is missing `trip_sequence`. Fill `trip_sequence` for every trip in {chain_identifier}, or omit the column only when order is uniquely inferable from concrete departure seconds.",
+                message=(
+                    f"`trips` row {row_identifier} is missing `trip_sequence`. Fill "
+                    f"`trip_sequence` for every trip in {chain_identifier}, or omit "
+                    "the column only when order is uniquely inferable from concrete "
+                    "departure seconds."
+                ),
             )
             builder.mark_chain_invalid(chain_identifier)
             return None
@@ -604,7 +779,11 @@ def _resolve_trip_sequence_order(
                 row_identifier=row_identifier,
                 column="trip_sequence",
                 bad_value=_format_value(value),
-                message=f"`trips` row {row_identifier} has invalid `trip_sequence`={_format_value(value)}. Use non-negative integer sequence values within each diary chain.",
+                message=(
+                    f"`trips` row {row_identifier} has invalid `trip_sequence`="
+                    f"{_format_value(value)}. Use non-negative integer sequence "
+                    "values within each diary chain."
+                ),
             )
             builder.mark_chain_invalid(chain_identifier)
             return None
@@ -616,7 +795,11 @@ def _resolve_trip_sequence_order(
                 row_identifier=row_identifier,
                 column="trip_sequence",
                 bad_value=_format_value(value),
-                message=f"`trips` row {row_identifier} duplicates `trip_sequence`={sequence_int} in {chain_identifier}. Each trip sequence value must be unique within a diary chain.",
+                message=(
+                    f"`trips` row {row_identifier} duplicates `trip_sequence`="
+                    f"{sequence_int} in {chain_identifier}. Each trip sequence value "
+                    "must be unique within a diary chain."
+                ),
             )
             builder.mark_chain_invalid(chain_identifier)
             return None
@@ -627,7 +810,9 @@ def _resolve_trip_sequence_order(
 def _resolve_concrete_departure_order(
     builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str
 ) -> str | None:
-    """Use concrete departures as diary order only when they are present and unique within the chain."""
+    """Use concrete departures as diary order only when they are present and
+    unique within the chain.
+    """
     seen_departures: dict[int, Hashable] = {}
     for row_index, row in group.iterrows():
         row_identifier = _row_identifier(TRIPS_TABLE, row_index)
@@ -638,7 +823,12 @@ def _resolve_concrete_departure_order(
                 table=TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column="trip_sequence",
-                message=f"`trips` row {row_identifier} has no concrete `departure_second`, so order is not uniquely inferable for {chain_identifier}. Add a non-negative integer `trip_sequence` column for the whole diary chain.",
+                message=(
+                    f"`trips` row {row_identifier} has no concrete "
+                    f"`departure_second`, so order is not uniquely inferable for "
+                    f"{chain_identifier}. Add a non-negative integer `trip_sequence` "
+                    "column for the whole diary chain."
+                ),
             )
             builder.mark_chain_invalid(chain_identifier)
             return None
@@ -649,7 +839,11 @@ def _resolve_concrete_departure_order(
                 row_identifier=row_identifier,
                 column="trip_sequence",
                 bad_value=str(departure_second),
-                message=f"`trips` row {row_identifier} has departure_second={departure_second}, which is duplicated in {chain_identifier}. Add `trip_sequence` so the diary order is explicit.",
+                message=(
+                    f"`trips` row {row_identifier} has departure_second="
+                    f"{departure_second}, which is duplicated in {chain_identifier}. "
+                    "Add `trip_sequence` so the diary order is explicit."
+                ),
             )
             builder.mark_chain_invalid(chain_identifier)
             return None
@@ -660,7 +854,9 @@ def _resolve_concrete_departure_order(
 def _detect_timing_pattern(
     row: pd.Series, *, travel_time_function: TravelTimeFunction | None
 ) -> TimingPattern | None:
-    """Detect the single supported timing pattern represented by one row's populated timing columns."""
+    """Detect the single supported timing pattern represented by one row's
+    populated timing columns.
+    """
     has_departure = _has_value(row, "departure_second")
     has_arrival = _has_value(row, "arrival_second")
     has_travel_time = _has_value(row, "travel_time_seconds")
@@ -723,7 +919,8 @@ def _validate_timing_semantics(
             return (
                 "non_positive_travel_duration",
                 "arrival_second",
-                f"arrives at {arrival_second}, which must be after departure_second={departure_second}.",
+                f"arrives at {arrival_second}, which must be after "
+                f"departure_second={departure_second}.",
             )
     if pattern == TimingPattern.DEPARTURE_DURATION:
         travel_time_seconds = _required_int(row, "travel_time_seconds")
@@ -731,7 +928,8 @@ def _validate_timing_semantics(
             return (
                 "non_positive_travel_duration",
                 "travel_time_seconds",
-                f"has travel_time_seconds={travel_time_seconds}. Movement travel time must be strictly positive.",
+                f"has travel_time_seconds={travel_time_seconds}. Movement travel time "
+                "must be strictly positive.",
             )
     if pattern == TimingPattern.DEPARTURE_WINDOW_DURATION:
         earliest = _required_int(row, "earliest_departure_second")
@@ -741,13 +939,15 @@ def _validate_timing_semantics(
             return (
                 "invalid_departure_window",
                 "latest_departure_second",
-                f"has latest_departure_second={latest} before earliest_departure_second={earliest}.",
+                f"has latest_departure_second={latest} before "
+                f"earliest_departure_second={earliest}.",
             )
         if travel_time_seconds <= 0:
             return (
                 "non_positive_travel_duration",
                 "travel_time_seconds",
-                f"has travel_time_seconds={travel_time_seconds}. Movement travel time must be strictly positive.",
+                f"has travel_time_seconds={travel_time_seconds}. Movement travel time "
+                "must be strictly positive.",
             )
     if pattern == TimingPattern.DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION:
         earliest = _required_int(row, "earliest_departure_second")
@@ -756,7 +956,8 @@ def _validate_timing_semantics(
             return (
                 "invalid_departure_window",
                 "latest_departure_second",
-                f"has latest_departure_second={latest} before earliest_departure_second={earliest}.",
+                f"has latest_departure_second={latest} before "
+                f"earliest_departure_second={earliest}.",
             )
     return None
 
@@ -794,7 +995,9 @@ def _format_value(value: ScalarValue) -> str:
 
 
 def _integer_second_value(value: ScalarValue) -> IntegerSecondValue | None:
-    """Narrow a scalar value to an integer-second value without accepting booleans or floats."""
+    """Narrow a scalar value to an integer-second value without accepting booleans
+    or floats.
+    """
     if isinstance(value, bool | np.bool_):
         return None
     if isinstance(value, int | np.integer):
@@ -803,22 +1006,28 @@ def _integer_second_value(value: ScalarValue) -> IntegerSecondValue | None:
 
 
 def _required_int(row: pd.Series, column: str) -> int:
-    """Read a required integer-second value after validation has already narrowed the row."""
+    """Read a required integer-second value after validation has already narrowed
+    the row.
+    """
     value = _integer_second_value(cast("ScalarValue", row[column]))
     if value is None:
         raise RuntimeError(
-            f"`{column}` was not narrowed to an integer second before model construction."
+            f"`{column}` was not narrowed to an integer second before model "
+            "construction."
         )
     return int(value)
 
 
 def _optional_int(row: pd.Series, column: str) -> int | None:
-    """Read an optional integer-second value after validation has already narrowed the row."""
+    """Read an optional integer-second value after validation has already narrowed
+    the row.
+    """
     if column not in row.index or _is_missing(cast("ScalarValue", row[column])):
         return None
     value = _integer_second_value(cast("ScalarValue", row[column]))
     if value is None:
         raise RuntimeError(
-            f"`{column}` was not narrowed to an integer second before model construction."
+            f"`{column}` was not narrowed to an integer second before model "
+            "construction."
         )
     return int(value)

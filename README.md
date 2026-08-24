@@ -37,3 +37,5 @@ Use `schedule_once(...)` for one feasible realization and `generate_schedules(..
 
 Development uses `uv`, Ruff, ty, pytest, and Sphinx.
 See `docs/index.md` for the documentation source.
+
+The Athens backend is documented as two separate evidence surfaces: a frozen paper-result reference and a freshly generated migrated reanalysis. The project does not currently claim end-to-end reproduction of the frozen numerical result.

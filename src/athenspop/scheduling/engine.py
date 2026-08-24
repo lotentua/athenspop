@@ -31,8 +31,11 @@ class SchedulingConfig:
         allow_final_trip_after_observation_window:
             Whether only the final trip may arrive after the observation window.
         refine_callable_departure_windows:
-            Whether callable travel-time trips use bisection to tighten feasible departure windows against later fixed trips.
-            Keep this enabled only when the travel-time callable is deterministic and FIFO over the searched window, meaning later departures cannot produce earlier arrivals.
+            Whether callable travel-time trips use bisection to tighten feasible
+            departure windows against later fixed trips.
+            Keep this enabled only when the travel-time callable is deterministic and
+            FIFO over the searched window, meaning later departures cannot produce
+            earlier arrivals.
     """
 
     min_activity_duration_seconds: int = DEFAULT_MIN_ACTIVITY_DURATION_SECONDS
@@ -43,16 +46,14 @@ class SchedulingConfig:
 
     def __post_init__(self) -> None:
         """Validate scheduler policy values at the public construction boundary."""
-        if isinstance(
-            self.min_activity_duration_seconds, bool
-        ) or not isinstance(self.min_activity_duration_seconds, int):
+        if isinstance(self.min_activity_duration_seconds, bool) or not isinstance(
+            self.min_activity_duration_seconds, int
+        ):
             raise TypeError(
                 "`min_activity_duration_seconds` must be an integer number of seconds."
             )
         if self.min_activity_duration_seconds < 0:
-            raise ValueError(
-                "`min_activity_duration_seconds` must be non-negative."
-            )
+            raise ValueError("`min_activity_duration_seconds` must be non-negative.")
         if isinstance(self.observation_window_seconds, bool) or not isinstance(
             self.observation_window_seconds, int
         ):
@@ -183,16 +184,26 @@ def schedule_once(
         config:
             Optional scheduling policy; defaults are used when omitted.
         travel_time_function:
-            Optional callable returning positive integer travel seconds for trips whose duration is not already concrete.
-            When callable departure-window refinement is enabled, this function must make departure second plus travel time monotone nondecreasing over each searched departure window.
+            Optional callable returning positive integer travel seconds for trips
+            whose duration is not already concrete.
+            When callable departure-window refinement is enabled, this function must
+            make departure second plus travel time monotone nondecreasing over each
+            searched departure window.
 
     Returns:
-        A scheduled dataset containing only feasible diaries plus diagnostics for attempted and infeasible diaries.
+        A scheduled dataset containing only feasible diaries plus diagnostics for
+        attempted and infeasible diaries.
 
     Notes:
-        The scheduler assumes its input model is already valid and complete except for the documented timing realizations.
+        The scheduler assumes its input model is already valid and complete except
+        for the documented timing realizations.
     """
     resolved_config = SchedulingConfig() if config is None else config
+    resolved_travel_time_function = (
+        dataset.travel_time_function
+        if travel_time_function is None
+        else travel_time_function
+    )
     rng = Random(seed)
     scheduled_diaries: list[Diary] = []
     infeasible_diaries: list[str] = []
@@ -203,7 +214,7 @@ def schedule_once(
             diary,
             rng=rng,
             config=resolved_config,
-            travel_time_function=travel_time_function,
+            travel_time_function=resolved_travel_time_function,
         )
         if isinstance(result, _ScheduledDiary):
             scheduled_diaries.append(result.diary)
@@ -219,9 +230,7 @@ def schedule_once(
     scheduled_person_keys = {
         (diary.household_id, diary.person_id) for diary in scheduled_diaries
     }
-    scheduled_household_ids = {
-        diary.household_id for diary in scheduled_diaries
-    }
+    scheduled_household_ids = {diary.household_id for diary in scheduled_diaries}
     scheduled_dataset = SurveyDataset(
         diaries=tuple(scheduled_diaries),
         households=tuple(
@@ -234,10 +243,9 @@ def schedule_once(
             for person in dataset.persons
             if (person.household_id, person.person_id) in scheduled_person_keys
         ),
+        travel_time_function=resolved_travel_time_function,
     )
-    return ScheduledSurveyDataset(
-        dataset=scheduled_dataset, diagnostics=diagnostics
-    )
+    return ScheduledSurveyDataset(dataset=scheduled_dataset, diagnostics=diagnostics)
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,7 +269,9 @@ def _schedule_diary(
     config: SchedulingConfig,
     travel_time_function: TravelTimeFunction | None,
 ) -> _ScheduledDiary | _InfeasibleDiary:
-    """Schedule one diary and stop at the first infeasibility that makes downstream checks untrustworthy."""
+    """Schedule one diary and stop at the first infeasibility that makes downstream
+    checks untrustworthy.
+    """
     scheduled_trips: list[Trip] = []
     issues: list[SchedulingIssue] = []
     previous_arrival_second: int | None = None
@@ -296,15 +306,13 @@ def _schedule_diary(
         if (
             arrival_second > config.observation_window_seconds
             and not config.allow_trips_after_observation_window
-            and not (
-                config.allow_final_trip_after_observation_window
-                and is_final_trip
-            )
+            and not (config.allow_final_trip_after_observation_window and is_final_trip)
         ):
             issues.append(
                 _issue(
                     "arrival_after_observation_window",
-                    f"The trip arrives at {arrival_second}, after the observation window end at {config.observation_window_seconds}.",
+                    f"The trip arrives at {arrival_second}, after the observation "
+                    f"window end at {config.observation_window_seconds}.",
                     realized,
                 )
             )
@@ -323,18 +331,22 @@ def _realize_trip(
     config: SchedulingConfig,
     travel_time_function: TravelTimeFunction | None,
 ) -> Trip | SchedulingIssue:
-    """Realize one trip departure and arrival under previous-activity and future-trip bounds."""
+    """Realize one trip departure and arrival under previous-activity and future-trip
+    bounds.
+    """
     if trip.departure_second is not None:
         if trip.departure_second < earliest_allowed_second:
             return _issue(
                 "activity_duration_too_short",
-                f"The trip departs at {trip.departure_second}, before the earliest feasible departure {earliest_allowed_second}.",
+                f"The trip departs at {trip.departure_second}, before the earliest "
+                f"feasible departure {earliest_allowed_second}.",
                 trip,
             )
         if trip.departure_second > latest_allowed_second:
             return _issue(
                 "infeasible_future_departure",
-                f"The trip departs at {trip.departure_second}, after the latest feasible departure {latest_allowed_second} implied by later trips.",
+                f"The trip departs at {trip.departure_second}, after the latest "
+                f"feasible departure {latest_allowed_second} implied by later trips.",
                 trip,
             )
         return _with_arrival(
@@ -348,16 +360,15 @@ def _realize_trip(
             "The trip has neither a concrete departure time nor a departure window.",
             trip,
         )
-    earliest = max(
-        trip.departure_window.earliest_second, earliest_allowed_second
-    )
+    earliest = max(trip.departure_window.earliest_second, earliest_allowed_second)
     latest = min(trip.departure_window.latest_second, latest_allowed_second)
     if not config.allow_trips_after_observation_window:
         latest = min(latest, config.observation_window_seconds)
     if earliest > latest:
         return _issue(
             "infeasible_departure_window",
-            f"The feasible departure window is empty after constraints: earliest {earliest}, latest {latest}.",
+            "The feasible departure window is empty after constraints: earliest "
+            f"{earliest}, latest {latest}.",
             trip,
         )
     departure_second = rng.randint(earliest, latest)
@@ -374,13 +385,16 @@ def _with_arrival(
     departure_second: int,
     travel_time_function: TravelTimeFunction | None,
 ) -> Trip | SchedulingIssue:
-    """Return a concrete trip arrival using arrival, duration, or the supplied travel-time callable."""
+    """Return a concrete trip arrival using arrival, duration, or the supplied
+    travel-time callable.
+    """
     if trip.arrival_second is not None:
         travel_time_seconds = trip.arrival_second - departure_second
         if travel_time_seconds <= 0:
             return _issue(
                 "non_positive_travel_duration",
-                f"The trip arrives at {trip.arrival_second}, which is not after departure {departure_second}.",
+                f"The trip arrives at {trip.arrival_second}, which is not after "
+                f"departure {departure_second}.",
                 trip,
             )
         return replace(
@@ -393,7 +407,8 @@ def _with_arrival(
         if trip.travel_time_seconds <= 0:
             return _issue(
                 "non_positive_travel_duration",
-                f"The trip travel time is {trip.travel_time_seconds}; movement trips require a positive duration.",
+                f"The trip travel time is {trip.travel_time_seconds}; movement trips "
+                "require a positive duration.",
                 trip,
             )
         return replace(
@@ -405,7 +420,8 @@ def _with_arrival(
     if travel_time_function is None:
         return _issue(
             "missing_travel_time_function",
-            "This trip requires a travel-time function but none was supplied to `schedule_once`.",
+            "This trip requires a travel-time function but none was supplied to "
+            "`schedule_once`.",
             trip,
         )
     travel_time_seconds = _call_travel_time_function(
@@ -428,37 +444,50 @@ def _latest_departure_bounds(
     config: SchedulingConfig,
     travel_time_function: TravelTimeFunction | None,
 ) -> tuple[int, ...] | SchedulingIssue:
-    """Compute reverse latest-departure bounds so early random draws do not make later trips infeasible."""
+    """Compute reverse latest-departure bounds so early random draws do not make later
+    trips infeasible.
+    """
     bounds = [config.observation_window_seconds] * len(trips)
     next_latest_departure: int | None = None
     for index in range(len(trips) - 1, -1, -1):
         trip = trips[index]
         own_latest_departure = _own_latest_departure(trip, config=config)
         latest_departure = own_latest_departure
+        is_final_trip = index == len(trips) - 1
+        target_arrival: int | None = None
         if next_latest_departure is not None:
+            target_arrival = (
+                next_latest_departure - config.min_activity_duration_seconds
+            )
+        must_arrive_within_window = (
+            not config.allow_trips_after_observation_window
+            and not (is_final_trip and config.allow_final_trip_after_observation_window)
+        )
+        if must_arrive_within_window and trip.departure_second is None:
+            target_arrival = (
+                config.observation_window_seconds
+                if target_arrival is None
+                else min(target_arrival, config.observation_window_seconds)
+            )
+        if target_arrival is not None:
             travel_time_seconds = _known_travel_time_seconds(
                 trip, departure_second=own_latest_departure
             )
             if travel_time_seconds is not None:
                 latest_departure = min(
                     latest_departure,
-                    next_latest_departure
-                    - travel_time_seconds
-                    - config.min_activity_duration_seconds,
+                    target_arrival - travel_time_seconds,
                 )
             elif (
                 config.refine_callable_departure_windows
                 and travel_time_function is not None
             ):
-                bounded_departure = (
-                    _latest_callable_departure_for_target_arrival(
-                        trip,
-                        earliest_departure=_own_earliest_departure(trip),
-                        latest_departure=latest_departure,
-                        target_arrival=next_latest_departure
-                        - config.min_activity_duration_seconds,
-                        travel_time_function=travel_time_function,
-                    )
+                bounded_departure = _latest_callable_departure_for_target_arrival(
+                    trip,
+                    earliest_departure=_own_earliest_departure(trip),
+                    latest_departure=latest_departure,
+                    target_arrival=target_arrival,
+                    travel_time_function=travel_time_function,
                 )
                 if isinstance(bounded_departure, SchedulingIssue):
                     return bounded_departure
@@ -469,7 +498,9 @@ def _latest_departure_bounds(
 
 
 def _own_earliest_departure(trip: Trip) -> int:
-    """Return the earliest departure allowed by the trip's own concrete time or window."""
+    """Return the earliest departure allowed by the trip's own concrete time or
+    window.
+    """
     if trip.departure_second is not None:
         return trip.departure_second
     if trip.departure_window is not None:
@@ -478,7 +509,9 @@ def _own_earliest_departure(trip: Trip) -> int:
 
 
 def _own_latest_departure(trip: Trip, *, config: SchedulingConfig) -> int:
-    """Return the latest departure allowed by the trip's own timing data and observation-window policy."""
+    """Return the latest departure allowed by the trip's own timing data and
+    observation-window policy.
+    """
     if trip.departure_second is not None:
         return trip.departure_second
     if trip.departure_window is not None:
@@ -491,10 +524,10 @@ def _own_latest_departure(trip: Trip, *, config: SchedulingConfig) -> int:
     return config.observation_window_seconds
 
 
-def _known_travel_time_seconds(
-    trip: Trip, *, departure_second: int
-) -> int | None:
-    """Return a trip duration when it can be derived without calling a stochastic travel-time function."""
+def _known_travel_time_seconds(trip: Trip, *, departure_second: int) -> int | None:
+    """Return a trip duration when it can be derived without calling a stochastic
+    travel-time function.
+    """
     if trip.travel_time_seconds is not None:
         return trip.travel_time_seconds
     if trip.departure_second is not None and trip.arrival_second is not None:
@@ -512,7 +545,9 @@ def _latest_callable_departure_for_target_arrival(
     target_arrival: int,
     travel_time_function: TravelTimeFunction,
 ) -> int | SchedulingIssue:
-    """Find the latest callable-trip departure whose arrival respects a target arrival bound."""
+    """Find the latest callable-trip departure whose arrival respects a target arrival
+    bound.
+    """
     if earliest_departure > latest_departure:
         return latest_departure
     earliest_travel_time = _call_travel_time_function(
@@ -541,12 +576,14 @@ def _latest_callable_departure_for_target_arrival(
 def _call_travel_time_function(
     travel_time_function: TravelTimeFunction, trip: Trip, departure_second: int
 ) -> int | SchedulingIssue:
-    """Call a user travel-time function and convert expected callable failures into scheduler diagnostics."""
+    """Call a user travel-time function and convert expected callable failures into
+    scheduler diagnostics.
+    """
     try:
         result = travel_time_function(
             trip.origin, trip.destination, trip.mode, departure_second
         )
-    except (ArithmeticError, LookupError, ValueError) as error:
+    except Exception as error:  # noqa: BLE001 - user callback isolation point.
         return _issue(
             "travel_time_function_error",
             f"`travel_time_function` failed for departure {departure_second}: {error}.",
@@ -555,13 +592,15 @@ def _call_travel_time_function(
     if isinstance(result, bool) or not isinstance(result, int):
         return _issue(
             "invalid_travel_time_function_result",
-            f"`travel_time_function` returned {result!r}; it must return a strictly positive integer number of seconds.",
+            f"`travel_time_function` returned {result!r}; it must return a strictly "
+            "positive integer number of seconds.",
             trip,
         )
     if result <= 0:
         return _issue(
             "invalid_travel_time_function_result",
-            f"`travel_time_function` returned {result}; movement trips require a positive travel time.",
+            f"`travel_time_function` returned {result}; movement trips require a "
+            "positive travel time.",
             trip,
         )
     return result

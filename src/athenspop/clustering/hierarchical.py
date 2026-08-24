@@ -11,7 +11,6 @@ from scipy.cluster.hierarchy import (
     ClusterNode,
     cophenet,
     dendrogram,
-    fcluster,
     leaves_list,
     linkage,
     to_tree,
@@ -32,6 +31,7 @@ DENDROGRAM_COORDINATE_COUNT: Final[int] = 4
 LINKAGE_HEIGHT_COLUMN: Final[int] = 2
 MINIMUM_CLUSTERING_OBSERVATIONS: Final[int] = 2
 TWO_DIMENSIONAL_ARRAY_RANK: Final[int] = 2
+DISSIMILARITY_ABSOLUTE_TOLERANCE: Final[float] = 1e-12
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,15 +71,20 @@ class CutDendrogramNode:
         height:
             Raw linkage height for the represented SciPy tree node.
         normalized_height:
-            `height` divided by the root linkage height, with zero roots reported as zero.
+            `height` divided by the root linkage height, with zero roots reported
+            as zero.
         order:
-            Horizontal order for plotting, where displayed leaves occupy consecutive integer positions and internal nodes are centered over their children.
+            Horizontal order for plotting, where displayed leaves occupy consecutive
+            integer positions and internal nodes are centered over their children.
         depth:
-            Vertical split-order depth, where the root has depth zero and later displayed splits receive larger depths.
+            Vertical split-order depth, where the root has depth zero and later
+            displayed splits receive larger depths.
         is_leaf:
-            Whether this displayed node is a cut cluster or singleton leaf rather than an expanded internal split.
+            Whether this displayed node is a cut cluster or singleton leaf rather
+            than an expanded internal split.
         leaf_label:
-            One-based cut-cluster label for displayed leaves, or `None` for expanded internal nodes.
+            One-based cut-cluster label for displayed leaves, or `None` for expanded
+            internal nodes.
         left:
             Left displayed child when the node is expanded.
         right:
@@ -112,7 +117,8 @@ class _DisplayNode:
 def average_linkage(
     dissimilarity_matrix: DissimilarityMatrix, *, optimal_ordering: bool = False
 ) -> LinkageMatrix:
-    """Run average-linkage hierarchical clustering on a square precomputed dissimilarity matrix.
+    """Run average-linkage hierarchical clustering on a square precomputed
+    dissimilarity matrix.
 
     Args:
         dissimilarity_matrix:
@@ -125,9 +131,7 @@ def average_linkage(
     """
     validated_matrix = _validate_dissimilarity_matrix(dissimilarity_matrix)
     condensed = squareform(validated_matrix, checks=False)
-    return linkage(
-        condensed, method="average", optimal_ordering=optimal_ordering
-    )
+    return linkage(condensed, method="average", optimal_ordering=optimal_ordering)
 
 
 def flat_cluster_labels(
@@ -148,12 +152,15 @@ def flat_cluster_labels(
         ValueError:
             If `n_clusters` is not positive.
     """
-    validated_linkage = _validate_linkage_matrix(linkage_matrix)
-    validated_n_clusters = _validate_positive_cluster_count(n_clusters)
-    labels = fcluster(
-        validated_linkage, t=validated_n_clusters, criterion="maxclust"
-    )
-    return labels.astype(np.int64, copy=False)
+    tree = cut_dendrogram_tree(linkage_matrix, n_clusters=n_clusters)
+    labels = np.empty(len(tree.members), dtype=np.int64)
+    for leaf in _display_leaves(tree):
+        if leaf.leaf_label is None:
+            raise RuntimeError(
+                "Cut-dendrogram invariant violated: a displayed leaf has no label."
+            )
+        labels[list(leaf.members)] = leaf.leaf_label
+    return labels
 
 
 def leaf_order(linkage_matrix: LinkageMatrix) -> LeafOrder:
@@ -182,7 +189,8 @@ def dendrogram_layout(
             Optional labels for original observations.
 
     Returns:
-        Dendrogram geometry and labels extracted from SciPy without importing matplotlib.
+        Dendrogram geometry and labels extracted from SciPy without importing
+        matplotlib.
     """
     validated_linkage = _validate_linkage_matrix(linkage_matrix)
     layout = dendrogram(
@@ -200,15 +208,12 @@ def dendrogram_layout(
         leaf_indices=tuple(
             int(leaf) for leaf in cast("Sequence[int]", layout["leaves"])
         ),
-        leaf_labels=tuple(
-            str(label) for label in cast("Sequence[str]", layout["ivl"])
-        ),
+        leaf_labels=tuple(str(label) for label in cast("Sequence[str]", layout["ivl"])),
         branch_colors=tuple(
             str(color) for color in cast("Sequence[str]", layout["color_list"])
         ),
         leaf_colors=tuple(
-            str(color)
-            for color in cast("Sequence[str]", layout["leaves_color_list"])
+            str(color) for color in cast("Sequence[str]", layout["leaves_color_list"])
         ),
     )
 
@@ -267,13 +272,12 @@ def cluster_state_distribution(
     label_tuple = _label_tuple(labels)
     if len(materialized_sequences) != len(label_tuple):
         raise ValueError(
-            f"`sequences` and `labels` must have the same length, got {len(materialized_sequences)} and {len(label_tuple)}."
+            f"`sequences` and `labels` must have the same length, got "
+            f"{len(materialized_sequences)} and {len(label_tuple)}."
         )
     counts: dict[tuple[int, str], int] = {}
     totals: dict[int, int] = {}
-    for sequence, label in zip(
-        materialized_sequences, label_tuple, strict=True
-    ):
+    for sequence, label in zip(materialized_sequences, label_tuple, strict=True):
         for state in sequence:
             counts[(label, state)] = counts.get((label, state), 0) + 1
             totals[label] = totals.get(label, 0) + 1
@@ -307,19 +311,19 @@ def cluster_time_distribution(
 
     Raises:
         ValueError:
-            If `sequences` and `labels` have different lengths, or if the sequences are not equal length.
+            If `sequences` and `labels` have different lengths, or if the sequences
+            are not equal length.
     """
     materialized_sequences = materialize_equal_length_sequences(sequences)
     label_tuple = _label_tuple(labels)
     if len(materialized_sequences) != len(label_tuple):
         raise ValueError(
-            f"`sequences` and `labels` must have the same length, got {len(materialized_sequences)} and {len(label_tuple)}."
+            f"`sequences` and `labels` must have the same length, got "
+            f"{len(materialized_sequences)} and {len(label_tuple)}."
         )
     counts: dict[tuple[int, int, str], int] = {}
     totals: dict[tuple[int, int], int] = {}
-    for sequence, label in zip(
-        materialized_sequences, label_tuple, strict=True
-    ):
+    for sequence, label in zip(materialized_sequences, label_tuple, strict=True):
         for bin_index, state in enumerate(sequence):
             counts[(label, bin_index, state)] = (
                 counts.get((label, bin_index, state), 0) + 1
@@ -343,9 +347,13 @@ def cluster_time_distribution(
 def cut_dendrogram_tree(
     linkage_matrix: LinkageMatrix, *, n_clusters: int
 ) -> CutDendrogramNode:
-    """Return the displayed hierarchy after cutting a linkage tree to `n_clusters` leaves.
+    """Return the displayed hierarchy after cutting a linkage tree to `n_clusters`
+    leaves.
 
-    The cut is constructed top-down by repeatedly splitting the currently displayed node with the largest linkage height until the requested number of displayed leaves is reached. This gives an explicit tree of the nodes that should be drawn, instead of returning full-dendrogram geometry.
+    The cut is constructed top-down by repeatedly splitting the currently displayed
+    node with the largest linkage height until the requested number of displayed
+    leaves is reached. This gives an explicit tree of the nodes that should be drawn,
+    instead of returning full-dendrogram geometry.
 
     Args:
         linkage_matrix:
@@ -363,9 +371,7 @@ def cut_dendrogram_tree(
     validated_linkage = _validate_linkage_matrix(linkage_matrix)
     validated_n_clusters = _validate_positive_cluster_count(n_clusters)
     root = cast("ClusterNode", to_tree(validated_linkage))
-    target_clusters = min(
-        validated_n_clusters, int(validated_linkage.shape[0]) + 1
-    )
+    target_clusters = min(validated_n_clusters, int(validated_linkage.shape[0]) + 1)
     cut_node_ids = _cut_node_ids(root, target_clusters)
     display_root = _build_display_tree(root, cut_node_ids)
     _assign_orders(display_root, next_order=0)
@@ -379,7 +385,8 @@ def cut_dendrogram_tree(
 def cophenetic_correlation(
     linkage_matrix: LinkageMatrix, dissimilarity_matrix: DissimilarityMatrix
 ) -> float:
-    """Return the cophenetic correlation coefficient for a linkage and its source dissimilarities.
+    """Return the cophenetic correlation coefficient for a linkage and its source
+    dissimilarities.
 
     Args:
         linkage_matrix:
@@ -413,7 +420,9 @@ def _label_tuple(labels: Sequence[int]) -> tuple[int, ...]:
 def _validate_dissimilarity_matrix(
     dissimilarity_matrix: DissimilarityMatrix,
 ) -> DissimilarityMatrix:
-    """Return a validated square, finite, symmetric, non-negative dissimilarity matrix."""
+    """Return a validated square, finite, symmetric, non-negative dissimilarity
+    matrix.
+    """
     try:
         matrix = np.asarray(dissimilarity_matrix, dtype=np.float64)
     except (TypeError, ValueError) as error:
@@ -432,16 +441,22 @@ def _validate_dissimilarity_matrix(
             "`dissimilarity_matrix` must contain at least two observations."
         )
     if not np.all(np.isfinite(matrix)):
-        raise ValueError(
-            "`dissimilarity_matrix` must contain only finite values."
-        )
+        raise ValueError("`dissimilarity_matrix` must contain only finite values.")
     if np.any(matrix < 0.0):
-        raise ValueError(
-            "`dissimilarity_matrix` cannot contain negative distances."
-        )
-    if not np.allclose(np.diag(matrix), 0.0):
+        raise ValueError("`dissimilarity_matrix` cannot contain negative distances.")
+    if not np.allclose(
+        np.diag(matrix),
+        0.0,
+        rtol=0.0,
+        atol=DISSIMILARITY_ABSOLUTE_TOLERANCE,
+    ):
         raise ValueError("`dissimilarity_matrix` diagonal must be zero.")
-    if not np.allclose(matrix, matrix.T):
+    if not np.allclose(
+        matrix,
+        matrix.T,
+        rtol=0.0,
+        atol=DISSIMILARITY_ABSOLUTE_TOLERANCE,
+    ):
         raise ValueError("`dissimilarity_matrix` must be symmetric.")
 
     return cast("DissimilarityMatrix", matrix)
@@ -452,37 +467,30 @@ def _validate_linkage_matrix(linkage_matrix: LinkageMatrix) -> LinkageMatrix:
     try:
         matrix = np.asarray(linkage_matrix, dtype=np.float64)
     except (TypeError, ValueError) as error:
-        raise ValueError(
-            "`linkage_matrix` must contain numeric values."
-        ) from error
+        raise ValueError("`linkage_matrix` must contain numeric values.") from error
 
     if (
         matrix.ndim != TWO_DIMENSIONAL_ARRAY_RANK
         or matrix.shape[1] != DENDROGRAM_COORDINATE_COUNT
     ):
         raise ValueError(
-            "`linkage_matrix` must be a two-dimensional SciPy linkage matrix with four columns."
+            "`linkage_matrix` must be a two-dimensional SciPy linkage matrix with "
+            "four columns."
         )
     if matrix.shape[0] < 1:
         raise ValueError("`linkage_matrix` must contain at least one merge.")
     if not np.all(np.isfinite(matrix)):
         raise ValueError("`linkage_matrix` must contain only finite values.")
     if np.any(matrix[:, LINKAGE_HEIGHT_COLUMN] < 0.0):
-        raise ValueError(
-            "`linkage_matrix` cannot contain negative merge heights."
-        )
+        raise ValueError("`linkage_matrix` cannot contain negative merge heights.")
 
     return cast("LinkageMatrix", matrix)
 
 
 def _validate_positive_cluster_count(n_clusters: int) -> int:
     """Return a positive integer cluster count."""
-    if isinstance(n_clusters, bool) or not isinstance(
-        n_clusters, int | np.integer
-    ):
-        raise TypeError(
-            f"`n_clusters` must be a positive integer, got {n_clusters!r}."
-        )
+    if isinstance(n_clusters, bool) or not isinstance(n_clusters, int | np.integer):
+        raise TypeError(f"`n_clusters` must be a positive integer, got {n_clusters!r}.")
     if int(n_clusters) <= 0:
         raise ValueError(f"`n_clusters` must be positive, got {n_clusters}.")
 
@@ -512,17 +520,26 @@ def _cut_node_ids(root: ClusterNode, target_clusters: int) -> set[int]:
     return displayed_leaf_ids
 
 
-def _build_display_tree(
-    node: ClusterNode, cut_node_ids: set[int]
-) -> _DisplayNode:
+def _display_leaves(root: CutDendrogramNode) -> tuple[CutDendrogramNode, ...]:
+    """Return displayed cut leaves in canonical left-to-right label order."""
+    if root.is_leaf:
+        return (root,)
+    left = root.left
+    right = root.right
+    if left is None or right is None:
+        raise RuntimeError(
+            "Cut-dendrogram invariant violated: an expanded node is missing a child."
+        )
+    return (*_display_leaves(left), *_display_leaves(right))
+
+
+def _build_display_tree(node: ClusterNode, cut_node_ids: set[int]) -> _DisplayNode:
     """Build the mutable displayed tree from selected cut-node IDs."""
     if int(node.id) in cut_node_ids or node.is_leaf():
         return _DisplayNode(linkage_node=node, is_leaf=True)
     left = _build_display_tree(_left_child(node), cut_node_ids)
     right = _build_display_tree(_right_child(node), cut_node_ids)
-    return _DisplayNode(
-        linkage_node=node, is_leaf=False, left=left, right=right
-    )
+    return _DisplayNode(linkage_node=node, is_leaf=False, left=left, right=right)
 
 
 def _assign_orders(node: _DisplayNode, *, next_order: int) -> int:
@@ -628,9 +645,7 @@ def _left_child(node: ClusterNode) -> ClusterNode:
     """Return a non-null left child from a SciPy cluster node."""
     left = node.get_left()
     if left is None:
-        raise ValueError(
-            "Expected a non-leaf SciPy cluster node to have a left child."
-        )
+        raise ValueError("Expected a non-leaf SciPy cluster node to have a left child.")
     return cast("ClusterNode", left)
 
 
@@ -647,9 +662,7 @@ def _right_child(node: ClusterNode) -> ClusterNode:
 def _required_child(node: _DisplayNode | None) -> _DisplayNode:
     """Return a required mutable displayed child."""
     if node is None:
-        raise ValueError(
-            "Expanded displayed dendrogram nodes must have both children."
-        )
+        raise ValueError("Expanded displayed dendrogram nodes must have both children.")
     return node
 
 
@@ -664,7 +677,8 @@ def _four_float_tuple(
     """Validate and coerce one SciPy dendrogram coordinate row."""
     if len(values) != DENDROGRAM_COORDINATE_COUNT:
         raise ValueError(
-            f"SciPy dendrogram branch coordinates must have four values, got {len(values)}."
+            "SciPy dendrogram branch coordinates must have four values, got "
+            f"{len(values)}."
         )
     return (
         float(values[0]),

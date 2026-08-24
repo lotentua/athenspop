@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import math
-from bisect import bisect_right
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from random import Random
 from types import MappingProxyType
-
-import numpy as np
 
 from athenspop.model import Diary, SurveyDataset, Trip
 from athenspop.scheduling import (
@@ -20,21 +16,26 @@ from athenspop.scheduling import (
 from athenspop.schema import TimingPattern
 from athenspop.types import TravelTimeFunction
 
-IMPUTATION_METHOD = "empirical_return_home_inverse_transform"
+IMPUTATION_METHOD = "empirical_activity_duration_inverse_transform"
 
 
 @dataclass(frozen=True, slots=True)
 class EmpiricalReturnHomeSampler:
-    """Empirical return-home departure sampler fitted from observed return trips."""
+    """Sample return departures from empirical destination-activity durations."""
 
-    samples_by_purpose: Mapping[str, tuple[int, ...]]
+    durations_by_purpose: Mapping[str, tuple[int, ...]]
     min_activity_duration_seconds: int
+
+    def __post_init__(self) -> None:
+        """Reject a non-positive activity-duration contract."""
+        if self.min_activity_duration_seconds <= 0:
+            raise ValueError("Minimum activity duration must be positive.")
 
     @classmethod
     def from_diaries(
         cls, diaries: tuple[Diary, ...], *, min_activity_duration_seconds: int
     ) -> EmpiricalReturnHomeSampler:
-        """Fit empirical return-home departure distributions by previous activity purpose."""
+        """Fit activity-duration distributions by destination purpose."""
         samples: dict[str, list[int]] = {}
         for diary in diaries:
             home_location = _home_location(diary)
@@ -45,14 +46,16 @@ class EmpiricalReturnHomeSampler:
                     current_trip.destination == home_location
                     and current_trip.purpose == "home"
                     and current_trip.departure_second is not None
+                    and previous_trip.arrival_second is not None
                 ):
-                    samples.setdefault(previous_trip.purpose, []).append(
-                        current_trip.departure_second
+                    duration = (
+                        current_trip.departure_second - previous_trip.arrival_second
                     )
+                    if duration >= min_activity_duration_seconds:
+                        samples.setdefault(previous_trip.purpose, []).append(duration)
         return cls(
-            samples_by_purpose={
-                purpose: tuple(sorted(values))
-                for purpose, values in samples.items()
+            durations_by_purpose={
+                purpose: tuple(sorted(values)) for purpose, values in samples.items()
             },
             min_activity_duration_seconds=min_activity_duration_seconds,
         )
@@ -60,26 +63,13 @@ class EmpiricalReturnHomeSampler:
     def sample_departure_second(
         self, *, purpose: str, arrival_second: int, rng: Random
     ) -> int:
-        """Sample a return-home departure second using truncated inverse transform sampling."""
-        earliest_departure = arrival_second + self.min_activity_duration_seconds
-        samples = self.samples_by_purpose.get(purpose)
+        """Sample an empirical duration and add it to the scheduled arrival."""
+        samples = self.durations_by_purpose.get(purpose)
         if not samples:
-            return earliest_departure
-        probability_floor = bisect_right(samples, earliest_departure) / len(
-            samples
-        )
-        sampled_probability = rng.uniform(probability_floor, 1.0)
-        probabilities = np.arange(1, len(samples) + 1, dtype=np.float64) / len(
-            samples
-        )
-        sampled_departure = float(
-            np.interp(
-                sampled_probability,
-                xp=probabilities,
-                fp=np.asarray(samples, dtype=np.float64),
-            )
-        )
-        return math.ceil(max(float(earliest_departure), sampled_departure))
+            return arrival_second + self.min_activity_duration_seconds
+        probability = rng.random()
+        duration = samples[min(int(probability * len(samples)), len(samples) - 1)]
+        return arrival_second + max(duration, self.min_activity_duration_seconds)
 
 
 def impute_athens_return_home_trips(
@@ -89,7 +79,7 @@ def impute_athens_return_home_trips(
     seed: int,
     min_activity_duration_seconds: int,
 ) -> ScheduledSurveyDataset:
-    """Impute missing paper return-home trips after reported trips have been scheduled."""
+    "Impute missing paper return-home trips after reported trips have been scheduled."
     sampler = EmpiricalReturnHomeSampler.from_diaries(
         scheduled.diaries,
         min_activity_duration_seconds=min_activity_duration_seconds,
@@ -155,10 +145,11 @@ def _maybe_impute_diary(
             last_trip.mode,
             departure_second,
         )
-    except (ArithmeticError, LookupError, ValueError) as error:
+    except Exception as error:
         return _issue(
             "imputed_return_travel_time_error",
-            f"Could not resolve imputed return-home travel time for departure {departure_second}: {error}.",
+            "Could not resolve imputed return-home travel time for departure "
+            f"{departure_second}: {error}.",
             last_trip,
         )
     if isinstance(travel_time_seconds, bool) or not isinstance(
@@ -166,13 +157,15 @@ def _maybe_impute_diary(
     ):
         return _issue(
             "invalid_imputed_return_travel_time",
-            f"Imputed return-home travel-time function returned {travel_time_seconds!r}; it must return a positive integer.",
+            "Imputed return-home travel-time function returned "
+            f"{travel_time_seconds!r}; it must return a positive integer.",
             last_trip,
         )
     if travel_time_seconds <= 0:
         return _issue(
             "invalid_imputed_return_travel_time",
-            f"Imputed return-home travel-time function returned {travel_time_seconds}; it must be positive.",
+            "Imputed return-home travel-time function returned "
+            f"{travel_time_seconds}; it must be positive.",
             last_trip,
         )
     imputed = Trip(

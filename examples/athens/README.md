@@ -1,6 +1,6 @@
 # Athens Example
 
-This folder contains a dataset-specific reproduction example built on top of the generic `athenspop` library.
+This folder contains the Athens paper-result reference and a dataset-specific migrated reanalysis built on top of the generic `athenspop` library.
 
 The example keeps source verification, wide-to-long conversion, travel-time resources, method-specific imputation, method-specific sequence costs, artifact writing, and example tests outside `src/athenspop`.
 

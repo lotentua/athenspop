@@ -1,10 +1,12 @@
-# Athens Workflow Walkthrough
+# Athens migrated reanalysis walkthrough
 
-This page is the notebook-like walkthrough for the maintained CSuM2026 example. It explains the workflow step by step while keeping the executable contract in `examples.athens.reproduce`, so the example does not depend on hidden notebook state.
+This notebook-like page follows the maintained CSuM2026 workflow without hidden notebook state. The snippets expose intermediate objects for study; the module command remains the authoritative end-to-end run.
 
-## 1. Check The Source Files
+:::{important}
+This workflow is a migrated reanalysis. It is not an end-to-end reproduction of the frozen paper result. See the paper-result page for the evidence boundary and known historical 13-state deviation.
+:::
 
-The full workflow starts by verifying `CSuM2026.pdf`, `CSuM2026.zip`, and the required LaTeX and figure members inside the ZIP against the hashes recorded in `examples/athens/docs/athens_method_contract.md`.
+## 1. Verify provenance
 
 ```python
 from pathlib import Path
@@ -12,15 +14,13 @@ from pathlib import Path
 from examples.athens.reproduce import verify_athens_sources
 
 source_report = verify_athens_sources(Path.cwd())
-
 assert source_report["all_sources_match"] is True
+assert source_report["software"]["uv_lock_sha256"]
 ```
 
-The generated artifact is `examples/athens/output/full/source_hashes.json`.
+The report verifies the manuscript, survey, routing and encoder hashes. It also records the lock hash, Git revision, tracked-worktree state, Python version and core dependency versions.
 
-## 2. Convert The Migrated Survey Source
-
-The raw migrated survey file is still wide because it preserves the historical paper input, but the maintained converter immediately turns it into canonical long-form `trips`, `persons`, and `households` tables.
+## 2. Convert the 513 wide diaries
 
 ```python
 from examples.athens.inputs import load_athens_wide_diaries
@@ -29,80 +29,101 @@ tables = load_athens_wide_diaries(fixture_travel_time_seconds=None)
 
 assert tables.raw_diaries == 513
 assert tables.canonical_trips == 1347
-assert len(tables.persons) == 513
-assert len(tables.households) == 513
+assert (tables.trips["purpose"] == "service").sum() == 9
+assert (tables.trips["mode"] == "taxi").sum() == 52
 ```
 
-The full writer saves these tables as `data/trips.csv`, `data/persons.csv`, and `data/households.csv` under `examples/athens/output/full`.
+The converter emits canonical long-form `trips`, `persons` and `households`. It preserves all seven activities and eight modes; service and taxi are reduced only later for cost construction.
 
-## 3. Validate And Build The Canonical Model
-
-The example uses the same dataframe boundary as ordinary library users. Validation is intentionally front-loaded: once `SurveyDataset.from_dataframes(...)` succeeds, the downstream code can treat the internal model as complete and coherent.
+## 3. Validate and build the model
 
 ```python
 from athenspop import SurveyDataset, validate_dataframes
 from examples.athens.travel_time import AthensTravelTimeResolver
 
 travel_time = AthensTravelTimeResolver.from_files(missing_sample_policy="strict")
-validation = validate_dataframes(tables.trips, persons=tables.persons, households=tables.households, travel_time_function=travel_time)
-
+validation = validate_dataframes(
+    tables.trips,
+    persons=tables.persons,
+    households=tables.households,
+    travel_time_function=travel_time,
+)
 validation.report.raise_if_invalid()
-dataset = SurveyDataset.from_dataframes(tables.trips, persons=tables.persons, households=tables.households, travel_time_function=travel_time)
+
+dataset = SurveyDataset.from_dataframes(
+    tables.trips,
+    persons=tables.persons,
+    households=tables.households,
+    travel_time_function=travel_time,
+)
 ```
 
-The full writer saves `validation_report.json`, and it must contain no hard errors.
+The dataset retains its default travel-time callable, so later scheduling calls do not need to repeat it unless they intentionally override it.
 
-## 4. Schedule Reported Trips
-
-The paper analysis path uses the strict migrated travel-time resolver for reported trips. This preserves the single legacy routing-infeasible diary, `household_id=549; person_id=549`, and yields the 512-diary analysis set.
+## 4. Schedule reported trips
 
 ```python
 from athenspop import SchedulingConfig, schedule_once
 
-scheduled = schedule_once(dataset, seed=2026, config=SchedulingConfig(min_activity_duration_seconds=1800, allow_trips_after_observation_window=True), travel_time_function=travel_time)
+scheduled = schedule_once(
+    dataset,
+    seed=2026,
+    config=SchedulingConfig(
+        min_activity_duration_seconds=1800,
+        allow_trips_after_observation_window=True,
+    ),
+)
 
 assert scheduled.diagnostics.attempted_diaries == 513
 assert scheduled.diagnostics.scheduled_diaries == 512
-assert scheduled.diagnostics.infeasible_diaries == ("household_id=549; person_id=549",)
 ```
 
-The full writer saves `scheduling_diagnostics.json`, `scheduled_trips.csv`, and `diary_summary.csv`.
+The strict lookup excludes person 549 because one routing sample is non-finite. The retained evidence does not establish temporal infeasibility, so the diagnostic and documentation use the narrower missing-routing-data description.
 
-## 5. Impute Missing Return-Home Trips
-
-The Athens-specific return-home policy belongs in `examples.athens.imputation`, not in the generic package API.
-It fits empirical return-home departure samples from observed return-home trips, samples a feasible synthetic return after the final reported activity when required, and keeps recreation-ending diaries open as described in the method contract.
+## 5. Impute return-home trips
 
 ```python
 from examples.athens.imputation import impute_athens_return_home_trips
 
-return_travel_time = AthensTravelTimeResolver.from_files(missing_sample_policy="finite_mean")
-scheduled_with_returns = impute_athens_return_home_trips(scheduled, travel_time_function=return_travel_time, seed=2026, min_activity_duration_seconds=1800)
+return_travel_time = AthensTravelTimeResolver.from_files(
+    missing_sample_policy="finite_mean"
+)
+scheduled_with_returns = impute_athens_return_home_trips(
+    scheduled,
+    travel_time_function=return_travel_time,
+    seed=2026,
+    min_activity_duration_seconds=1800,
+)
 ```
 
-The exported `scheduled_trips.csv` contains `is_imputed_return_home`, `imputation_method`, and `observed_last_trip_id` so synthetic rows can be audited separately from reported survey trips.
+The imputation stage fits empirical destination-activity durations by purpose, draws an observed duration with a separate `python.random.Random` stream, and adds it to the final reported arrival. Exported synthetic rows include the method and observed predecessor identifiers. The finite-mean return resolver covers six survey zones absent from the routing encoder; the output manifest quantifies every affected trip and diary.
 
-## 6. Build Episodes And State Sequences
-
-Scheduled diaries are converted into continuous episodes over `[0, 86400]`, then discretized into 96 bins of 900 seconds. State assignment follows maximum temporal overlap with earliest-start tie breaking.
+## 6. Build 96-bin sequences
 
 ```python
 from athenspop.sequence import episodes_from_diary, state_sequence_from_diary
 from examples.athens.method import athens_travel_state
 
-episodes = episodes_from_diary(scheduled_with_returns.diaries[0], initial_activity_state="home", travel_state_labeler=athens_travel_state)
-states = state_sequence_from_diary(scheduled_with_returns.diaries[0], initial_activity_state="home", travel_state_labeler=athens_travel_state)
+diary = scheduled_with_returns.diaries[0]
+episodes = episodes_from_diary(
+    diary,
+    initial_activity_state="home",
+    travel_state_labeler=athens_travel_state,
+)
+states = state_sequence_from_diary(
+    diary,
+    initial_activity_state="home",
+    travel_state_labeler=athens_travel_state,
+)
 
 assert episodes[0].start_second == 0
 assert episodes[-1].end_second == 86400
 assert len(states) == 96
 ```
 
-The full writer saves `episodes.csv`, `state_sequences.npy`, and `compound_state_sequences.npy`.
+Each 15-minute bin takes the state with the greatest total overlap; ties go to the earliest-starting episode.
 
-## 7. Compute Athens Costs And Dissimilarities
-
-The Athens-specific cost construction reduces activities and modes, combines states with four demand periods, excludes self-transitions from transition denominators, builds `c(i, j) = 2 - P(j|i) - P(i|j)`, and uses indel cost `1` for optimal matching.
+## 7. Construct costs and dissimilarities
 
 ```python
 from examples.athens.method import substitution_costs, transition_counts
@@ -111,7 +132,6 @@ toy_sequences = (
     ("home@p1", "trip_car@p2", "rigid@p2"),
     ("home@p1", "trip_walk@p2", "rigid@p2"),
 )
-
 counts = transition_counts(toy_sequences)
 costs = substitution_costs(toy_sequences)
 
@@ -119,25 +139,20 @@ assert counts[("home@p1", "trip_car@p2")] == 1
 assert costs[("home@p1", "home@p1")] == 0.0
 ```
 
-The full writer performs this on the 512-diary compound sequences and saves `transition_counts.csv`, `substitution_costs.csv`, and `dissimilarity_matrix.npy`. The maintained full command is the authoritative way to run this stage on the paper dataset.
+The full run reduces to 36 state-period labels, excludes self-transitions from denominators, applies `2 - P(j|i) - P(i|j)`, and uses indel cost 1 in optimal matching.
 
-## 8. Cluster And Summarize
+## 8. Compare linkage methods and cut the tree
 
-The clustering stage uses average linkage on the precomputed optimal-matching dissimilarity matrix, then writes the 10-cluster presentation and interpretation tables.
+The release artifact compares `single`, `complete`, `average` and `weighted` linkage by cophenetic correlation without optimal ordering. Average must be strictly highest among those four. The displayed hierarchy then uses average linkage with optimal leaf ordering and the same exact ten-leaf cut for tables and figures.
 
 ```python
 from athenspop.clustering import average_linkage, flat_cluster_labels
 
-# In the full workflow, `dissimilarity` is the 512 by 512 matrix loaded from the previous stage.
-# linkage = average_linkage(dissimilarity)
-# labels = flat_cluster_labels(linkage, n_clusters=10)
+# linkage_matrix = average_linkage(dissimilarity, optimal_ordering=True)
+# labels = flat_cluster_labels(linkage_matrix, n_clusters=10)
 ```
 
-The full writer saves `linkage_average.npy`, `cluster_labels.csv`, `cluster_summaries.csv`, `cluster_state_distribution.csv`, `cluster_time_distribution.csv`, `dendrogram_layout.json`, and `figures/dendrogram.svg`.
-
-## 9. Write Demographic Summaries
-
-Demographic summaries are generated from the 461 person records complete across gender, age, education, employment status, monthly income, and car ownership.
+## 9. Reproduce the demographic evidence
 
 ```python
 from examples.athens.demographics import demographic_summary
@@ -145,19 +160,17 @@ from examples.athens.demographics import demographic_summary
 demographics = demographic_summary(tables.persons)
 
 assert len(demographics.complete_records) == 461
+assert len(demographics.associations) == 15
 ```
 
-The full writer saves `demographics/complete_records.csv`, `demographics/marginal_demographics.csv`, `demographics/bivariate_demographics.csv`, `figures/marginal_demographics.svg`, and `figures/bivariate_demographics.svg`.
+The association table uses decade age bins and bias-corrected Cramér’s V. The four highest pairs and values are checked against the literal paper reference before the bivariate figure is accepted.
 
-## 10. Run The Maintained Full Workflow
-
-For ordinary reproduction, run the maintained artifact command instead of copying the snippets above into a separate script.
+## 10. Write and validate every artifact
 
 ```powershell
 uv run python -m examples.athens.reproduce
 ```
 
-The command writes `examples/athens/output/full`, validates the source hashes, validates the generated artifact set against `examples/athens/docs/athens_output_manifest.md`, and fails if a release-relevant count, shape, manifest path, matrix property, or imputed-row provenance check no longer matches the documented baseline.
+The command writes `examples/athens/output/reanalysis`. Its validator checks source and environment provenance, row ordering, matrix structure, canonical cluster IDs, membership-derived summaries, distribution namespaces, dendrogram references, the 15-state and 36-state-period alphabets, all 15 demographic associations, and the selected paper values.
 
-Generated SVG figures are not copied into the built documentation.
-They remain reproducible output paths under `examples/athens/output/full/figures` so documentation builds stay fast and do not depend on the 512-diary optimal-matching run.
+The generated figures are not copied into Sphinx output. Keeping them under the ignored reanalysis directory makes documentation builds fast and prevents generated binary evidence from being mistaken for source documentation.

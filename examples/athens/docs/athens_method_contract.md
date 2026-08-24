@@ -10,11 +10,11 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 - Source inventory: `main.tex` SHA256 `0C88CC332459B59FD0977B4D6C961547D32BA1DF6D240B53D54354D9B32161AE`; `methods.tex` SHA256 `59F7A9F030124BBB49A0D6545130AC852B84E742DD0683DA56CF6AB76A0CECC0`; `results.tex` SHA256 `58C80CF04493FB2F21F7E3998C3C05CA0CC6A5A3E7A5D7937E02CA4913ABDE8B`; `intro.tex` SHA256 `7E86656D9DF6FB5D96888D8953DD818F970CFC81CBD2C91EDAEB61097B519792`; `conclusion.tex` SHA256 `AF1C6C3D81001426071475C9E772475DE9C1AFA13425A6C53591C1543B8808C8`; `CSuM2026.bib` SHA256 `959845FCF78B5AC45DD714DF981C98B04479751B49AADD4B19B20E4128A2737B`.
 - Figure source inventory: `figures/MarginalDistributions.pgf` SHA256 `395E505044F8C84E81C816E97061C883303BB17B0A1327C3EB341CCB17594AC8`; `figures/BivariateDistributions.pgf` SHA256 `1AF15D42D8CFB96536F6FBE06D81A34E01F308341E779BAB66653B929883E5AE`; `figures/Dendrogram.pdf` SHA256 `499D74210B23307725DF8BE07F6EB636DB6A29FDFEBDE79885D6883E6666EDA1`; `figures/Dendrogram.pgf` SHA256 `44C5211D0B2DE43E35B6AF8BE08CF505EDDD473CC0F9EB2B2C947EC82BA5D0B0`; `figures/Dendrogram.eps` SHA256 `272246A30AFA93D8F11DB8DE0487A9338535FE0A3EF0A4A1962E09D86E319BF3`.
 
-## Reproduction Invariants
+## Paper Method Invariants
 
 - Raw survey size: 513 travel diaries.
 - Complete demographic records: 461 of 513 diaries.
-- One diary is infeasible during scheduling and is discarded.
+- The paper reports one infeasible diary and a final sample of 512. The retained implementation evidence identifies person 549 through a non-finite routing sample, but does not establish that routing missingness is the same condition as temporal infeasibility.
 - Final scheduled sample size: 512 diaries.
 - Observation window: `T = 86400` seconds, equivalent to 24 hours.
 - Diary time-origin clock: `04:00`; diary second `0` is 04:00 and diary second `86400` is 04:00 on the following day.
@@ -23,7 +23,7 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 - Original state alphabet: 7 activity purposes plus 8 travel modes, for 15 states.
 - Compound state-period alphabet before reduction: 15 states times 4 periods, for 60 labels.
 - Reduced state-period alphabet for cost construction: 3 activity groups plus 6 mode groups times 4 periods, for 36 labels.
-- Indel cost for paper reproduction: scalar `gamma = 1`.
+- Paper-method indel cost: scalar `gamma = 1`.
 - Clustering method: agglomerative hierarchical clustering with average linkage on a precomputed dissimilarity matrix.
 - Presented hierarchy: truncated dendrogram with the last 10 clusters shown as leaves.
 
@@ -36,10 +36,12 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 - Reported departure times in the source survey are intervals: six consecutive three-hour windows spanning 05:00 to 23:00 and one six-hour overnight window from 23:00 to 05:00.
 - Concrete departure times in the paper are synthetic, not observed; they are sampled uniformly within reported intervals subject to chain feasibility and a 30-minute minimum activity duration.
 - Travel times for car and public transit come from Google Routes API data collected on Thursday 22 May 2025 with two-hour sampling frequency over 00:00 to 24:00; other modes are scaled from car travel times by average speed ratios.
+- The retained routing encoder covers 30 of the 36 survey zones. Zones `10`, `12`, `17`, `29`, `33`, and `36` are unencoded. The migrated reanalysis uses the time-specific network-wide mean for an interzonal trip with an unencoded endpoint and mean zonal length divided by mode speed for an unencoded intrazonal trip. This fallback affects 209 of 1,466 scheduled trips across 97 of 512 diaries, including 27 imputed returns. It is a reanalysis data limitation, not a paper-method parity claim.
 - Missing return-home trips are imputed when the final reported purpose is neither `home` nor `recreation`.
+- The migrated reanalysis fits empirical destination-activity durations by the preceding activity purpose. It draws one observed duration through the inverse empirical distribution, enforces the 1,800-second minimum, adds the duration to the scheduled arrival, and retains the last reported mode. A missing purpose stratum uses the 1,800-second minimum. The frozen paper-result reference used the historical absolute-departure sampler instead; that implementation deviation is not carried into the migrated reanalysis.
 - Recreation activities may extend beyond the observation period.
 - Diaries exceeding 24 hours are cropped to `[0, 86400]`.
-- The single scheduling exclusion in the migrated legacy workflow is household/person `549`, trip `549_trip_2`, a train trip from zone `15` to zone `11` whose strict legacy routing lookup preserves a non-finite Google Routes transit sample. The generic package resolver may use finite-mean fallback for ordinary robust scheduling, but the paper artifact workflow uses strict missing-sample handling so the scheduling diagnostics reproduce the 512-diary analysis set.
+- The single scheduling exclusion in the migrated reanalysis is household/person `549`, trip `549_trip_2`, a train trip from zone `15` to zone `11` whose strict lookup preserves a non-finite routing sample. This is documented as a missing-routing-data exclusion, not as proven temporal infeasibility.
 
 ## Episode And Sequence Contract
 
@@ -60,8 +62,8 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 
 - Activity `home` remains `home`.
 - Activities `education` and `work` become `rigid`.
-- Activities `market`, `recreation`, `service`, and `other` become `flexible`; if the raw data has already merged `service` into `other`, this still maps to `flexible`.
-- Mode `taxi` becomes `car`.
+- Activities `market`, `recreation`, `service`, and `other` become `flexible`. Canonical input and unreduced sequences preserve `service`; reduction happens only in the cost branch.
+- Mode `taxi` becomes `car` in the cost branch. Canonical input and unreduced sequences preserve `taxi`.
 - Modes `bicycle` and `escooter` become `micromobility`.
 - Modes `car`, `motorcycle`, `bus`, `train`, and `walk` remain separate.
 - Compound labels must be encoded only after activity/mode reduction and period assignment are complete.
@@ -80,10 +82,11 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 
 ## Clustering Contract
 
-- Average linkage is required for paper reproduction.
-- Ward linkage is invalid for v1 paper reproduction because the paper does not assume Euclidean distances and explicitly selects average linkage.
+- The paper compares single, complete, average and weighted linkage by cophenetic correlation without optimal ordering; average is highest among those four candidates.
+- The displayed hierarchy uses average linkage with optimal leaf ordering.
+- Ward linkage is not part of the documented comparison and is unsuitable without a Euclidean feature-space assumption.
 - The release output must include cluster labels for the 10-cluster presentation, a linkage matrix or equivalent hierarchy, cophenetic diagnostic availability, and a dendrogram visualization with embedded temporal state distributions.
-- Exact publication styling is not a v1 blocker, but the generated figure must preserve the interpretation of the hierarchy, leaf sizes, node state distributions, and root-normalized linkage distances.
+- Exact publication styling is not a release blocker, but the generated figure must preserve the interpretation of the hierarchy, leaf sizes, node state distributions, and root-normalized linkage distances.
 
 ## Historical Legacy Artifact Baseline
 
@@ -93,13 +96,15 @@ This contract records the CSuM2026 example methodology for `athenspop`. The auth
 - Before the canonical cleanup, the removed legacy `examples/v1/state_sequences.npy` had shape `(512, 96)`, dtype `<U15`, and 13 unique labels.
 - Before the canonical cleanup, the removed legacy `examples/v1/distance_matrix.npy` had shape `(512, 512)`, dtype `float64`, minimum `0.0`, and maximum `188.1507639519005`.
 - The migrated routing resource `examples/athens/data/travel_time/routing.npz` has SHA256 `AD0D374DDC65E9ADE0EDE53041534041D8305FE06FCFA839AF7815082DACC5DC`; `examples/athens/data/travel_time/zone_encoder.json` has SHA256 `AED03BAC02F1FD0D56CEE0A8CA4589AABEBFC08CF336A3F98D047E5656949873`.
-- These historical values are migration and regression-triage evidence only. The live examples surface is canonical and must regenerate inputs and outputs from the long-form API rather than trusting old notebooks, arrays, or wide-form files as authoritative.
+- These historical arrays define the frozen paper result reference in `examples/athens/paper_result_reference.json`. They establish downstream identity, not end-to-end regeneration.
 
-## Release Acceptance Rules
+## Reanalysis Release Acceptance Rules
 
-- The paper reproduction command must verify the source hashes above before running.
-- The preprocessing stage must report 513 raw diaries, 461 complete demographic records when demographic figures are regenerated, 1 strict-routing infeasible scheduled diary, and 512 final diaries.
+- The migrated reanalysis command must verify the manuscript, actual supplied survey, routing and encoder hashes before running, and record the current lockfile hash.
+- The preprocessing stage must report 513 raw diaries, 461 complete demographic records when demographic figures are regenerated, one missing-routing-data exclusion under strict lookup, and 512 final diaries.
 - The sequence stage must report shape `(512, 96)` for the final paper state sequences.
 - The cost stage must report a symmetric substitution matrix with zero diagonal, scalar indel `1`, and a dedicated self-transition exclusion fixture.
-- The clustering stage must report average linkage and a 10-cluster presentation.
+- The clustering stage must retain the four-method comparison, report average as strictly highest, and use one canonical 10-cluster identifier namespace across tables and figures.
 - The output manifest in `examples/athens/docs/athens_output_manifest.md` lists the required example artifacts and their acceptance rules.
+- The reanalysis must not be labeled an end-to-end reproduction unless a clean revision regenerates the paper reference arrays from hashed upstream inputs without consuming those arrays.
+- The historical absolute-departure imputer and the migrated routing fallback are explicit implementation and data deviations. Paper-result interpretations cannot be transferred to the migrated reanalysis without independent evidence.

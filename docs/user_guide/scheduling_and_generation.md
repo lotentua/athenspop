@@ -7,7 +7,9 @@ Use `schedule_once(...)` when the task is one feasible realization, such as conv
 ```python
 from athenspop import SchedulingConfig, schedule_once
 
-scheduled = schedule_once(dataset, seed=42, config=SchedulingConfig(min_activity_duration_seconds=1800))
+scheduled = schedule_once(
+    dataset, seed=42, config=SchedulingConfig(min_activity_duration_seconds=1800)
+)
 ```
 
 Use `generate_schedules(...)` when the task is repeated stochastic realization from the same validated input.

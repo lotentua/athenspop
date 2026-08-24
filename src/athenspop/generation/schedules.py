@@ -31,7 +31,8 @@ def generate_schedules(
         config:
             Optional scheduling policy shared by all realizations.
         travel_time_function:
-            Optional callable returning positive integer travel seconds for trips whose duration is not already concrete.
+            Optional callable returning positive integer travel seconds for trips
+            whose duration is not already concrete.
 
     Returns:
         Tuple of scheduled survey datasets, one per requested realization.
@@ -41,7 +42,9 @@ def generate_schedules(
             If `n` is negative.
 
     Notes:
-        This helper is deliberately thin; it uses the same scheduler internals as `schedule_once` so repeated generation and one-off range realization share behavior.
+        This helper is deliberately thin; it uses the same scheduler internals as
+        `schedule_once` so repeated generation and one-off range realization share
+        behavior.
     """
     if n < 0:
         raise ValueError(f"`n` must be non-negative, got {n}.")

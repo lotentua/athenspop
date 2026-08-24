@@ -253,6 +253,32 @@ def test_schedule_once_reports_travel_time_function_error() -> None:
     assert scheduled.diagnostics.issues[0].code == "travel_time_function_error"
 
 
+def test_schedule_once_contains_runtime_error_from_user_callable() -> None:
+    dataset = _trusted_dataset(
+        _trusted_trip(
+            departure_second=None,
+            arrival_second=None,
+            travel_time_seconds=None,
+            departure_window=TimeWindow(earliest_second=0, latest_second=10),
+            timing_pattern=TimingPattern.DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION,
+        )
+    )
+
+    def failing_travel_time(
+        origin: str, destination: str, mode: str, departure_second: int
+    ) -> int:
+        del origin, destination, mode, departure_second
+        raise RuntimeError("backend down")
+
+    scheduled = schedule_once(
+        dataset,
+        seed=1,
+        travel_time_function=failing_travel_time,
+    )
+
+    assert scheduled.diagnostics.issues[0].code == "travel_time_function_error"
+
+
 @pytest.mark.parametrize(
     "metadata_tables",
     [(), ("persons",), ("households",), ("persons", "households")],
@@ -322,14 +348,14 @@ def test_schedule_once_filters_metadata_to_scheduled_diaries(
         trips,
         persons=persons,
         households=households,
-        travel_time_function=_constant_travel_time(60),
+        travel_time_function=_constant_travel_time(0),
     )
 
     scheduled = schedule_once(dataset)
 
-    assert [
-        (diary.household_id, diary.person_id) for diary in scheduled.diaries
-    ] == [("h1", "p1")]
+    assert [(diary.household_id, diary.person_id) for diary in scheduled.diaries] == [
+        ("h1", "p1")
+    ]
     assert scheduled.diagnostics.infeasible_diaries == (
         "household_id=h2; person_id=p2",
     )
@@ -341,9 +367,7 @@ def test_schedule_once_filters_metadata_to_scheduled_diaries(
     )
 
 
-def test_schedule_once_realizes_seeded_departure_window() -> (
-    None
-):
+def test_schedule_once_realizes_seeded_departure_window() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -373,9 +397,67 @@ def test_schedule_once_realizes_seeded_departure_window() -> (
     assert first_trip.departure_window is None
 
 
-def test_schedule_once_applies_activity_duration_constraint() -> (
-    None
-):
+def test_final_fixed_duration_window_is_bounded_by_arrival_horizon() -> None:
+    trips = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "car",
+                "trip_sequence": 1,
+                "earliest_departure_second": 0,
+                "latest_departure_second": 86_400,
+                "travel_time_seconds": 100,
+            }
+        ]
+    )
+    dataset = SurveyDataset.from_dataframes(trips)
+
+    scheduled = schedule_once(dataset, seed=291)
+
+    trip = scheduled.diaries[0].trips[0]
+    assert trip.departure_second is not None
+    assert trip.departure_second <= 86_300
+    assert trip.arrival_second is not None
+    assert trip.arrival_second <= 86_400
+
+
+def test_dataset_default_callable_bounds_final_window_arrival() -> None:
+    trips = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "car",
+                "trip_sequence": 1,
+                "earliest_departure_second": 0,
+                "latest_departure_second": 86_400,
+            }
+        ]
+    )
+    dataset = SurveyDataset.from_dataframes(
+        trips,
+        travel_time_function=_constant_travel_time(100),
+    )
+
+    scheduled = schedule_once(dataset, seed=291)
+
+    trip = scheduled.diaries[0].trips[0]
+    assert trip.departure_second is not None
+    assert trip.departure_second <= 86_300
+    assert trip.arrival_second is not None
+    assert trip.arrival_second <= 86_400
+
+
+def test_schedule_once_applies_activity_duration_constraint() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -425,14 +507,10 @@ def test_schedule_once_applies_activity_duration_constraint() -> (
     assert infeasible.diagnostics.infeasible_diaries == (
         "household_id=h1; person_id=p1",
     )
-    assert (
-        infeasible.diagnostics.issues[0].code == "infeasible_future_departure"
-    )
+    assert infeasible.diagnostics.issues[0].code == "infeasible_future_departure"
 
 
-def test_schedule_once_refines_fixed_duration_future_windows() -> (
-    None
-):
+def test_schedule_once_refines_fixed_duration_future_windows() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -546,9 +624,7 @@ def test_schedule_once_refines_windows_against_future_callable_trips() -> None:
     assert second_trip.departure_second == 1_200
 
 
-def test_schedule_once_can_disable_callable_refinement() -> (
-    None
-):
+def test_schedule_once_can_disable_callable_refinement() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -609,9 +685,7 @@ def test_schedule_once_can_disable_callable_refinement() -> (
     assert unrefined.diaries[0].trips[0].arrival_second == 7
 
 
-def test_schedule_once_checks_travel_time_function_at_scheduler_boundary() -> (
-    None
-):
+def test_schedule_once_checks_travel_time_function_at_scheduler_boundary() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -643,15 +717,10 @@ def test_schedule_once_checks_travel_time_function_at_scheduler_boundary() -> (
         travel_time_function=_constant_travel_time(0),
     )
     assert invalid.diagnostics.scheduled_diaries == 0
-    assert (
-        invalid.diagnostics.issues[0].code
-        == "invalid_travel_time_function_result"
-    )
+    assert invalid.diagnostics.issues[0].code == "invalid_travel_time_function_result"
 
 
-def test_generate_schedules_uses_shared_scheduler_with_repeatable_seed() -> (
-    None
-):
+def test_generate_schedules_uses_shared_scheduler_with_repeatable_seed() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -681,9 +750,7 @@ def test_generate_schedules_uses_shared_scheduler_with_repeatable_seed() -> (
         generate_schedules(dataset, -1)
 
 
-def test_schedule_once_can_allow_final_arrival_after_observation_window() -> (
-    None
-):
+def test_schedule_once_can_allow_final_arrival_after_observation_window() -> None:
     trips = pd.DataFrame(
         [
             {
@@ -702,10 +769,7 @@ def test_schedule_once_can_allow_final_arrival_after_observation_window() -> (
     dataset = SurveyDataset.from_dataframes(trips)
     rejected = schedule_once(dataset)
     assert rejected.diagnostics.scheduled_diaries == 0
-    assert (
-        rejected.diagnostics.issues[0].code
-        == "arrival_after_observation_window"
-    )
+    assert rejected.diagnostics.issues[0].code == "arrival_after_observation_window"
     scheduled = schedule_once(
         dataset,
         config=SchedulingConfig(allow_final_trip_after_observation_window=True),
@@ -714,9 +778,7 @@ def test_schedule_once_can_allow_final_arrival_after_observation_window() -> (
     assert scheduled.diaries[0].trips[0].arrival_second == 87_000
 
 
-def test_schedule_once_can_allow_nonfinal_trips_after_observation_window() -> (
-    None
-):
+def test_schedule_once_can_allow_nonfinal_trips_after_observation_window() -> None:
     trips = pd.DataFrame(
         [
             {

@@ -15,14 +15,7 @@ from athenspop.time_units import (
 )
 
 type ClockValue = (
-    str
-    | int
-    | time
-    | datetime
-    | timedelta
-    | np.integer
-    | pd.Timestamp
-    | pd.Timedelta
+    str | int | time | datetime | timedelta | np.integer | pd.Timestamp | pd.Timedelta
 )
 
 HH_MM_SS_PARTS: Final[int] = 3
@@ -35,16 +28,20 @@ def clock_seconds_from_time_origin(
     *,
     time_origin_clock: ClockValue = DEFAULT_TIME_ORIGIN_CLOCK,
 ) -> int:
-    """Convert one clock-of-day value to integer seconds from the diary time-origin clock with overnight wrap.
+    """Convert one clock-of-day value to integer seconds from the diary time-origin
+    clock with overnight wrap.
 
     Args:
         value:
-            Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime/time object, a timedelta, a pandas temporal value, or integer seconds after civil midnight.
+            Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime/time object, a
+            timedelta, a pandas temporal value, or integer seconds after civil
+            midnight.
         time_origin_clock:
             Clock value used as the diary time origin.
 
     Returns:
-        Integer seconds from the diary time-origin clock, wrapping overnight within one civil day.
+        Integer seconds from the diary time-origin clock, wrapping overnight within
+        one civil day.
 
     Raises:
         TypeError:
@@ -65,18 +62,21 @@ def convert_clock_columns(
     *,
     time_origin_clock: ClockValue = DEFAULT_TIME_ORIGIN_CLOCK,
 ) -> pd.DataFrame:
-    """Return a copy of `frame` with clock columns converted to normalized second columns.
+    """Return a copy of `frame` with clock columns converted to normalized second
+    columns.
 
     Args:
         frame:
             Input dataframe containing source clock columns.
         columns:
-            Mapping from source clock column names to target integer-second column names.
+            Mapping from source clock column names to target integer-second column
+            names.
         time_origin_clock:
             Clock value used as the diary time origin.
 
     Returns:
-        Dataframe copy with converted target columns; missing source values remain missing.
+        Dataframe copy with converted target columns; missing source values remain
+        missing.
 
     Raises:
         KeyError:
@@ -86,17 +86,19 @@ def convert_clock_columns(
         ValueError:
             If a non-missing value is outside the supported clock domain.
     """
+    target_columns = tuple(columns.values())
+    if len(target_columns) != len(set(target_columns)):
+        raise ValueError("Clock-column target names must be unique.")
     result = frame.copy()
     for source_column, target_column in columns.items():
-        if source_column not in result.columns:
-            raise KeyError(
-                f"Column {source_column!r} is not present in the dataframe."
-            )
+        if source_column not in frame.columns:
+            raise KeyError(f"Column {source_column!r} is not present in the dataframe.")
         converted: list[int | None] = []
-        for row_index, value in result[source_column].items():
+        for row_index, value in frame[source_column].items():
             if not pd.api.types.is_scalar(value):
                 raise ValueError(
-                    f"`{source_column}` row {row_index!r} must contain scalar clock values, got {type(value).__name__}."
+                    f"`{source_column}` row {row_index!r} must contain scalar clock "
+                    f"values, got {type(value).__name__}."
                 )
             if bool(pd.isna(value)):
                 converted.append(None)
@@ -107,22 +109,17 @@ def convert_clock_columns(
                         time_origin_clock=time_origin_clock,
                     )
                 )
-        result[target_column] = pd.Series(
-            converted, index=result.index, dtype="Int64"
-        )
+        result[target_column] = pd.Series(converted, index=result.index, dtype="Int64")
     return result
 
 
 def _clock_second_of_day(value: ClockValue, *, parameter_name: str) -> int:
     """Normalize one supported clock value to seconds after civil midnight."""
+    _validate_temporal_precision(value, parameter_name=parameter_name)
     if isinstance(value, bool | np.bool_):
-        raise TypeError(
-            f"`{parameter_name}` must be a clock value, not a boolean."
-        )
+        raise TypeError(f"`{parameter_name}` must be a clock value, not a boolean.")
     if isinstance(value, int | np.integer):
-        return _validate_second_of_day(
-            int(value), parameter_name=parameter_name
-        )
+        return _validate_second_of_day(int(value), parameter_name=parameter_name)
     if isinstance(value, str):
         return _parse_clock_string(value, parameter_name=parameter_name)
     if isinstance(value, datetime | pd.Timestamp):
@@ -147,8 +144,23 @@ def _clock_second_of_day(value: ClockValue, *, parameter_name: str) -> int:
             int(total_seconds), parameter_name=parameter_name
         )
     raise TypeError(
-        f"`{parameter_name}` must be HH:MM, HH:MM:SS, a clock time, a timedelta, a pandas timestamp/timedelta, or integer seconds after civil midnight."
+        f"`{parameter_name}` must be HH:MM, HH:MM:SS, a clock time, a timedelta, a "
+        "pandas timestamp/timedelta, or integer seconds after civil midnight."
     )
+
+
+def _validate_temporal_precision(value: ClockValue, *, parameter_name: str) -> None:
+    """Reject missing pandas scalars and subsecond temporal precision."""
+    if value is pd.NaT or (
+        isinstance(value, pd.Timestamp | pd.Timedelta) and pd.isna(value)
+    ):
+        raise ValueError(f"`{parameter_name}` must not be missing.")
+    if isinstance(value, datetime | time) and value.microsecond != 0:
+        raise ValueError(f"`{parameter_name}` must resolve to whole seconds.")
+    if isinstance(value, pd.Timestamp) and value.nanosecond != 0:
+        raise ValueError(f"`{parameter_name}` must resolve to whole seconds.")
+    if isinstance(value, pd.Timedelta) and value != value.floor("s"):
+        raise ValueError(f"`{parameter_name}` must resolve to whole seconds.")
 
 
 def _parse_clock_string(value: str, *, parameter_name: str) -> int:
@@ -168,17 +180,11 @@ def _parse_clock_string(value: str, *, parameter_name: str) -> int:
             f"`{parameter_name}`={value!r} must contain integer clock fields."
         ) from error
     if not 0 <= hour <= MAX_CLOCK_HOUR:
-        raise ValueError(
-            f"`{parameter_name}`={value!r} has hour outside 0..23."
-        )
+        raise ValueError(f"`{parameter_name}`={value!r} has hour outside 0..23.")
     if not 0 <= minute <= MAX_CLOCK_MINUTE_OR_SECOND:
-        raise ValueError(
-            f"`{parameter_name}`={value!r} has minute outside 0..59."
-        )
+        raise ValueError(f"`{parameter_name}`={value!r} has minute outside 0..59.")
     if not 0 <= second <= MAX_CLOCK_MINUTE_OR_SECOND:
-        raise ValueError(
-            f"`{parameter_name}`={value!r} has second outside 0..59."
-        )
+        raise ValueError(f"`{parameter_name}`={value!r} has second outside 0..59.")
     return hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second
 
 
@@ -186,6 +192,7 @@ def _validate_second_of_day(value: int, *, parameter_name: str) -> int:
     """Validate integer seconds after civil midnight."""
     if not 0 <= value < SECONDS_PER_DAY:
         raise ValueError(
-            f"`{parameter_name}` must be within one civil day: 0 <= seconds < {SECONDS_PER_DAY}."
+            f"`{parameter_name}` must be within one civil day: 0 <= seconds < "
+            f"{SECONDS_PER_DAY}."
         )
     return value
