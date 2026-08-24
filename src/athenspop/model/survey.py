@@ -1,6 +1,6 @@
 """Trusted long-form survey model objects built only after dataframe validation."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import cast
@@ -8,13 +8,15 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
+from athenspop.schema import TimingPattern
+from athenspop.types import TravelTimeFunction
 from athenspop.validation import validate_dataframes
-from athenspop.validation.schema import TimingPattern
 
 type MetadataValue = str | int | float | bool | None
-type RawMetadataValue = str | int | float | bool | np.integer | np.floating | np.bool_ | None
+type RawMetadataValue = (
+    str | int | float | bool | np.integer | np.floating | np.bool_ | None
+)
 type Metadata = Mapping[str, MetadataValue]
-type TravelTimeFunction = Callable[[str, str, str, int], int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +88,10 @@ class Trip:
         Returns:
             `True` when both `departure_second` and `arrival_second` are present.
         """
-        return self.departure_second is not None and self.arrival_second is not None
+        return (
+            self.departure_second is not None
+            and self.arrival_second is not None
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,18 +203,34 @@ class SurveyDataset:
         Notes:
             Internal code treats the returned objects as complete and trusted; validation belongs at this dataframe/file boundary.
         """
-        result = validate_dataframes(trips, persons=persons, households=households, travel_time_function=travel_time_function)
+        result = validate_dataframes(
+            trips,
+            persons=persons,
+            households=households,
+            travel_time_function=travel_time_function,
+        )
         result.report.raise_if_invalid()
         if result.normalized_tables is None:
-            raise RuntimeError("Validation unexpectedly produced no normalized tables after passing `raise_if_invalid`.")
-        household_records = _build_households(result.normalized_tables.households)
+            raise RuntimeError(
+                "Validation unexpectedly produced no normalized tables after passing `raise_if_invalid`."
+            )
+        household_records = _build_households(
+            result.normalized_tables.households
+        )
         person_records = _build_persons(result.normalized_tables.persons)
-        household_by_id = {record.household_id: record for record in household_records}
-        person_by_id = {(record.household_id, record.person_id): record for record in person_records}
+        household_by_id = {
+            record.household_id: record for record in household_records
+        }
+        person_by_id = {
+            (record.household_id, record.person_id): record
+            for record in person_records
+        }
         trips_by_person: dict[tuple[str, str], list[Trip]] = {}
         for _, row in result.normalized_tables.trips.iterrows():
             trip = _build_trip(row, travel_time_function=travel_time_function)
-            trips_by_person.setdefault((trip.household_id, trip.person_id), []).append(trip)
+            trips_by_person.setdefault(
+                (trip.household_id, trip.person_id), []
+            ).append(trip)
         diaries = tuple(
             Diary(
                 household_id=household_id,
@@ -218,12 +239,20 @@ class SurveyDataset:
                 person=person_by_id.get((household_id, person_id)),
                 household=household_by_id.get(household_id),
             )
-            for (household_id, person_id), person_trips in sorted(trips_by_person.items())
+            for (household_id, person_id), person_trips in sorted(
+                trips_by_person.items()
+            )
         )
-        return cls(diaries=diaries, households=household_records, persons=person_records)
+        return cls(
+            diaries=diaries,
+            households=household_records,
+            persons=person_records,
+        )
 
 
-def _build_trip(row: pd.Series, *, travel_time_function: TravelTimeFunction | None) -> Trip:
+def _build_trip(
+    row: pd.Series, *, travel_time_function: TravelTimeFunction | None
+) -> Trip:
     """Build one trusted trip from a normalized row whose timing pattern already passed validation."""
     household_id = str(row["household_id"])
     person_id = str(row["person_id"])
@@ -236,10 +265,20 @@ def _build_trip(row: pd.Series, *, travel_time_function: TravelTimeFunction | No
     arrival_second = _optional_int(row, "arrival_second")
     travel_time_seconds = _optional_int(row, "travel_time_seconds")
     departure_window = _build_departure_window(row)
-    if timing_pattern == TimingPattern.DEPARTURE_DURATION and departure_second is not None and travel_time_seconds is not None:
+    if (
+        timing_pattern == TimingPattern.DEPARTURE_DURATION
+        and departure_second is not None
+        and travel_time_seconds is not None
+    ):
         arrival_second = departure_second + travel_time_seconds
-    if timing_pattern == TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION and travel_time_function is not None and departure_second is not None:
-        travel_time_seconds = _resolve_travel_time(travel_time_function, origin, destination, mode, departure_second)
+    if (
+        timing_pattern == TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION
+        and travel_time_function is not None
+        and departure_second is not None
+    ):
+        travel_time_seconds = _resolve_travel_time(
+            travel_time_function, origin, destination, mode, departure_second
+        )
         arrival_second = departure_second + travel_time_seconds
     metadata = _metadata(
         row,
@@ -318,7 +357,9 @@ def _build_persons(persons: pd.DataFrame | None) -> tuple[PersonMetadata, ...]:
     return tuple(records)
 
 
-def _build_households(households: pd.DataFrame | None) -> tuple[HouseholdMetadata, ...]:
+def _build_households(
+    households: pd.DataFrame | None,
+) -> tuple[HouseholdMetadata, ...]:
     """Build immutable household metadata records from a validated optional household table."""
     if households is None:
         return ()
@@ -336,7 +377,9 @@ def _build_households(households: pd.DataFrame | None) -> tuple[HouseholdMetadat
 def _metadata(row: pd.Series, *, exclude: set[str]) -> Metadata:
     """Preserve non-domain columns as immutable metadata after converting NumPy scalars to Python scalars."""
     values = {
-        str(column): _metadata_value(cast("RawMetadataValue", row[column])) for column in row.index if str(column) not in exclude and not pd.isna(row[column])
+        str(column): _metadata_value(cast("RawMetadataValue", row[column]))
+        for column in row.index
+        if str(column) not in exclude and not pd.isna(row[column])
     }
     return MappingProxyType(values)
 

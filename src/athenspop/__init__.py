@@ -1,5 +1,7 @@
 """Public package surface for validated long-form travel survey data."""
 
+from typing import Final
+
 from athenspop.clustering import (
     CutDendrogramNode,
     DendrogramLayout,
@@ -41,9 +43,8 @@ from athenspop.validation import (
     ValidationResult,
     validate_dataframes,
 )
-from athenspop.visualization import TemporalDendrogramPlotStyle, plot_cut_dendrogram_state_distribution
 
-__all__ = [
+__all__: Final[tuple[str, ...]] = (
     "CutDendrogramNode",
     "DendrogramLayout",
     "Diary",
@@ -54,7 +55,6 @@ __all__ = [
     "SchedulingDiagnostics",
     "SchedulingIssue",
     "SurveyDataset",
-    "TemporalDendrogramPlotStyle",
     "TimeWindow",
     "TravelTimeFunction",
     "Trip",
@@ -74,7 +74,6 @@ __all__ = [
     "flat_cluster_labels",
     "generate_schedules",
     "leaf_order",
-    "plot_cut_dendrogram_state_distribution",
     "schedule_once",
     "validate_dataframes",
-]
+)

@@ -57,14 +57,22 @@ def demographic_summary(persons: pd.DataFrame) -> DemographicSummary:
     enriched = complete.assign(age_group=_age_groups(complete["age"]))
     marginal = marginal_demographic_summary(enriched)
     bivariate = bivariate_demographic_summary(enriched)
-    return DemographicSummary(complete_records=complete, marginal=marginal, bivariate=bivariate)
+    return DemographicSummary(
+        complete_records=complete, marginal=marginal, bivariate=bivariate
+    )
 
 
 def complete_demographic_records(persons: pd.DataFrame) -> pd.DataFrame:
     """Return records complete across the paper demographic variables."""
-    missing = [column for column in DEMOGRAPHIC_COLUMNS if column not in persons.columns]
+    missing = [
+        column
+        for column in DEMOGRAPHIC_COLUMNS
+        if column not in persons.columns
+    ]
     if missing:
-        raise ValueError(f"Persons table is missing demographic column(s): {', '.join(missing)}.")
+        raise ValueError(
+            f"Persons table is missing demographic column(s): {', '.join(missing)}."
+        )
     return persons.dropna(subset=list(DEMOGRAPHIC_COLUMNS)).copy()
 
 
@@ -83,7 +91,9 @@ def marginal_demographic_summary(complete: pd.DataFrame) -> pd.DataFrame:
                     "share": int(count) / total,
                 }
             )
-    return pd.DataFrame(rows, columns=["variable", "category", "count", "share"])
+    return pd.DataFrame(
+        rows, columns=["variable", "category", "count", "share"]
+    )
 
 
 def bivariate_demographic_summary(complete: pd.DataFrame) -> pd.DataFrame:
@@ -136,9 +146,15 @@ def write_marginal_demographic_svg(summary: pd.DataFrame, path: Path) -> None:
         label = f"{row['variable']}: {row['category']}"
         count = int(row["count"])
         share = float(row["share"])
-        lines.append(f'<text x="20" y="{y + 14}" font-size="12" font-family="Arial">{escape(label)}</text>')
-        lines.append(f'<rect x="{left}" y="{y}" width="{share * bar_width:.2f}" height="14" fill="#357ABD" />')
-        lines.append(f'<text x="{left + bar_width + 12}" y="{y + 12}" font-size="12" font-family="Arial">{count} ({share:.1%})</text>')
+        lines.append(
+            f'<text x="20" y="{y + 14}" font-size="12" font-family="Arial">{escape(label)}</text>'
+        )
+        lines.append(
+            f'<rect x="{left}" y="{y}" width="{share * bar_width:.2f}" height="14" fill="#357ABD" />'
+        )
+        lines.append(
+            f'<text x="{left + bar_width + 12}" y="{y + 12}" font-size="12" font-family="Arial">{count} ({share:.1%})</text>'
+        )
     lines.append("</svg>")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -146,8 +162,12 @@ def write_marginal_demographic_svg(summary: pd.DataFrame, path: Path) -> None:
 
 def write_bivariate_demographic_svg(summary: pd.DataFrame, path: Path) -> None:
     """Write a compact SVG listing the largest selected bivariate cells."""
-    sorted_summary = summary.sort_values(["variable_x", "variable_y", "count"], ascending=[True, True, False])
-    rows = sorted_summary.groupby(["variable_x", "variable_y"], sort=False).head(8)
+    sorted_summary = summary.sort_values(
+        ["variable_x", "variable_y", "count"], ascending=[True, True, False]
+    )
+    rows = sorted_summary.groupby(
+        ["variable_x", "variable_y"], sort=False
+    ).head(8)
     width = 1120
     row_height = 22
     left = 360
@@ -162,9 +182,15 @@ def write_bivariate_demographic_svg(summary: pd.DataFrame, path: Path) -> None:
         label = f"{row['variable_x']}/{row['variable_y']}: {row['category_x']} | {row['category_y']}"
         count = int(row["count"])
         share = float(row["share"])
-        lines.append(f'<text x="20" y="{y + 14}" font-size="12" font-family="Arial">{escape(label)}</text>')
-        lines.append(f'<rect x="{left}" y="{y}" width="{share * bar_width:.2f}" height="14" fill="#8A5A9E" />')
-        lines.append(f'<text x="{left + bar_width + 12}" y="{y + 12}" font-size="12" font-family="Arial">{count} ({share:.1%})</text>')
+        lines.append(
+            f'<text x="20" y="{y + 14}" font-size="12" font-family="Arial">{escape(label)}</text>'
+        )
+        lines.append(
+            f'<rect x="{left}" y="{y}" width="{share * bar_width:.2f}" height="14" fill="#8A5A9E" />'
+        )
+        lines.append(
+            f'<text x="{left + bar_width + 12}" y="{y + 12}" font-size="12" font-family="Arial">{count} ({share:.1%})</text>'
+        )
     lines.append("</svg>")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

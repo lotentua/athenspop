@@ -54,14 +54,19 @@ name = "athenspop"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "scipy" },
 ]
 
+[package.optional-dependencies]
+visualization = [
+    { name = "matplotlib" },
+]
+
 [package.dev-dependencies]
 dev = [
+    { name = "matplotlib" },
     { name = "myst-parser" },
     { name = "nbmake" },
     { name = "pydata-sphinx-theme" },
@@ -79,14 +84,16 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "matplotlib", marker = "extra == 'visualization'", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.2" },
     { name = "pandas", specifier = ">=3.0.1" },
     { name = "scipy", specifier = ">=1.17.1" },
 ]
+provides-extras = ["visualization"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "myst-parser", specifier = ">=5.1.0" },
     { name = "nbmake", specifier = ">=1.5.5" },
     { name = "pydata-sphinx-theme", specifier = ">=0.19.0" },

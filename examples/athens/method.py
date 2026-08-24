@@ -10,7 +10,7 @@ from athenspop.sequence import (
     dissimilarity_matrix,
     state_sequence_from_diary,
 )
-from athenspop.sequence.distance import DissimilarityMatrix
+from athenspop.types import DissimilarityMatrix
 
 ATHENS_WINDOW_SECONDS: Final[int] = DEFAULT_WINDOW_SECONDS
 ATHENS_DELTA_SECONDS: Final[int] = DEFAULT_INTERVAL_SECONDS
@@ -47,7 +47,9 @@ def period_label(second: int) -> int:
         return 3
     if 12 * 3600 <= second < 15 * 3600:
         return 4
-    raise ValueError(f"`second` must be in [0, {ATHENS_WINDOW_SECONDS}], got {second}.")
+    raise ValueError(
+        f"`second` must be in [0, {ATHENS_WINDOW_SECONDS}], got {second}."
+    )
 
 
 def compound_sequence_from_diary(
@@ -73,9 +75,14 @@ def athens_travel_state(trip: Trip) -> str:
     return f"trip_{trip.mode}"
 
 
-def compound_period_sequence(states: Sequence[str], *, interval_seconds: int = ATHENS_DELTA_SECONDS) -> tuple[str, ...]:
+def compound_period_sequence(
+    states: Sequence[str], *, interval_seconds: int = ATHENS_DELTA_SECONDS
+) -> tuple[str, ...]:
     """Reduce states and append CSuM2026 period labels based on each bin start time."""
-    return tuple(f"{reduce_athens_state(state)}@p{period_label(index * interval_seconds)}" for index, state in enumerate(states))
+    return tuple(
+        f"{reduce_athens_state(state)}@p{period_label(index * interval_seconds)}"
+        for index, state in enumerate(states)
+    )
 
 
 def reduce_athens_state(state: str) -> str:
@@ -89,7 +96,9 @@ def reduce_athens_state(state: str) -> str:
     raise ValueError(f"Unknown Athens example state {state!r}.")
 
 
-def transition_counts(sequences: Iterable[Sequence[str]]) -> dict[tuple[str, str], int]:
+def transition_counts(
+    sequences: Iterable[Sequence[str]],
+) -> dict[tuple[str, str], int]:
     """Count non-self transitions across state sequences using the CSuM2026 example rule."""
     counts: dict[tuple[str, str], int] = {}
     for sequence in sequences:
@@ -108,7 +117,12 @@ def transition_probabilities(
     materialized_sequences = tuple(tuple(sequence) for sequence in sequences)
     states = _states(materialized_sequences)
     counts = transition_counts(materialized_sequences)
-    denominators = {state: sum(count for (source, _), count in counts.items() if source == state) for state in states}
+    denominators = {
+        state: sum(
+            count for (source, _), count in counts.items() if source == state
+        )
+        for state in states
+    }
     probabilities: dict[tuple[str, str], float] = {}
     for source in states:
         denominator = denominators[source]
@@ -116,7 +130,9 @@ def transition_probabilities(
             if source == target or denominator == 0:
                 probabilities[(source, target)] = 0.0
             else:
-                probabilities[(source, target)] = counts.get((source, target), 0) / denominator
+                probabilities[(source, target)] = (
+                    counts.get((source, target), 0) / denominator
+                )
     return probabilities
 
 
@@ -133,11 +149,17 @@ def substitution_costs(
             if source == target:
                 costs[(source, target)] = 0.0
             else:
-                costs[(source, target)] = 2.0 - probabilities[(source, target)] - probabilities[(target, source)]
+                costs[(source, target)] = (
+                    2.0
+                    - probabilities[(source, target)]
+                    - probabilities[(target, source)]
+                )
     return costs
 
 
-def athens_dissimilarity_matrix(sequences: Sequence[Sequence[str]], *, indel_cost: float = 1.0) -> DissimilarityMatrix:
+def athens_dissimilarity_matrix(
+    sequences: Sequence[Sequence[str]], *, indel_cost: float = 1.0
+) -> DissimilarityMatrix:
     """Compute the Athens example pairwise OM matrix using local CSuM2026 substitution costs."""
     materialized = tuple(tuple(sequence) for sequence in sequences)
     return dissimilarity_matrix(
@@ -148,4 +170,6 @@ def athens_dissimilarity_matrix(sequences: Sequence[Sequence[str]], *, indel_cos
 
 
 def _states(sequences: Sequence[Sequence[str]]) -> tuple[str, ...]:
-    return tuple(sorted({state for sequence in sequences for state in sequence}))
+    return tuple(
+        sorted({state for sequence in sequences for state in sequence})
+    )

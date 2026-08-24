@@ -8,7 +8,9 @@ from examples.athens.visualization import (
 )
 
 
-def test_athens_visualization_adapter_uses_cut_dendrogram_distribution_svg(tmp_path: Path) -> None:
+def test_athens_visualization_adapter_uses_cut_dendrogram_distribution_svg(
+    tmp_path: Path,
+) -> None:
     sequences = (
         ("home", "trip_car", "work"),
         ("home", "trip_bus", "home"),
@@ -17,7 +19,11 @@ def test_athens_visualization_adapter_uses_cut_dendrogram_distribution_svg(tmp_p
     labels = (1, 1, 2)
     distribution = cluster_time_distribution(sequences, labels)
 
-    cluster_one_bin_two = distribution[(distribution["cluster"] == 1) & (distribution["bin_index"] == 2) & (distribution["state"] == "home")]
+    cluster_one_bin_two = distribution[
+        (distribution["cluster"] == 1)
+        & (distribution["bin_index"] == 2)
+        & (distribution["state"] == "home")
+    ]
     assert cluster_one_bin_two["share"].iloc[0] == 0.5
 
     linkage_matrix = np.array(
@@ -29,7 +35,9 @@ def test_athens_visualization_adapter_uses_cut_dendrogram_distribution_svg(tmp_p
     )
     output = tmp_path / "dendrogram.svg"
 
-    write_cut_dendrogram_distribution_svg(linkage_matrix, sequences, output, n_clusters=2)
+    write_cut_dendrogram_distribution_svg(
+        linkage_matrix, sequences, output, n_clusters=2
+    )
 
     text = output.read_text(encoding="utf-8")
     assert "Cut dendrogram with temporal state distributions" in text

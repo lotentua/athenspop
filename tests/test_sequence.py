@@ -3,6 +3,7 @@ import pytest
 
 from athenspop import SurveyDataset, schedule_once
 from athenspop.model import Diary, Trip
+from athenspop.schema import TimingPattern
 from athenspop.sequence import (
     Episode,
     discretize_episodes,
@@ -11,7 +12,6 @@ from athenspop.sequence import (
     overlap_duration,
     state_sequence_from_diary,
 )
-from athenspop.validation.schema import TimingPattern
 
 
 def _prefixed_trip_state(trip: Trip) -> str:
@@ -25,7 +25,9 @@ def test_overlap_duration_counts_integer_second_intersection() -> None:
     assert overlap_duration(episode, 1200, 1800) == 0
 
 
-def test_discretize_episodes_uses_maximum_overlap_and_earliest_start_tie_break() -> None:
+def test_discretize_episodes_uses_overlap_and_tie_break() -> (
+    None
+):
     tied = (
         Episode(state="home", start_second=0, end_second=450),
         Episode(state="work", start_second=450, end_second=900),
@@ -38,7 +40,9 @@ def test_discretize_episodes_uses_maximum_overlap_and_earliest_start_tie_break()
     assert discretize_episodes(dominant, window_end_second=900) == ("work",)
 
 
-def test_episodes_from_diary_partitions_window_with_activity_and_trip_states() -> None:
+def test_episodes_from_diary_partitions_activity_and_trip_states() -> (
+    None
+):
     diary = Diary(
         household_id="h1",
         person_id="p1",
@@ -75,7 +79,12 @@ def test_episodes_from_diary_partitions_window_with_activity_and_trip_states() -
             ),
         ),
     )
-    episodes = episodes_from_diary(diary, initial_activity_state="home", travel_state_labeler=_prefixed_trip_state, window_end_second=5400)
+    episodes = episodes_from_diary(
+        diary,
+        initial_activity_state="home",
+        travel_state_labeler=_prefixed_trip_state,
+        window_end_second=5400,
+    )
     assert episodes == (
         Episode(state="home", start_second=0, end_second=900),
         Episode(state="trip_bus", start_second=900, end_second=1800),
@@ -107,7 +116,12 @@ def test_episodes_from_diary_crops_trip_crossing_observation_window() -> None:
             ),
         ),
     )
-    episodes = episodes_from_diary(diary, initial_activity_state="home", travel_state_labeler=_prefixed_trip_state, window_end_second=1000)
+    episodes = episodes_from_diary(
+        diary,
+        initial_activity_state="home",
+        travel_state_labeler=_prefixed_trip_state,
+        window_end_second=1000,
+    )
     assert episodes == (
         Episode(state="home", start_second=0, end_second=800),
         Episode(state="trip_walk", start_second=800, end_second=1000),
@@ -136,7 +150,12 @@ def test_state_sequence_from_scheduled_diary() -> None:
             ),
         ),
     )
-    states = state_sequence_from_diary(diary, initial_activity_state="home", window_end_second=2700, interval_seconds=900)
+    states = state_sequence_from_diary(
+        diary,
+        initial_activity_state="home",
+        window_end_second=2700,
+        interval_seconds=900,
+    )
     assert states == ("home", "car", "market")
 
 
@@ -195,7 +214,9 @@ def test_episodes_from_diary_rejects_unscheduled_or_overlapping_trips() -> None:
         ),
     )
     with pytest.raises(ValueError, match="not scheduled"):
-        episodes_from_diary(unscheduled, initial_activity_state="home", window_end_second=1800)
+        episodes_from_diary(
+            unscheduled, initial_activity_state="home", window_end_second=1800
+        )
     overlapping = Diary(
         household_id="h1",
         person_id="p1",
@@ -233,7 +254,9 @@ def test_episodes_from_diary_rejects_unscheduled_or_overlapping_trips() -> None:
         ),
     )
     with pytest.raises(ValueError, match="before the previous episode"):
-        episodes_from_diary(overlapping, initial_activity_state="home", window_end_second=3600)
+        episodes_from_diary(
+            overlapping, initial_activity_state="home", window_end_second=3600
+        )
 
 
 def test_sequence_bridge_accepts_scheduled_dataset_from_public_loader() -> None:
@@ -265,7 +288,9 @@ def test_sequence_bridge_accepts_scheduled_dataset_from_public_loader() -> None:
 
 
 def test_dissimilarity_matrix_rejects_asymmetric_substitution_costs() -> None:
-    with pytest.raises(ValueError, match="requires symmetric substitution costs"):
+    with pytest.raises(
+        ValueError, match="requires symmetric substitution costs"
+    ):
         dissimilarity_matrix(
             (("home",), ("work",)),
             substitution_cost={

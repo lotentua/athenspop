@@ -1,19 +1,36 @@
-from collections.abc import Callable
+from typing import cast
 
 import pandas as pd
 import pytest
 
 from athenspop import SurveyDataset, ValidationError, validate_dataframes
-
-type TravelTimeFunction = Callable[[str, str, str, int], int]
+from athenspop.types import TravelTimeFunction
 
 
 def _constant_travel_time(seconds: int) -> TravelTimeFunction:
-    def travel_time_function(origin: str, destination: str, mode: str, departure_second: int) -> int:
+    def travel_time_function(
+        origin: str, destination: str, mode: str, departure_second: int
+    ) -> int:
         del origin, destination, mode, departure_second
         return seconds
 
     return travel_time_function
+
+
+def _trip_row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "household_id": "h1",
+        "person_id": "p1",
+        "trip_id": "t1",
+        "origin": "home",
+        "destination": "work",
+        "purpose": "work",
+        "mode": "bus",
+        "departure_second": 0,
+        "arrival_second": 900,
+    }
+    row.update(overrides)
+    return row
 
 
 def test_validates_and_loads_concrete_trip_with_zero_departure_second() -> None:
@@ -36,7 +53,9 @@ def test_validates_and_loads_concrete_trip_with_zero_departure_second() -> None:
     households = pd.DataFrame([{"household_id": 1, "home_zone": "home"}])
     result = validate_dataframes(trips, persons=persons, households=households)
     assert not result.report.has_errors
-    dataset = SurveyDataset.from_dataframes(trips, persons=persons, households=households)
+    dataset = SurveyDataset.from_dataframes(
+        trips, persons=persons, households=households
+    )
     assert len(dataset.diaries) == 1
     trip = dataset.diaries[0].trips[0]
     assert trip.departure_second == 0
@@ -85,13 +104,19 @@ def test_travel_time_function_is_checked_when_model_resolves_duration() -> None:
             }
         ]
     )
-    dataset = SurveyDataset.from_dataframes(trips, travel_time_function=_constant_travel_time(120))
+    dataset = SurveyDataset.from_dataframes(
+        trips, travel_time_function=_constant_travel_time(120)
+    )
     assert dataset.diaries[0].trips[0].arrival_second == 180
     with pytest.raises(ValueError, match="strictly positive integer"):
-        SurveyDataset.from_dataframes(trips, travel_time_function=_constant_travel_time(0))
+        SurveyDataset.from_dataframes(
+            trips, travel_time_function=_constant_travel_time(0)
+        )
 
 
-def test_validation_collects_join_and_timing_errors_without_cascading_from_null_key_row() -> None:
+def test_validation_collects_join_and_timing_errors_without_cascade() -> (
+    None
+):
     trips = pd.DataFrame(
         [
             {
@@ -145,9 +170,34 @@ def test_ambiguous_timing_pattern_raises_concise_validation_error() -> None:
         ]
     )
     result = validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["invalid_timing_pattern"]
+    assert [issue.code for issue in result.report.errors] == [
+        "invalid_timing_pattern"
+    ]
     with pytest.raises(ValidationError):
         result.report.raise_if_invalid()
+
+
+def test_table_level_validation_diagnostic_codes_are_reported() -> None:
+    not_dataframe = validate_dataframes(cast("pd.DataFrame", object()))
+    assert [issue.code for issue in not_dataframe.report.errors] == [
+        "table_not_dataframe"
+    ]
+
+    duplicate_columns = pd.DataFrame(
+        [["h1", "p1", "t1"]],
+        columns=["household_id", "household_id", "trip_id"],
+    )
+    duplicate_result = validate_dataframes(duplicate_columns)
+    assert [issue.code for issue in duplicate_result.report.errors] == [
+        "duplicate_columns"
+    ]
+
+    missing_columns = validate_dataframes(
+        pd.DataFrame([{"household_id": "h1"}])
+    )
+    assert [issue.code for issue in missing_columns.report.errors] == [
+        "missing_required_columns"
+    ]
 
 
 def test_float_seconds_are_rejected_even_when_integer_valued() -> None:
@@ -168,6 +218,105 @@ def test_float_seconds_are_rejected_even_when_integer_valued() -> None:
     )
     result = validate_dataframes(trips)
     assert [issue.code for issue in result.report.errors] == ["invalid_second"]
+
+
+def test_duplicate_keys_are_checked_after_string_normalization() -> None:
+    trips = pd.DataFrame(
+        [
+            {
+                "household_id": 1,
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "bus",
+                "departure_second": 0,
+                "arrival_second": 900,
+            },
+            {
+                "household_id": "1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "work",
+                "destination": "home",
+                "purpose": "home",
+                "mode": "bus",
+                "departure_second": 1800,
+                "arrival_second": 2700,
+            },
+        ]
+    )
+    result = validate_dataframes(trips)
+    assert [issue.code for issue in result.report.errors] == [
+        "duplicate_key",
+        "duplicate_key",
+    ]
+
+
+def test_non_scalar_key_and_movement_values_are_rejected_at_boundary() -> None:
+    non_scalar_key_trips = pd.DataFrame(
+        [
+            {
+                "household_id": ["h1"],
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": "home",
+                "destination": "work",
+                "purpose": "work",
+                "mode": "bus",
+                "departure_second": 0,
+                "arrival_second": 900,
+            }
+        ]
+    )
+    key_result = validate_dataframes(non_scalar_key_trips)
+    assert [issue.code for issue in key_result.report.errors] == [
+        "unsupported_key_value"
+    ]
+
+    non_scalar_origin_trips = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "trip_id": "t1",
+                "origin": ["home"],
+                "destination": "work",
+                "purpose": "work",
+                "mode": "bus",
+                "departure_second": 0,
+                "arrival_second": 900,
+            }
+        ]
+    )
+    origin_result = validate_dataframes(non_scalar_origin_trips)
+    assert [issue.code for issue in origin_result.report.errors] == [
+        "unsupported_trip_value"
+    ]
+
+
+def test_trip_row_domain_diagnostic_codes_are_reported_once() -> None:
+    missing_value = validate_dataframes(
+        pd.DataFrame([_trip_row(origin="")])
+    )
+    assert [issue.code for issue in missing_value.report.errors] == [
+        "missing_trip_value"
+    ]
+
+    arrival_window = validate_dataframes(
+        pd.DataFrame([_trip_row(earliest_arrival_second=100)])
+    )
+    assert [issue.code for issue in arrival_window.report.errors] == [
+        "unsupported_arrival_window"
+    ]
+
+    negative_second = validate_dataframes(
+        pd.DataFrame([_trip_row(departure_second=-1)])
+    )
+    assert [issue.code for issue in negative_second.report.errors] == [
+        "negative_second"
+    ]
 
 
 def test_mixed_timing_patterns_accept_nullable_integer_second_columns() -> None:
@@ -231,9 +380,19 @@ def test_non_scalar_metadata_is_rejected_at_validation_boundary() -> None:
             }
         ]
     )
-    persons = pd.DataFrame([{"household_id": "h1", "person_id": "p1", "tags": ["student", "worker"]}])
+    persons = pd.DataFrame(
+        [
+            {
+                "household_id": "h1",
+                "person_id": "p1",
+                "tags": ["student", "worker"],
+            }
+        ]
+    )
     result = validate_dataframes(trips, persons=persons)
-    assert [issue.code for issue in result.report.errors] == ["unsupported_metadata_value"]
+    assert [issue.code for issue in result.report.errors] == [
+        "unsupported_metadata_value"
+    ]
     with pytest.raises(ValidationError, match="1 error"):
         SurveyDataset.from_dataframes(trips, persons=persons)
 
@@ -267,13 +426,16 @@ def test_origin_mismatch_is_warning_not_hard_error() -> None:
     )
     result = validate_dataframes(trips)
     assert not result.report.has_errors
+    assert result.report.has_warnings
     assert [issue.code for issue in result.report.warnings] == [
-        "origin_mismatch",
-        "short_activity_duration",
+        "origin_mismatch"
     ]
+    result.report.raise_if_invalid()
 
 
-def test_short_activity_duration_is_a_generic_methodological_warning() -> None:
+def test_validation_does_not_assume_scheduler_minimum_activity_duration() -> (
+    None
+):
     trips = pd.DataFrame(
         [
             {
@@ -304,11 +466,15 @@ def test_short_activity_duration_is_a_generic_methodological_warning() -> None:
     )
     result = validate_dataframes(trips)
     assert not result.report.has_errors
-    assert [issue.code for issue in result.report.warnings] == ["short_activity_duration"]
+    assert result.report.warnings == ()
 
 
-def test_household_metadata_does_not_create_study_specific_chain_warnings() -> None:
-    households = pd.DataFrame([{"household_id": "h1", "home_zone": "zone-home"}])
+def test_household_metadata_does_not_create_study_specific_chain_warnings() -> (
+    None
+):
+    households = pd.DataFrame(
+        [{"household_id": "h1", "home_zone": "zone-home"}]
+    )
     trips = pd.DataFrame(
         [
             {
@@ -324,7 +490,9 @@ def test_household_metadata_does_not_create_study_specific_chain_warnings() -> N
             }
         ]
     )
-    assert validate_dataframes(trips, households=households).report.warnings == ()
+    assert (
+        validate_dataframes(trips, households=households).report.warnings == ()
+    )
 
 
 def test_user_defined_purpose_and_mode_labels_are_valid() -> None:
@@ -348,7 +516,9 @@ def test_user_defined_purpose_and_mode_labels_are_valid() -> None:
     assert result.report.warnings == ()
 
 
-def test_trip_sequence_orders_model_trips_when_input_rows_are_unsorted() -> None:
+def test_trip_sequence_orders_model_trips_when_input_rows_are_unsorted() -> (
+    None
+):
     trips = pd.DataFrame(
         [
             {
@@ -404,7 +574,9 @@ def test_departure_window_requires_explicit_trip_sequence() -> None:
         ]
     )
     result = validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["unresolved_trip_order"]
+    assert [issue.code for issue in result.report.errors] == [
+        "unresolved_trip_order"
+    ]
     assert result.report.invalid_chains == ("household_id=h1; person_id=p1",)
 
 
@@ -436,7 +608,9 @@ def test_duplicate_concrete_departures_require_trip_sequence() -> None:
         ]
     )
     result = validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["unresolved_trip_order"]
+    assert [issue.code for issue in result.report.errors] == [
+        "unresolved_trip_order"
+    ]
 
 
 def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
@@ -456,7 +630,9 @@ def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
             }
         ]
     )
-    assert [issue.code for issue in validate_dataframes(invalid).report.errors] == ["invalid_trip_sequence"]
+    assert [
+        issue.code for issue in validate_dataframes(invalid).report.errors
+    ] == ["invalid_trip_sequence"]
     duplicate = pd.DataFrame(
         [
             {
@@ -485,4 +661,56 @@ def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
             },
         ]
     )
-    assert [issue.code for issue in validate_dataframes(duplicate).report.errors] == ["duplicate_trip_sequence"]
+    assert [
+        issue.code for issue in validate_dataframes(duplicate).report.errors
+    ] == ["duplicate_trip_sequence"]
+
+
+def test_join_and_chain_diagnostic_codes_are_reported() -> None:
+    orphan_household = validate_dataframes(
+        pd.DataFrame([_trip_row(household_id="missing")]),
+        households=pd.DataFrame([{"household_id": "known"}]),
+    )
+    assert [issue.code for issue in orphan_household.report.errors] == [
+        "orphan_trip_household"
+    ]
+
+    orphan_person_household = validate_dataframes(
+        pd.DataFrame([_trip_row(household_id="known")]),
+        persons=pd.DataFrame(
+            [
+                {"household_id": "known", "person_id": "p1"},
+                {"household_id": "missing", "person_id": "p2"},
+            ]
+        ),
+        households=pd.DataFrame([{"household_id": "known"}]),
+    )
+    assert [issue.code for issue in orphan_person_household.report.errors] == [
+        "orphan_person_household"
+    ]
+
+    missing_sequence = pd.DataFrame([_trip_row(trip_sequence=None)])
+    assert [
+        issue.code
+        for issue in validate_dataframes(missing_sequence).report.errors
+    ] == ["missing_trip_sequence"]
+
+    overlapping = pd.DataFrame(
+        [
+            _trip_row(
+                trip_id="t1",
+                trip_sequence=1,
+                departure_second=0,
+                arrival_second=900,
+            ),
+            _trip_row(
+                trip_id="t2",
+                trip_sequence=2,
+                departure_second=800,
+                arrival_second=1200,
+            ),
+        ]
+    )
+    assert [
+        issue.code for issue in validate_dataframes(overlapping).report.errors
+    ] == ["overlapping_trips"]

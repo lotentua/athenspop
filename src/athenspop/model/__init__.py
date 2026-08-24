@@ -1,5 +1,7 @@
 """Lean internal model for validated travel survey data."""
 
+from typing import Final
+
 from athenspop.model.survey import (
     Diary,
     HouseholdMetadata,
@@ -10,7 +12,7 @@ from athenspop.model.survey import (
     Trip,
 )
 
-__all__ = [
+__all__: Final[tuple[str, ...]] = (
     "Diary",
     "HouseholdMetadata",
     "PersonMetadata",
@@ -18,4 +20,4 @@ __all__ = [
     "TimeWindow",
     "TravelTimeFunction",
     "Trip",
-]
+)

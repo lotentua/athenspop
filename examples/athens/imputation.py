@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from bisect import bisect_right
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from random import Random
 from types import MappingProxyType
@@ -17,9 +17,8 @@ from athenspop.scheduling import (
     SchedulingDiagnostics,
     SchedulingIssue,
 )
-from athenspop.validation.schema import TimingPattern
-
-type TravelTimeFunction = Callable[[str, str, str, int], int]
+from athenspop.schema import TimingPattern
+from athenspop.types import TravelTimeFunction
 
 IMPUTATION_METHOD = "empirical_return_home_inverse_transform"
 
@@ -32,28 +31,47 @@ class EmpiricalReturnHomeSampler:
     min_activity_duration_seconds: int
 
     @classmethod
-    def from_diaries(cls, diaries: tuple[Diary, ...], *, min_activity_duration_seconds: int) -> EmpiricalReturnHomeSampler:
+    def from_diaries(
+        cls, diaries: tuple[Diary, ...], *, min_activity_duration_seconds: int
+    ) -> EmpiricalReturnHomeSampler:
         """Fit empirical return-home departure distributions by previous activity purpose."""
         samples: dict[str, list[int]] = {}
         for diary in diaries:
             home_location = _home_location(diary)
-            for previous_trip, current_trip in zip(diary.trips, diary.trips[1:], strict=False):
-                if current_trip.destination == home_location and current_trip.purpose == "home" and current_trip.departure_second is not None:
-                    samples.setdefault(previous_trip.purpose, []).append(current_trip.departure_second)
+            for previous_trip, current_trip in zip(
+                diary.trips, diary.trips[1:], strict=False
+            ):
+                if (
+                    current_trip.destination == home_location
+                    and current_trip.purpose == "home"
+                    and current_trip.departure_second is not None
+                ):
+                    samples.setdefault(previous_trip.purpose, []).append(
+                        current_trip.departure_second
+                    )
         return cls(
-            samples_by_purpose={purpose: tuple(sorted(values)) for purpose, values in samples.items()},
+            samples_by_purpose={
+                purpose: tuple(sorted(values))
+                for purpose, values in samples.items()
+            },
             min_activity_duration_seconds=min_activity_duration_seconds,
         )
 
-    def sample_departure_second(self, *, purpose: str, arrival_second: int, rng: Random) -> int:
+    def sample_departure_second(
+        self, *, purpose: str, arrival_second: int, rng: Random
+    ) -> int:
         """Sample a return-home departure second using truncated inverse transform sampling."""
         earliest_departure = arrival_second + self.min_activity_duration_seconds
         samples = self.samples_by_purpose.get(purpose)
         if not samples:
             return earliest_departure
-        probability_floor = bisect_right(samples, earliest_departure) / len(samples)
+        probability_floor = bisect_right(samples, earliest_departure) / len(
+            samples
+        )
         sampled_probability = rng.uniform(probability_floor, 1.0)
-        probabilities = np.arange(1, len(samples) + 1, dtype=np.float64) / len(samples)
+        probabilities = np.arange(1, len(samples) + 1, dtype=np.float64) / len(
+            samples
+        )
         sampled_departure = float(
             np.interp(
                 sampled_probability,
@@ -72,13 +90,21 @@ def impute_athens_return_home_trips(
     min_activity_duration_seconds: int,
 ) -> ScheduledSurveyDataset:
     """Impute missing paper return-home trips after reported trips have been scheduled."""
-    sampler = EmpiricalReturnHomeSampler.from_diaries(scheduled.diaries, min_activity_duration_seconds=min_activity_duration_seconds)
+    sampler = EmpiricalReturnHomeSampler.from_diaries(
+        scheduled.diaries,
+        min_activity_duration_seconds=min_activity_duration_seconds,
+    )
     rng = Random(seed)
     diaries: list[Diary] = []
     issues: list[SchedulingIssue] = list(scheduled.diagnostics.issues)
     infeasible_diaries = list(scheduled.diagnostics.infeasible_diaries)
     for diary in scheduled.diaries:
-        result = _maybe_impute_diary(diary, sampler=sampler, rng=rng, travel_time_function=travel_time_function)
+        result = _maybe_impute_diary(
+            diary,
+            sampler=sampler,
+            rng=rng,
+            travel_time_function=travel_time_function,
+        )
         if isinstance(result, SchedulingIssue):
             issues.append(result)
             infeasible_diaries.append(_diary_id(diary))
@@ -117,16 +143,27 @@ def _maybe_impute_diary(
             "Athens return-home imputation requires a scheduled final reported trip.",
             last_trip,
         )
-    departure_second = sampler.sample_departure_second(purpose=last_trip.purpose, arrival_second=last_trip.arrival_second, rng=rng)
+    departure_second = sampler.sample_departure_second(
+        purpose=last_trip.purpose,
+        arrival_second=last_trip.arrival_second,
+        rng=rng,
+    )
     try:
-        travel_time_seconds = travel_time_function(last_trip.destination, home_location, last_trip.mode, departure_second)
+        travel_time_seconds = travel_time_function(
+            last_trip.destination,
+            home_location,
+            last_trip.mode,
+            departure_second,
+        )
     except (ArithmeticError, LookupError, ValueError) as error:
         return _issue(
             "imputed_return_travel_time_error",
             f"Could not resolve imputed return-home travel time for departure {departure_second}: {error}.",
             last_trip,
         )
-    if isinstance(travel_time_seconds, bool) or not isinstance(travel_time_seconds, int):
+    if isinstance(travel_time_seconds, bool) or not isinstance(
+        travel_time_seconds, int
+    ):
         return _issue(
             "invalid_imputed_return_travel_time",
             f"Imputed return-home travel-time function returned {travel_time_seconds!r}; it must return a positive integer.",

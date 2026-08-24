@@ -31,7 +31,11 @@ from examples.athens.inputs import (
     load_athens_wide_diaries,
     load_wide_diary_fixture,
 )
-from examples.athens.method import athens_travel_state, substitution_costs, transition_counts
+from examples.athens.method import (
+    athens_travel_state,
+    substitution_costs,
+    transition_counts,
+)
 from examples.athens.smoke import AthensSmokeOutputs, run_pipeline
 from examples.athens.travel_time import AthensTravelTimeResolver
 from examples.athens.visualization import (
@@ -39,7 +43,9 @@ from examples.athens.visualization import (
     write_cut_dendrogram_distribution_svg,
 )
 
-type JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
+type JsonValue = (
+    None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
+)
 type MetadataValue = None | bool | int | float | str
 
 EXPECTED_ATHENS_SOURCE_HASHES: Final[dict[str, str]] = {
@@ -139,37 +145,43 @@ class AthensArtifactValidation:
         """Raise `ValueError` with every failing artifact check."""
         failures = tuple(check for check in self.checks if not check.passed)
         if failures:
-            details = "; ".join(f"{check.name}: {check.message}" for check in failures)
+            details = "; ".join(
+                f"{check.name}: {check.message}" for check in failures
+            )
             raise ValueError(f"Athens artifact validation failed: {details}")
 
 
-SMOKE_ARTIFACT_EXPECTATIONS: Final[AthensArtifactExpectations] = AthensArtifactExpectations(
-    workflow="athens_smoke",
-    raw_diaries=3,
-    canonical_trips=9,
-    attempted_diaries=3,
-    scheduled_diaries=3,
-    sequence_shape=(3, 96),
-    dissimilarity_shape=(3, 3),
-    linkage_shape=(2, 4),
-    cluster_count=2,
-    imputed_return_home_trips=0,
-    complete_demographic_records=0,
-    infeasible_diaries=(),
+SMOKE_ARTIFACT_EXPECTATIONS: Final[AthensArtifactExpectations] = (
+    AthensArtifactExpectations(
+        workflow="athens_smoke",
+        raw_diaries=3,
+        canonical_trips=9,
+        attempted_diaries=3,
+        scheduled_diaries=3,
+        sequence_shape=(3, 96),
+        dissimilarity_shape=(3, 3),
+        linkage_shape=(2, 4),
+        cluster_count=2,
+        imputed_return_home_trips=0,
+        complete_demographic_records=0,
+        infeasible_diaries=(),
+    )
 )
-FULL_ARTIFACT_EXPECTATIONS: Final[AthensArtifactExpectations] = AthensArtifactExpectations(
-    workflow="athens_full",
-    raw_diaries=513,
-    canonical_trips=1347,
-    attempted_diaries=513,
-    scheduled_diaries=512,
-    sequence_shape=(512, 96),
-    dissimilarity_shape=(512, 512),
-    linkage_shape=(511, 4),
-    cluster_count=10,
-    imputed_return_home_trips=124,
-    complete_demographic_records=461,
-    infeasible_diaries=("household_id=549; person_id=549",),
+FULL_ARTIFACT_EXPECTATIONS: Final[AthensArtifactExpectations] = (
+    AthensArtifactExpectations(
+        workflow="athens_full",
+        raw_diaries=513,
+        canonical_trips=1347,
+        attempted_diaries=513,
+        scheduled_diaries=512,
+        sequence_shape=(512, 96),
+        dissimilarity_shape=(512, 512),
+        linkage_shape=(511, 4),
+        cluster_count=10,
+        imputed_return_home_trips=124,
+        complete_demographic_records=461,
+        infeasible_diaries=("household_id=549; person_id=549",),
+    )
 )
 
 
@@ -182,12 +194,18 @@ def write_smoke_artifacts(
     """Run the canonical smoke workflow and write named artifacts under `output_root`."""
     root = output_root.resolve()
     resolved_source_root = Path.cwd() if source_root is None else source_root
-    resolved_wide_diary_path = Path("tests/example_data/NEW_diaries_athens_final.csv") if wide_diary_path is None else wide_diary_path
+    resolved_wide_diary_path = (
+        Path("tests/example_data/NEW_diaries_athens_final.csv")
+        if wide_diary_path is None
+        else wide_diary_path
+    )
     root.mkdir(parents=True, exist_ok=True)
     data_dir = root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     input_tables = load_wide_diary_fixture(resolved_wide_diary_path)
-    outputs = run_pipeline(input_tables.trips, input_tables.persons, input_tables.households)
+    outputs = run_pipeline(
+        input_tables.trips, input_tables.persons, input_tables.households
+    )
     paths = _write_artifacts(
         root=root,
         input_tables=input_tables,
@@ -213,9 +231,15 @@ def write_full_artifacts(
     root.mkdir(parents=True, exist_ok=True)
     data_dir = root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    input_tables = load_athens_wide_diaries(wide_diary_path, fixture_travel_time_seconds=None)
-    travel_time_resolver = AthensTravelTimeResolver.from_files(missing_sample_policy="strict")
-    imputed_return_travel_time_resolver = AthensTravelTimeResolver.from_files(missing_sample_policy="finite_mean")
+    input_tables = load_athens_wide_diaries(
+        wide_diary_path, fixture_travel_time_seconds=None
+    )
+    travel_time_resolver = AthensTravelTimeResolver.from_files(
+        missing_sample_policy="strict"
+    )
+    imputed_return_travel_time_resolver = AthensTravelTimeResolver.from_files(
+        missing_sample_policy="finite_mean"
+    )
 
     def impute_return_home(
         scheduled: ScheduledSurveyDataset,
@@ -249,11 +273,16 @@ def write_full_artifacts(
     return paths
 
 
-def validate_athens_artifacts(paths: AthensArtifactPaths, *, expectations: AthensArtifactExpectations) -> AthensArtifactValidation:
+def validate_athens_artifacts(
+    paths: AthensArtifactPaths, *, expectations: AthensArtifactExpectations
+) -> AthensArtifactValidation:
     """Validate written paper artifacts against release-relevant stage counts and shapes."""
     checks = [
         _check_path_exists("artifact_root", paths.root),
-        *(_check_path_exists(name, path) for name, path in _named_artifact_paths(paths)),
+        *(
+            _check_path_exists(name, path)
+            for name, path in _named_artifact_paths(paths)
+        ),
     ]
     if not all(check.passed for check in checks):
         validation = AthensArtifactValidation(paths.root, tuple(checks))
@@ -271,7 +300,9 @@ def validate_athens_artifacts(paths: AthensArtifactPaths, *, expectations: Athen
     cluster_labels = pd.read_csv(paths.cluster_labels)
     diary_summary = pd.read_csv(paths.diary_summary)
     scheduled_trips = pd.read_csv(paths.scheduled_trips)
-    cluster_time_distribution_frame = pd.read_csv(paths.cluster_time_distribution)
+    cluster_time_distribution_frame = pd.read_csv(
+        paths.cluster_time_distribution
+    )
     complete_demographics = pd.read_csv(paths.complete_demographic_records)
     marginal_demographics = pd.read_csv(paths.marginal_demographics)
     bivariate_demographics = pd.read_csv(paths.bivariate_demographics)
@@ -342,7 +373,10 @@ def validate_athens_artifacts(paths: AthensArtifactPaths, *, expectations: Athen
                 tuple(_json_string_list(scheduling, "infeasible_diaries")),
                 expectations.infeasible_diaries,
             ),
-            _check_true("validation.has_errors", not _json_bool(validation_report, "has_errors")),
+            _check_true(
+                "validation.has_errors",
+                not _json_bool(validation_report, "has_errors"),
+            ),
             _check_equal(
                 "state_sequences.shape",
                 _array_shape(state_sequences),
@@ -364,7 +398,11 @@ def validate_athens_artifacts(paths: AthensArtifactPaths, *, expectations: Athen
             ),
             _check_true(
                 "dissimilarity_matrix.diagonal_zero",
-                bool(np.allclose(np.diag(dissimilarity), np.zeros(dissimilarity.shape[0]))),
+                bool(
+                    np.allclose(
+                        np.diag(dissimilarity), np.zeros(dissimilarity.shape[0])
+                    )
+                ),
             ),
             _check_equal(
                 "linkage_matrix.shape",
@@ -376,7 +414,11 @@ def validate_athens_artifacts(paths: AthensArtifactPaths, *, expectations: Athen
                 len(cluster_labels),
                 expectations.scheduled_diaries,
             ),
-            _check_equal("diary_summary.rows", len(diary_summary), expectations.scheduled_diaries),
+            _check_equal(
+                "diary_summary.rows",
+                len(diary_summary),
+                expectations.scheduled_diaries,
+            ),
             _check_equal(
                 "scheduled_trips.diary_count",
                 len(scheduled_trips.groupby(["household_id", "person_id"])),
@@ -402,11 +444,13 @@ def validate_athens_artifacts(paths: AthensArtifactPaths, *, expectations: Athen
             ),
             _check_true(
                 "demographics.marginal_rows",
-                expectations.complete_demographic_records == 0 or len(marginal_demographics) > 0,
+                expectations.complete_demographic_records == 0
+                or len(marginal_demographics) > 0,
             ),
             _check_true(
                 "demographics.bivariate_rows",
-                expectations.complete_demographic_records == 0 or len(bivariate_demographics) > 0,
+                expectations.complete_demographic_records == 0
+                or len(bivariate_demographics) > 0,
             ),
             _check_equal(
                 "manifest.artifact_paths",
@@ -444,24 +488,46 @@ def _write_artifacts(
         _input_stage_report_json(input_tables, wide_diary_path),
     )
     _write_json(paths.validation_report, _validation_report_json(outputs))
-    _write_json(paths.scheduling_diagnostics, _scheduling_diagnostics_json(outputs))
-    _scheduled_trips_frame(outputs.scheduled.diaries).to_csv(paths.scheduled_trips, index=False)
-    _diary_summary_frame(outputs.scheduled.diaries).to_csv(paths.diary_summary, index=False)
+    _write_json(
+        paths.scheduling_diagnostics, _scheduling_diagnostics_json(outputs)
+    )
+    _scheduled_trips_frame(outputs.scheduled.diaries).to_csv(
+        paths.scheduled_trips, index=False
+    )
+    _diary_summary_frame(outputs.scheduled.diaries).to_csv(
+        paths.diary_summary, index=False
+    )
     episodes = _episodes_by_diary(outputs.scheduled.diaries)
     _episodes_frame(episodes).to_csv(paths.episodes, index=False)
     state_sequences = tuple(
-        state_sequence_from_diary(diary, initial_activity_state="home", travel_state_labeler=athens_travel_state) for diary in outputs.scheduled.diaries
+        state_sequence_from_diary(
+            diary,
+            initial_activity_state="home",
+            travel_state_labeler=athens_travel_state,
+        )
+        for diary in outputs.scheduled.diaries
     )
     np.save(paths.state_sequences, np.array(state_sequences, dtype=np.str_))
-    np.save(paths.compound_state_sequences, np.array(outputs.sequences, dtype=np.str_))
-    _transition_counts_frame(outputs.sequences).to_csv(paths.transition_counts, index=False)
-    _substitution_costs_frame(outputs.sequences).to_csv(paths.substitution_costs, index=False)
+    np.save(
+        paths.compound_state_sequences,
+        np.array(outputs.sequences, dtype=np.str_),
+    )
+    _transition_counts_frame(outputs.sequences).to_csv(
+        paths.transition_counts, index=False
+    )
+    _substitution_costs_frame(outputs.sequences).to_csv(
+        paths.substitution_costs, index=False
+    )
     np.save(paths.dissimilarity_matrix, outputs.dissimilarity_matrix)
     np.save(paths.linkage_matrix, outputs.linkage_matrix)
     _cluster_labels_frame(outputs).to_csv(paths.cluster_labels, index=False)
     outputs.cluster_sizes.to_csv(paths.cluster_summaries, index=False)
-    outputs.state_distribution.to_csv(paths.cluster_state_distribution, index=False)
-    temporal_distribution = cluster_time_distribution(state_sequences, tuple(int(label) for label in outputs.labels.tolist()))
+    outputs.state_distribution.to_csv(
+        paths.cluster_state_distribution, index=False
+    )
+    temporal_distribution = cluster_time_distribution(
+        state_sequences, tuple(int(label) for label in outputs.labels.tolist())
+    )
     temporal_distribution.to_csv(paths.cluster_time_distribution, index=False)
     _write_json(paths.dendrogram_layout, _dendrogram_json(outputs))
     write_cut_dendrogram_distribution_svg(
@@ -472,14 +538,22 @@ def _write_artifacts(
     )
     demographics = demographic_summary(persons)
     paths.complete_demographic_records.parent.mkdir(parents=True, exist_ok=True)
-    demographics.complete_records.to_csv(paths.complete_demographic_records, index=False)
+    demographics.complete_records.to_csv(
+        paths.complete_demographic_records, index=False
+    )
     demographics.marginal.to_csv(paths.marginal_demographics, index=False)
     demographics.bivariate.to_csv(paths.bivariate_demographics, index=False)
-    write_marginal_demographic_svg(demographics.marginal, paths.marginal_demographic_figure)
-    write_bivariate_demographic_svg(demographics.bivariate, paths.bivariate_demographic_figure)
+    write_marginal_demographic_svg(
+        demographics.marginal, paths.marginal_demographic_figure
+    )
+    write_bivariate_demographic_svg(
+        demographics.bivariate, paths.bivariate_demographic_figure
+    )
     _write_json(
         paths.manifest,
-        _manifest_json(paths, outputs, workflow=workflow, description=description),
+        _manifest_json(
+            paths, outputs, workflow=workflow, description=description
+        ),
     )
     return paths
 
@@ -497,10 +571,14 @@ def verify_athens_sources(source_root: Path) -> dict[str, JsonValue]:
     for filename, expected_hash in EXPECTED_ATHENS_SOURCE_HASHES.items():
         path = source_root / filename
         if not path.exists():
-            raise FileNotFoundError(f"Required paper source file is missing: {path}")
+            raise FileNotFoundError(
+                f"Required paper source file is missing: {path}"
+            )
         actual_hash = _file_sha256(path)
         if actual_hash != expected_hash:
-            raise ValueError(f"Hash mismatch for {filename}: expected {expected_hash}, got {actual_hash}.")
+            raise ValueError(
+                f"Hash mismatch for {filename}: expected {expected_hash}, got {actual_hash}."
+            )
         source_files[filename] = {
             "path": filename,
             "sha256": actual_hash,
@@ -543,15 +621,27 @@ def _artifact_paths(root: Path) -> AthensArtifactPaths:
         cluster_time_distribution=root / "cluster_time_distribution.csv",
         dendrogram_layout=root / "dendrogram_layout.json",
         dendrogram_figure=root / "figures" / "dendrogram.svg",
-        complete_demographic_records=root / "demographics" / "complete_records.csv",
-        marginal_demographics=root / "demographics" / "marginal_demographics.csv",
-        bivariate_demographics=root / "demographics" / "bivariate_demographics.csv",
-        marginal_demographic_figure=root / "figures" / "marginal_demographics.svg",
-        bivariate_demographic_figure=root / "figures" / "bivariate_demographics.svg",
+        complete_demographic_records=root
+        / "demographics"
+        / "complete_records.csv",
+        marginal_demographics=root
+        / "demographics"
+        / "marginal_demographics.csv",
+        bivariate_demographics=root
+        / "demographics"
+        / "bivariate_demographics.csv",
+        marginal_demographic_figure=root
+        / "figures"
+        / "marginal_demographics.svg",
+        bivariate_demographic_figure=root
+        / "figures"
+        / "bivariate_demographics.svg",
     )
 
 
-def _named_artifact_paths(paths: AthensArtifactPaths) -> tuple[tuple[str, Path], ...]:
+def _named_artifact_paths(
+    paths: AthensArtifactPaths,
+) -> tuple[tuple[str, Path], ...]:
     return (
         ("trips", paths.trips),
         ("persons", paths.persons),
@@ -622,10 +712,16 @@ def _check_path_exists(name: str, path: Path) -> AthensArtifactCheck:
     return AthensArtifactCheck(name, False, f"`{path}` is missing.")
 
 
-def _check_equal[ValueT](name: str, actual: ValueT, expected: ValueT) -> AthensArtifactCheck:
+def _check_equal[ValueT](
+    name: str, actual: ValueT, expected: ValueT
+) -> AthensArtifactCheck:
     if actual == expected:
-        return AthensArtifactCheck(name, True, f"got expected value {expected!r}.")
-    return AthensArtifactCheck(name, False, f"expected {expected!r}, got {actual!r}.")
+        return AthensArtifactCheck(
+            name, True, f"got expected value {expected!r}."
+        )
+    return AthensArtifactCheck(
+        name, False, f"expected {expected!r}, got {actual!r}."
+    )
 
 
 def _check_true(name: str, condition: bool) -> AthensArtifactCheck:
@@ -634,7 +730,9 @@ def _check_true(name: str, condition: bool) -> AthensArtifactCheck:
     return AthensArtifactCheck(name, False, "condition is false.")
 
 
-def _check_manifest_paths(paths: AthensArtifactPaths, manifest_artifacts: dict[str, JsonValue]) -> tuple[AthensArtifactCheck, ...]:
+def _check_manifest_paths(
+    paths: AthensArtifactPaths, manifest_artifacts: dict[str, JsonValue]
+) -> tuple[AthensArtifactCheck, ...]:
     expected_paths = dict(_expected_manifest_paths(paths))
     checks: list[AthensArtifactCheck] = []
     for name, expected_path in sorted(expected_paths.items()):
@@ -658,8 +756,14 @@ def _check_manifest_paths(paths: AthensArtifactPaths, manifest_artifacts: dict[s
     return tuple(checks)
 
 
-def _expected_manifest_paths(paths: AthensArtifactPaths) -> tuple[tuple[str, Path], ...]:
-    return tuple((name, path) for name, path in _named_artifact_paths(paths) if name != "manifest")
+def _expected_manifest_paths(
+    paths: AthensArtifactPaths,
+) -> tuple[tuple[str, Path], ...]:
+    return tuple(
+        (name, path)
+        for name, path in _named_artifact_paths(paths)
+        if name != "manifest"
+    )
 
 
 def _read_json_file(path: Path) -> dict[str, JsonValue]:
@@ -685,7 +789,9 @@ def _json_dict(data: dict[str, JsonValue], key: str) -> dict[str, JsonValue]:
     result: dict[str, JsonValue] = {}
     for nested_key, nested_value in value.items():
         if not isinstance(nested_key, str):
-            raise ValueError(f"JSON key `{key}` contains a non-string nested key.")
+            raise ValueError(
+                f"JSON key `{key}` contains a non-string nested key."
+            )
         result[nested_key] = nested_value
     return result
 
@@ -741,7 +847,9 @@ def _array_shape(
     return tuple(int(size) for size in array.shape)
 
 
-def _validation_report_json(outputs: AthensSmokeOutputs) -> dict[str, JsonValue]:
+def _validation_report_json(
+    outputs: AthensSmokeOutputs,
+) -> dict[str, JsonValue]:
     report = outputs.validation_report
     return {
         "summary": report.summary,
@@ -776,7 +884,9 @@ def _validation_report_json(outputs: AthensSmokeOutputs) -> dict[str, JsonValue]
     }
 
 
-def _scheduling_diagnostics_json(outputs: AthensSmokeOutputs) -> dict[str, JsonValue]:
+def _scheduling_diagnostics_json(
+    outputs: AthensSmokeOutputs,
+) -> dict[str, JsonValue]:
     diagnostics = outputs.scheduled.diagnostics
     return {
         "attempted_diaries": diagnostics.attempted_diaries,
@@ -800,7 +910,9 @@ def _scheduled_trips_frame(diaries: tuple[Diary, ...]) -> pd.DataFrame:
     rows: list[dict[str, str | int | bool | None]] = []
     for diary in diaries:
         for position, trip in enumerate(diary.trips, start=1):
-            is_imputed_return_home = bool(trip.metadata.get("is_imputed_return_home", False))
+            is_imputed_return_home = bool(
+                trip.metadata.get("is_imputed_return_home", False)
+            )
             rows.append(
                 {
                     "household_id": trip.household_id,
@@ -815,8 +927,16 @@ def _scheduled_trips_frame(diaries: tuple[Diary, ...]) -> pd.DataFrame:
                     "arrival_second": trip.arrival_second,
                     "travel_time_seconds": trip.travel_time_seconds,
                     "is_imputed_return_home": is_imputed_return_home,
-                    "imputation_method": _string_metadata_value(trip.metadata.get("imputation_method")) if is_imputed_return_home else None,
-                    "observed_last_trip_id": _string_metadata_value(trip.metadata.get("observed_last_trip_id")) if is_imputed_return_home else None,
+                    "imputation_method": _string_metadata_value(
+                        trip.metadata.get("imputation_method")
+                    )
+                    if is_imputed_return_home
+                    else None,
+                    "observed_last_trip_id": _string_metadata_value(
+                        trip.metadata.get("observed_last_trip_id")
+                    )
+                    if is_imputed_return_home
+                    else None,
                 }
             )
     return pd.DataFrame(rows)
@@ -844,10 +964,15 @@ def _imputed_return_home_provenance_complete(
     }
     if not required_columns <= set(scheduled_trips.columns):
         return False
-    imputed_rows = scheduled_trips[scheduled_trips["is_imputed_return_home"].fillna(False)]
+    imputed_rows = scheduled_trips[
+        scheduled_trips["is_imputed_return_home"].fillna(False)
+    ]
     if imputed_rows.empty:
         return True
-    return bool(imputed_rows["imputation_method"].notna().all() and imputed_rows["observed_last_trip_id"].notna().all())
+    return bool(
+        imputed_rows["imputation_method"].notna().all()
+        and imputed_rows["observed_last_trip_id"].notna().all()
+    )
 
 
 def _diary_summary_frame(diaries: tuple[Diary, ...]) -> pd.DataFrame:
@@ -869,7 +994,15 @@ def _episodes_by_diary(
     diaries: tuple[Diary, ...],
 ) -> tuple[tuple[str, str, tuple[Episode, ...]], ...]:
     return tuple(
-        (diary.household_id, diary.person_id, episodes_from_diary(diary, initial_activity_state="home", travel_state_labeler=athens_travel_state))
+        (
+            diary.household_id,
+            diary.person_id,
+            episodes_from_diary(
+                diary,
+                initial_activity_state="home",
+                travel_state_labeler=athens_travel_state,
+            ),
+        )
         for diary in diaries
     )
 
@@ -893,18 +1026,28 @@ def _episodes_frame(
     return pd.DataFrame(rows)
 
 
-def _transition_counts_frame(sequences: tuple[tuple[str, ...], ...]) -> pd.DataFrame:
+def _transition_counts_frame(
+    sequences: tuple[tuple[str, ...], ...],
+) -> pd.DataFrame:
     counts = transition_counts(sequences)
     return pd.DataFrame(
-        [{"source": source, "target": target, "count": count} for (source, target), count in sorted(counts.items())],
+        [
+            {"source": source, "target": target, "count": count}
+            for (source, target), count in sorted(counts.items())
+        ],
         columns=["source", "target", "count"],
     )
 
 
-def _substitution_costs_frame(sequences: tuple[tuple[str, ...], ...]) -> pd.DataFrame:
+def _substitution_costs_frame(
+    sequences: tuple[tuple[str, ...], ...],
+) -> pd.DataFrame:
     costs = substitution_costs(sequences)
     return pd.DataFrame(
-        [{"source": source, "target": target, "cost": cost} for (source, target), cost in sorted(costs.items())],
+        [
+            {"source": source, "target": target, "cost": cost}
+            for (source, target), cost in sorted(costs.items())
+        ],
         columns=["source", "target", "cost"],
     )
 
@@ -917,7 +1060,9 @@ def _cluster_labels_frame(outputs: AthensSmokeOutputs) -> pd.DataFrame:
                 "person_id": diary.person_id,
                 "cluster": int(label),
             }
-            for diary, label in zip(outputs.scheduled.diaries, outputs.labels.tolist(), strict=True)
+            for diary, label in zip(
+                outputs.scheduled.diaries, outputs.labels.tolist(), strict=True
+            )
         ],
         columns=["household_id", "person_id", "cluster"],
     )
@@ -948,40 +1093,90 @@ def _manifest_json(
         "scheduled_diaries": outputs.scheduled.diagnostics.scheduled_diaries,
         "sequence_shape": [len(outputs.sequences), len(outputs.sequences[0])],
         "cluster_count": int(outputs.cluster_sizes.shape[0]),
-        "imputed_return_home_trips": _imputed_return_home_count(_scheduled_trips_frame(outputs.scheduled.diaries)),
+        "imputed_return_home_trips": _imputed_return_home_count(
+            _scheduled_trips_frame(outputs.scheduled.diaries)
+        ),
         "artifacts": {
             "trips": _relative_artifact_path(paths.root, paths.trips),
             "persons": _relative_artifact_path(paths.root, paths.persons),
             "households": _relative_artifact_path(paths.root, paths.households),
-            "source_hash_report": _relative_artifact_path(paths.root, paths.source_hash_report),
-            "input_stage_report": _relative_artifact_path(paths.root, paths.input_stage_report),
-            "validation_report": _relative_artifact_path(paths.root, paths.validation_report),
-            "scheduling_diagnostics": _relative_artifact_path(paths.root, paths.scheduling_diagnostics),
-            "scheduled_trips": _relative_artifact_path(paths.root, paths.scheduled_trips),
-            "diary_summary": _relative_artifact_path(paths.root, paths.diary_summary),
+            "source_hash_report": _relative_artifact_path(
+                paths.root, paths.source_hash_report
+            ),
+            "input_stage_report": _relative_artifact_path(
+                paths.root, paths.input_stage_report
+            ),
+            "validation_report": _relative_artifact_path(
+                paths.root, paths.validation_report
+            ),
+            "scheduling_diagnostics": _relative_artifact_path(
+                paths.root, paths.scheduling_diagnostics
+            ),
+            "scheduled_trips": _relative_artifact_path(
+                paths.root, paths.scheduled_trips
+            ),
+            "diary_summary": _relative_artifact_path(
+                paths.root, paths.diary_summary
+            ),
             "episodes": _relative_artifact_path(paths.root, paths.episodes),
-            "state_sequences": _relative_artifact_path(paths.root, paths.state_sequences),
-            "compound_state_sequences": _relative_artifact_path(paths.root, paths.compound_state_sequences),
-            "transition_counts": _relative_artifact_path(paths.root, paths.transition_counts),
-            "substitution_costs": _relative_artifact_path(paths.root, paths.substitution_costs),
-            "dissimilarity_matrix": _relative_artifact_path(paths.root, paths.dissimilarity_matrix),
-            "linkage_matrix": _relative_artifact_path(paths.root, paths.linkage_matrix),
-            "cluster_labels": _relative_artifact_path(paths.root, paths.cluster_labels),
-            "cluster_summaries": _relative_artifact_path(paths.root, paths.cluster_summaries),
-            "cluster_state_distribution": _relative_artifact_path(paths.root, paths.cluster_state_distribution),
-            "cluster_time_distribution": _relative_artifact_path(paths.root, paths.cluster_time_distribution),
-            "dendrogram_layout": _relative_artifact_path(paths.root, paths.dendrogram_layout),
-            "dendrogram_figure": _relative_artifact_path(paths.root, paths.dendrogram_figure),
-            "complete_demographic_records": _relative_artifact_path(paths.root, paths.complete_demographic_records),
-            "marginal_demographics": _relative_artifact_path(paths.root, paths.marginal_demographics),
-            "bivariate_demographics": _relative_artifact_path(paths.root, paths.bivariate_demographics),
-            "marginal_demographic_figure": _relative_artifact_path(paths.root, paths.marginal_demographic_figure),
-            "bivariate_demographic_figure": _relative_artifact_path(paths.root, paths.bivariate_demographic_figure),
+            "state_sequences": _relative_artifact_path(
+                paths.root, paths.state_sequences
+            ),
+            "compound_state_sequences": _relative_artifact_path(
+                paths.root, paths.compound_state_sequences
+            ),
+            "transition_counts": _relative_artifact_path(
+                paths.root, paths.transition_counts
+            ),
+            "substitution_costs": _relative_artifact_path(
+                paths.root, paths.substitution_costs
+            ),
+            "dissimilarity_matrix": _relative_artifact_path(
+                paths.root, paths.dissimilarity_matrix
+            ),
+            "linkage_matrix": _relative_artifact_path(
+                paths.root, paths.linkage_matrix
+            ),
+            "cluster_labels": _relative_artifact_path(
+                paths.root, paths.cluster_labels
+            ),
+            "cluster_summaries": _relative_artifact_path(
+                paths.root, paths.cluster_summaries
+            ),
+            "cluster_state_distribution": _relative_artifact_path(
+                paths.root, paths.cluster_state_distribution
+            ),
+            "cluster_time_distribution": _relative_artifact_path(
+                paths.root, paths.cluster_time_distribution
+            ),
+            "dendrogram_layout": _relative_artifact_path(
+                paths.root, paths.dendrogram_layout
+            ),
+            "dendrogram_figure": _relative_artifact_path(
+                paths.root, paths.dendrogram_figure
+            ),
+            "complete_demographic_records": _relative_artifact_path(
+                paths.root, paths.complete_demographic_records
+            ),
+            "marginal_demographics": _relative_artifact_path(
+                paths.root, paths.marginal_demographics
+            ),
+            "bivariate_demographics": _relative_artifact_path(
+                paths.root, paths.bivariate_demographics
+            ),
+            "marginal_demographic_figure": _relative_artifact_path(
+                paths.root, paths.marginal_demographic_figure
+            ),
+            "bivariate_demographic_figure": _relative_artifact_path(
+                paths.root, paths.bivariate_demographic_figure
+            ),
         },
     }
 
 
-def _input_stage_report_json(input_tables: AthensInputTables, wide_diary_path: Path) -> dict[str, JsonValue]:
+def _input_stage_report_json(
+    input_tables: AthensInputTables, wide_diary_path: Path
+) -> dict[str, JsonValue]:
     note = (
         "The checked-in wide diary fixture has the paper source schema but only three diaries; it is not the full 513-diary CSuM2026 input."
         if input_tables.raw_diaries < 513
@@ -1000,14 +1195,18 @@ def _input_stage_report_json(input_tables: AthensInputTables, wide_diary_path: P
 def _first_departure_second(diary: Diary) -> int:
     first_trip = diary.trips[0]
     if first_trip.departure_second is None:
-        raise RuntimeError(f"Diary {diary.household_id}:{diary.person_id} is not scheduled.")
+        raise RuntimeError(
+            f"Diary {diary.household_id}:{diary.person_id} is not scheduled."
+        )
     return first_trip.departure_second
 
 
 def _last_arrival_second(diary: Diary) -> int:
     last_trip = diary.trips[-1]
     if last_trip.arrival_second is None:
-        raise RuntimeError(f"Diary {diary.household_id}:{diary.person_id} is not scheduled.")
+        raise RuntimeError(
+            f"Diary {diary.household_id}:{diary.person_id} is not scheduled."
+        )
     return last_trip.arrival_second
 
 
@@ -1029,11 +1228,15 @@ def _verify_zip_members(zip_path: Path) -> dict[str, JsonValue]:
         names = set(archive.namelist())
         for member_name, expected_hash in EXPECTED_ZIP_MEMBER_HASHES.items():
             if member_name not in names:
-                raise FileNotFoundError(f"Required paper source member is missing from {zip_path.name}: {member_name}")
+                raise FileNotFoundError(
+                    f"Required paper source member is missing from {zip_path.name}: {member_name}"
+                )
             data = archive.read(member_name)
             actual_hash = sha256(data).hexdigest().upper()
             if actual_hash != expected_hash:
-                raise ValueError(f"Hash mismatch for {member_name} inside {zip_path.name}: expected {expected_hash}, got {actual_hash}.")
+                raise ValueError(
+                    f"Hash mismatch for {member_name} inside {zip_path.name}: expected {expected_hash}, got {actual_hash}."
+                )
             members[member_name] = {
                 "path": member_name,
                 "sha256": actual_hash,
@@ -1045,7 +1248,9 @@ def _verify_zip_members(zip_path: Path) -> dict[str, JsonValue]:
 
 
 def _write_json(path: Path, data: dict[str, JsonValue]) -> None:
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

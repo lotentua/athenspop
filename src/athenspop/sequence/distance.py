@@ -1,11 +1,13 @@
 """Optimal-matching dissimilarities for symbolic state sequences."""
 
 from collections.abc import Sequence
+from math import isfinite
 from typing import cast
 
 import numpy as np
 
-type DissimilarityMatrix = np.ndarray[tuple[int, int], np.dtype[np.float64]]
+from athenspop.types import DissimilarityMatrix
+
 type CostMatrix = np.ndarray[tuple[int, int], np.dtype[np.float64]]
 type EncodedTargetMatrix = np.ndarray[tuple[int, int], np.dtype[np.int64]]
 type DistanceVector = np.ndarray[tuple[int], np.dtype[np.float64]]
@@ -37,8 +39,7 @@ def optimal_matching_dissimilarity(
         ValueError:
             If `indel_cost` is not positive or a required substitution cost is missing.
     """
-    if indel_cost <= 0:
-        raise ValueError(f"`indel_cost` must be positive, got {indel_cost}.")
+    indel_cost = _validate_positive_cost(indel_cost, name="indel_cost")
     rows = len(first) + 1
     columns = len(second) + 1
     previous = [index * indel_cost for index in range(columns)]
@@ -49,8 +50,12 @@ def optimal_matching_dissimilarity(
             target = second[column_index - 1]
             delete_cost = previous[column_index] + indel_cost
             insert_cost = current[column_index - 1] + indel_cost
-            substitute_cost = previous[column_index - 1] + _lookup_substitution_cost(source, target, substitution_cost)
-            current[column_index] = min(delete_cost, insert_cost, substitute_cost)
+            substitute_cost = previous[
+                column_index - 1
+            ] + _lookup_substitution_cost(source, target, substitution_cost)
+            current[column_index] = min(
+                delete_cost, insert_cost, substitute_cost
+            )
         previous = current
     return previous[-1]
 
@@ -81,38 +86,55 @@ def dissimilarity_matrix(
     Notes:
         Sequences are encoded once and same-length targets are batched to reduce repeated Python-loop overhead.
     """
-    if indel_cost <= 0:
-        raise ValueError(f"`indel_cost` must be positive, got {indel_cost}.")
+    indel_cost = _validate_positive_cost(indel_cost, name="indel_cost")
     materialized = tuple(tuple(sequence) for sequence in sequences)
-    encoded_sequences, cost_matrix = _encode_sequences(materialized, substitution_cost=substitution_cost)
+    encoded_sequences, cost_matrix = _encode_sequences(
+        materialized, substitution_cost=substitution_cost
+    )
     matrix = np.zeros((len(materialized), len(materialized)), dtype=np.float64)
     for row_index, first in enumerate(encoded_sequences):
         target_indices_by_length: dict[int, list[int]] = {}
         for target_index in range(row_index + 1, len(encoded_sequences)):
-            target_indices_by_length.setdefault(len(encoded_sequences[target_index]), []).append(target_index)
+            target_indices_by_length.setdefault(
+                len(encoded_sequences[target_index]), []
+            ).append(target_index)
         for target_indices in target_indices_by_length.values():
             targets = cast(
                 "EncodedTargetMatrix",
                 np.asarray(
-                    [encoded_sequences[target_index] for target_index in target_indices],
+                    [
+                        encoded_sequences[target_index]
+                        for target_index in target_indices
+                    ],
                     dtype=np.int64,
                 ),
             )
-            distances = _batch_optimal_matching_dissimilarities(first, targets, cost_matrix=cost_matrix, indel_cost=indel_cost)
-            for target_index, distance in zip(target_indices, distances.tolist(), strict=True):
+            distances = _batch_optimal_matching_dissimilarities(
+                first, targets, cost_matrix=cost_matrix, indel_cost=indel_cost
+            )
+            for target_index, distance in zip(
+                target_indices, distances.tolist(), strict=True
+            ):
                 matrix[row_index, target_index] = distance
                 matrix[target_index, row_index] = distance
     return matrix
 
 
-def _lookup_substitution_cost(source: str, target: str, substitution_cost: dict[tuple[str, str], float]) -> float:
+def _lookup_substitution_cost(
+    source: str, target: str, substitution_cost: dict[tuple[str, str], float]
+) -> float:
     """Return zero for identical states or look up the explicit substitution cost."""
     if source == target:
         return 0.0
     try:
-        return substitution_cost[(source, target)]
+        return _validate_non_negative_cost(
+            substitution_cost[(source, target)],
+            name=f"substitution_cost[{source!r}, {target!r}]",
+        )
     except KeyError as error:
-        raise ValueError(f"Missing substitution cost for {source!r} -> {target!r}.") from error
+        raise ValueError(
+            f"Missing substitution cost for {source!r} -> {target!r}."
+        ) from error
 
 
 def _encode_sequences(
@@ -121,7 +143,9 @@ def _encode_sequences(
     substitution_cost: dict[tuple[str, str], float],
 ) -> tuple[tuple[tuple[int, ...], ...], CostMatrix]:
     """Encode string sequences as integer codes and build the corresponding dense substitution-cost matrix."""
-    states = tuple(sorted({state for sequence in sequences for state in sequence}))
+    states = tuple(
+        sorted({state for sequence in sequences for state in sequence})
+    )
     _validate_symmetric_substitution_costs(states, substitution_cost)
     state_codes = {state: code for code, state in enumerate(states)}
     cost_matrix = np.zeros((len(states), len(states)), dtype=np.float64)
@@ -129,21 +153,70 @@ def _encode_sequences(
         source_code = state_codes[source]
         for target in states:
             target_code = state_codes[target]
-            cost_matrix[source_code, target_code] = _lookup_substitution_cost(source, target, substitution_cost)
-    encoded_sequences = tuple(tuple(state_codes[state] for state in sequence) for sequence in sequences)
+            cost_matrix[source_code, target_code] = _lookup_substitution_cost(
+                source, target, substitution_cost
+            )
+    encoded_sequences = tuple(
+        tuple(state_codes[state] for state in sequence)
+        for sequence in sequences
+    )
     return encoded_sequences, cast("CostMatrix", cost_matrix)
 
 
-def _validate_symmetric_substitution_costs(states: Sequence[str], substitution_cost: dict[tuple[str, str], float]) -> None:
+def _validate_symmetric_substitution_costs(
+    states: Sequence[str], substitution_cost: dict[tuple[str, str], float]
+) -> None:
     """Reject directed substitution costs before building a symmetric dissimilarity matrix."""
     for source_index, source in enumerate(states):
         for target in states[source_index + 1 :]:
-            forward_cost = _lookup_substitution_cost(source, target, substitution_cost)
-            reverse_cost = _lookup_substitution_cost(target, source, substitution_cost)
-            if not np.isclose(forward_cost, reverse_cost, rtol=1e-12, atol=1e-12):
+            forward_cost = _lookup_substitution_cost(
+                source, target, substitution_cost
+            )
+            reverse_cost = _lookup_substitution_cost(
+                target, source, substitution_cost
+            )
+            if not np.isclose(
+                forward_cost, reverse_cost, rtol=1e-12, atol=1e-12
+            ):
                 raise ValueError(
                     f"`dissimilarity_matrix` requires symmetric substitution costs for clustering; got {forward_cost} for {source!r} -> {target!r} and {reverse_cost} for {target!r} -> {source!r}."
                 )
+
+
+def _validate_positive_cost(value: float, *, name: str) -> float:
+    """Return a finite positive numeric cost."""
+    if isinstance(value, bool) or not isinstance(
+        value, int | float | np.integer | np.floating
+    ):
+        raise TypeError(
+            f"`{name}` must be a finite positive number, got {value!r}."
+        )
+
+    cost = float(value)
+    if not isfinite(cost) or cost <= 0.0:
+        raise ValueError(
+            f"`{name}` must be a finite positive number, got {value!r}."
+        )
+
+    return cost
+
+
+def _validate_non_negative_cost(value: float, *, name: str) -> float:
+    """Return a finite non-negative numeric cost."""
+    if isinstance(value, bool) or not isinstance(
+        value, int | float | np.integer | np.floating
+    ):
+        raise TypeError(
+            f"`{name}` must be a finite non-negative number, got {value!r}."
+        )
+
+    cost = float(value)
+    if not isfinite(cost) or cost < 0.0:
+        raise ValueError(
+            f"`{name}` must be a finite non-negative number, got {value!r}."
+        )
+
+    return cost
 
 
 def _batch_optimal_matching_dissimilarities(
@@ -167,7 +240,12 @@ def _batch_optimal_matching_dissimilarities(
             target_codes = targets[:, column_index - 1]
             delete_costs = previous[:, column_index] + indel_cost
             insert_costs = current[:, column_index - 1] + indel_cost
-            substitute_costs = previous[:, column_index - 1] + cost_matrix[source_code, target_codes]
-            current[:, column_index] = np.minimum(np.minimum(delete_costs, insert_costs), substitute_costs)
+            substitute_costs = (
+                previous[:, column_index - 1]
+                + cost_matrix[source_code, target_codes]
+            )
+            current[:, column_index] = np.minimum(
+                np.minimum(delete_costs, insert_costs), substitute_costs
+            )
         previous, current = current, previous
     return cast("DistanceVector", previous[:, columns].copy())

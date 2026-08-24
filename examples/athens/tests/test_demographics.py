@@ -10,7 +10,9 @@ from examples.athens.demographics import (
 from examples.athens.inputs import load_athens_wide_diaries
 
 
-def test_athens_demographic_summary_uses_461_complete_records(tmp_path: Path) -> None:
+def test_athens_demographic_summary_uses_461_complete_records(
+    tmp_path: Path,
+) -> None:
     tables = load_athens_wide_diaries(fixture_travel_time_seconds=None)
     summary = demographic_summary(tables.persons)
 
@@ -30,5 +32,10 @@ def test_athens_demographic_summary_uses_461_complete_records(tmp_path: Path) ->
     bivariate_svg = tmp_path / "bivariate.svg"
     write_marginal_demographic_svg(summary.marginal, marginal_svg)
     write_bivariate_demographic_svg(summary.bivariate, bivariate_svg)
-    assert "Marginal demographic distributions" in marginal_svg.read_text(encoding="utf-8")
-    assert "Selected bivariate demographic distributions" in bivariate_svg.read_text(encoding="utf-8")
+    assert "Marginal demographic distributions" in marginal_svg.read_text(
+        encoding="utf-8"
+    )
+    assert (
+        "Selected bivariate demographic distributions"
+        in bivariate_svg.read_text(encoding="utf-8")
+    )

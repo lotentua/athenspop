@@ -2,7 +2,7 @@ from types import MappingProxyType
 
 from athenspop.model import Diary, HouseholdMetadata, SurveyDataset, Trip
 from athenspop.scheduling import ScheduledSurveyDataset, SchedulingDiagnostics
-from athenspop.validation.schema import TimingPattern
+from athenspop.schema import TimingPattern
 from examples.athens.imputation import (
     IMPUTATION_METHOD,
     impute_athens_return_home_trips,
@@ -10,22 +10,32 @@ from examples.athens.imputation import (
 from examples.athens.reproduce import _scheduled_trips_frame
 
 
-def test_athens_return_home_imputation_uses_empirical_return_departures() -> None:
-    household = HouseholdMetadata(household_id="h1", values=MappingProxyType({"home_zone": "home"}))
+def test_athens_return_home_imputation_uses_empirical_return_departures() -> (
+    None
+):
+    household = HouseholdMetadata(
+        household_id="h1", values=MappingProxyType({"home_zone": "home"})
+    )
     observed_return = Diary(
         household_id="h1",
         person_id="observed",
         household=household,
         trips=(
-            _trip("observed_work", "observed", "home", "work", "work", 100, 150),
-            _trip("observed_home", "observed", "work", "home", "home", 1000, 1050),
+            _trip(
+                "observed_work", "observed", "home", "work", "work", 100, 150
+            ),
+            _trip(
+                "observed_home", "observed", "work", "home", "home", 1000, 1050
+            ),
         ),
     )
     missing_return = Diary(
         household_id="h1",
         person_id="missing",
         household=household,
-        trips=(_trip("missing_work", "missing", "home", "work", "work", 200, 250),),
+        trips=(
+            _trip("missing_work", "missing", "home", "work", "work", 200, 250),
+        ),
     )
     scheduled = ScheduledSurveyDataset(
         dataset=SurveyDataset(
@@ -33,7 +43,9 @@ def test_athens_return_home_imputation_uses_empirical_return_departures() -> Non
             households=(household,),
             persons=(),
         ),
-        diagnostics=SchedulingDiagnostics(attempted_diaries=2, scheduled_diaries=2, infeasible_diaries=()),
+        diagnostics=SchedulingDiagnostics(
+            attempted_diaries=2, scheduled_diaries=2, infeasible_diaries=()
+        ),
     )
 
     imputed = impute_athens_return_home_trips(
@@ -90,5 +102,7 @@ def _trip(
     )
 
 
-def _constant_travel_time(origin: str, destination: str, mode: str, departure_second: int) -> int:
+def _constant_travel_time(
+    origin: str, destination: str, mode: str, departure_second: int
+) -> int:
     return 50

@@ -1,5 +1,7 @@
 """Hierarchical clustering helpers for precomputed dissimilarity matrices."""
 
+from typing import Final
+
 from athenspop.clustering.hierarchical import (
     ClusterLabels,
     CutDendrogramNode,
@@ -17,7 +19,7 @@ from athenspop.clustering.hierarchical import (
     leaf_order,
 )
 
-__all__ = [
+__all__: Final[tuple[str, ...]] = (
     "ClusterLabels",
     "CutDendrogramNode",
     "DendrogramLayout",
@@ -32,4 +34,4 @@ __all__ = [
     "dendrogram_layout",
     "flat_cluster_labels",
     "leaf_order",
-]
+)

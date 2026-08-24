@@ -1,83 +1,36 @@
 """Dataframe schema validation for long-form travel survey input."""
 
-from collections.abc import Callable, Hashable
+from collections.abc import Hashable
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Final, cast
+from typing import cast
 
 import numpy as np
 import pandas as pd
 
-from athenspop.validation.report import ValidationReport, ValidationReportBuilder
+from athenspop.schema import (
+    HOUSEHOLD_KEY_COLUMNS,
+    HOUSEHOLDS_TABLE,
+    PERSON_KEY_COLUMNS,
+    PERSONS_TABLE,
+    SECOND_COLUMNS,
+    TRIP_KEY_COLUMNS,
+    TRIP_REQUIRED_COLUMNS,
+    TRIP_RESERVED_COLUMNS,
+    TRIP_TIMING_COLUMNS,
+    TRIPS_TABLE,
+    UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS,
+    TimingPattern,
+)
+from athenspop.types import TravelTimeFunction
+from athenspop.validation.report import (
+    ValidationReport,
+    ValidationReportBuilder,
+)
 
-type TravelTimeFunction = Callable[[str, str, str, int], int]
-type ScalarValue = str | int | float | bool | np.integer | np.floating | np.bool_ | None
+type ScalarValue = (
+    str | int | float | bool | np.integer | np.floating | np.bool_ | None
+)
 type IntegerSecondValue = int | np.integer
-
-TRIPS_TABLE: Final[str] = "trips"
-PERSONS_TABLE: Final[str] = "persons"
-HOUSEHOLDS_TABLE: Final[str] = "households"
-
-TRIP_KEY_COLUMNS: Final[tuple[str, ...]] = ("household_id", "person_id", "trip_id")
-PERSON_KEY_COLUMNS: Final[tuple[str, ...]] = ("household_id", "person_id")
-HOUSEHOLD_KEY_COLUMNS: Final[tuple[str, ...]] = ("household_id",)
-TRIP_REQUIRED_COLUMNS: Final[tuple[str, ...]] = (
-    *TRIP_KEY_COLUMNS,
-    "origin",
-    "destination",
-    "purpose",
-    "mode",
-)
-TRIP_TIMING_COLUMNS: Final[tuple[str, ...]] = (
-    "departure_second",
-    "arrival_second",
-    "travel_time_seconds",
-    "earliest_departure_second",
-    "latest_departure_second",
-)
-TRIP_RESERVED_COLUMNS: Final[tuple[str, ...]] = (
-    *TRIP_REQUIRED_COLUMNS,
-    *TRIP_TIMING_COLUMNS,
-    "trip_sequence",
-    "timing_pattern",
-)
-UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS: Final[tuple[str, ...]] = (
-    "earliest_arrival_second",
-    "latest_arrival_second",
-)
-SECOND_COLUMNS: Final[tuple[str, ...]] = (
-    "departure_second",
-    "arrival_second",
-    "travel_time_seconds",
-    "earliest_departure_second",
-    "latest_departure_second",
-    "earliest_arrival_second",
-    "latest_arrival_second",
-)
-DEFAULT_MIN_ACTIVITY_DURATION_SECONDS: Final[int] = 1800
-
-
-class TimingPattern(StrEnum):
-    """Supported per-row timing patterns for trip rows.
-
-    Attributes:
-        DEPARTURE_ARRIVAL:
-            Row supplies concrete departure and arrival seconds.
-        DEPARTURE_DURATION:
-            Row supplies concrete departure seconds and travel duration seconds.
-        DEPARTURE_TRAVEL_TIME_FUNCTION:
-            Row supplies concrete departure seconds and relies on a travel-time callable.
-        DEPARTURE_WINDOW_DURATION:
-            Row supplies a departure window and travel duration seconds.
-        DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION:
-            Row supplies a departure window and relies on a travel-time callable.
-    """
-
-    DEPARTURE_ARRIVAL = "departure_arrival"
-    DEPARTURE_DURATION = "departure_duration"
-    DEPARTURE_TRAVEL_TIME_FUNCTION = "departure_travel_time_function"
-    DEPARTURE_WINDOW_DURATION = "departure_window_duration"
-    DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION = "departure_window_travel_time_function"
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,8 +94,14 @@ def validate_dataframes(
     """
     builder = ValidationReportBuilder()
     table_is_usable = {
-        TRIPS_TABLE: _validate_table_shape(builder, TRIPS_TABLE, trips, required_columns=TRIP_REQUIRED_COLUMNS),
-        PERSONS_TABLE: True if persons is None else _validate_table_shape(builder, PERSONS_TABLE, persons, required_columns=PERSON_KEY_COLUMNS),
+        TRIPS_TABLE: _validate_table_shape(
+            builder, TRIPS_TABLE, trips, required_columns=TRIP_REQUIRED_COLUMNS
+        ),
+        PERSONS_TABLE: True
+        if persons is None
+        else _validate_table_shape(
+            builder, PERSONS_TABLE, persons, required_columns=PERSON_KEY_COLUMNS
+        ),
         HOUSEHOLDS_TABLE: True
         if households is None
         else _validate_table_shape(
@@ -158,7 +117,12 @@ def validate_dataframes(
     normalized_trips = trips.copy()
     normalized_persons = None if persons is None else persons.copy()
     normalized_households = None if households is None else households.copy()
-    _validate_keys(builder, normalized_trips, table=TRIPS_TABLE, key_columns=TRIP_KEY_COLUMNS)
+    _validate_keys(
+        builder,
+        normalized_trips,
+        table=TRIPS_TABLE,
+        key_columns=TRIP_KEY_COLUMNS,
+    )
     if normalized_persons is not None and table_is_usable[PERSONS_TABLE]:
         _validate_keys(
             builder,
@@ -179,12 +143,29 @@ def validate_dataframes(
         normalized_persons if table_is_usable[PERSONS_TABLE] else None,
         normalized_households if table_is_usable[HOUSEHOLDS_TABLE] else None,
     )
-    _validate_metadata_values(builder, normalized_trips, table=TRIPS_TABLE, reserved_columns=TRIP_RESERVED_COLUMNS)
+    _validate_metadata_values(
+        builder,
+        normalized_trips,
+        table=TRIPS_TABLE,
+        reserved_columns=TRIP_RESERVED_COLUMNS,
+    )
     if normalized_persons is not None and table_is_usable[PERSONS_TABLE]:
-        _validate_metadata_values(builder, normalized_persons, table=PERSONS_TABLE, reserved_columns=PERSON_KEY_COLUMNS)
+        _validate_metadata_values(
+            builder,
+            normalized_persons,
+            table=PERSONS_TABLE,
+            reserved_columns=PERSON_KEY_COLUMNS,
+        )
     if normalized_households is not None and table_is_usable[HOUSEHOLDS_TABLE]:
-        _validate_metadata_values(builder, normalized_households, table=HOUSEHOLDS_TABLE, reserved_columns=HOUSEHOLD_KEY_COLUMNS)
-    timing_patterns = _validate_trip_rows(builder, normalized_trips, travel_time_function=travel_time_function)
+        _validate_metadata_values(
+            builder,
+            normalized_households,
+            table=HOUSEHOLDS_TABLE,
+            reserved_columns=HOUSEHOLD_KEY_COLUMNS,
+        )
+    timing_patterns = _validate_trip_rows(
+        builder, normalized_trips, travel_time_function=travel_time_function
+    )
     if timing_patterns is not None:
         normalized_trips["timing_pattern"] = timing_patterns
     ordered_trip_rows = _validate_trip_chains(builder, normalized_trips)
@@ -217,7 +198,10 @@ def _validate_table_shape(
             message=f"`{table}` must be a pandas DataFrame.",
         )
         return False
-    duplicated_columns = [str(column) for column in frame.columns[frame.columns.duplicated()].tolist()]
+    duplicated_columns = [
+        str(column)
+        for column in frame.columns[frame.columns.duplicated()].tolist()
+    ]
     if duplicated_columns:
         builder.add_error(
             code="duplicate_columns",
@@ -225,7 +209,9 @@ def _validate_table_shape(
             message=f"`{table}` has duplicate column names: {', '.join(duplicated_columns)}.",
         )
         return False
-    missing_columns = [column for column in required_columns if column not in frame.columns]
+    missing_columns = [
+        column for column in required_columns if column not in frame.columns
+    ]
     if missing_columns:
         builder.add_error(
             code="missing_required_columns",
@@ -244,10 +230,24 @@ def _validate_keys(
     key_columns: tuple[str, ...],
 ) -> None:
     """Validate missing and duplicate table keys while blocking rows that lack identity."""
+    for column in key_columns:
+        frame[column] = frame[column].astype(object)
+
     for row_index, row in frame.iterrows():
         row_identifier = _row_identifier(table, row_index)
         for column in key_columns:
-            value = cast("ScalarValue", row[column])
+            raw_value = row[column]
+            if not pd.api.types.is_scalar(raw_value):
+                builder.add_error(
+                    code="unsupported_key_value",
+                    table=table,
+                    row_identifier=row_identifier,
+                    column=column,
+                    bad_value=repr(raw_value),
+                    message=f"`{table}` row {row_identifier} has non-scalar `{column}` key. Key columns must contain simple scalar values.",
+                )
+                break
+            value = cast("ScalarValue", raw_value)
             if _is_missing(value):
                 builder.add_error(
                     code="null_key",
@@ -258,7 +258,12 @@ def _validate_keys(
                     message=f"`{table}` row {row_identifier} has a missing `{column}` key. Fill the key before validation.",
                 )
                 break
-    rows_for_duplicate_check = [index for index in frame.index if _row_identifier(table, index) not in builder.blocked_rows]
+            frame.loc[row_index, column] = str(value)
+    rows_for_duplicate_check = [
+        index
+        for index in frame.index
+        if _row_identifier(table, index) not in builder.blocked_rows
+    ]
     if rows_for_duplicate_check:
         valid_key_frame = frame.loc[rows_for_duplicate_check, list(key_columns)]
         duplicate_mask = valid_key_frame.duplicated(keep=False)
@@ -280,9 +285,15 @@ def _validate_joins(
     households: pd.DataFrame | None,
 ) -> None:
     """Validate optional-table joins without suppressing unrelated trip-row domain checks."""
-    trip_rows = [index for index in trips.index if _row_identifier(TRIPS_TABLE, index) not in builder.blocked_rows]
+    trip_rows = [
+        index
+        for index in trips.index
+        if _row_identifier(TRIPS_TABLE, index) not in builder.blocked_rows
+    ]
     if persons is not None:
-        valid_person_keys = {_key_tuple(row, PERSON_KEY_COLUMNS) for _, row in persons.iterrows()}
+        valid_person_keys = {
+            _key_tuple(row, PERSON_KEY_COLUMNS) for _, row in persons.iterrows()
+        }
         for row_index in trip_rows:
             row = trips.loc[row_index]
             if _key_tuple(row, PERSON_KEY_COLUMNS) not in valid_person_keys:
@@ -295,10 +306,16 @@ def _validate_joins(
                     suppress_row=False,
                 )
     if households is not None:
-        valid_household_keys = {_key_tuple(row, HOUSEHOLD_KEY_COLUMNS) for _, row in households.iterrows()}
+        valid_household_keys = {
+            _key_tuple(row, HOUSEHOLD_KEY_COLUMNS)
+            for _, row in households.iterrows()
+        }
         for row_index in trip_rows:
             row = trips.loc[row_index]
-            if _key_tuple(row, HOUSEHOLD_KEY_COLUMNS) not in valid_household_keys:
+            if (
+                _key_tuple(row, HOUSEHOLD_KEY_COLUMNS)
+                not in valid_household_keys
+            ):
                 builder.add_error(
                     code="orphan_trip_household",
                     table=TRIPS_TABLE,
@@ -308,14 +325,24 @@ def _validate_joins(
                     suppress_row=False,
                 )
         if persons is not None:
-            person_rows = [index for index in persons.index if _row_identifier(PERSONS_TABLE, index) not in builder.blocked_rows]
+            person_rows = [
+                index
+                for index in persons.index
+                if _row_identifier(PERSONS_TABLE, index)
+                not in builder.blocked_rows
+            ]
             for row_index in person_rows:
                 row = persons.loc[row_index]
-                if _key_tuple(row, HOUSEHOLD_KEY_COLUMNS) not in valid_household_keys:
+                if (
+                    _key_tuple(row, HOUSEHOLD_KEY_COLUMNS)
+                    not in valid_household_keys
+                ):
                     builder.add_error(
                         code="orphan_person_household",
                         table=PERSONS_TABLE,
-                        row_identifier=_row_identifier(PERSONS_TABLE, row_index),
+                        row_identifier=_row_identifier(
+                            PERSONS_TABLE, row_index
+                        ),
                         column=", ".join(HOUSEHOLD_KEY_COLUMNS),
                         message=f"`persons` row {_row_identifier(PERSONS_TABLE, row_index)} references a household that is not present in `households`.",
                         suppress_row=False,
@@ -330,7 +357,11 @@ def _validate_metadata_values(
     reserved_columns: tuple[str, ...],
 ) -> None:
     """Validate user metadata columns before trusted model construction preserves them."""
-    metadata_columns = [column for column in frame.columns if str(column) not in reserved_columns]
+    metadata_columns = [
+        column
+        for column in frame.columns
+        if str(column) not in reserved_columns
+    ]
     for row_index, row in frame.iterrows():
         row_identifier = _row_identifier(table, row_index)
         if row_identifier in builder.blocked_rows:
@@ -349,7 +380,10 @@ def _validate_metadata_values(
             value = cast("ScalarValue", row[column])
             if _is_missing(value):
                 continue
-            if not isinstance(value, str | int | float | bool | np.integer | np.floating | np.bool_):
+            if not isinstance(
+                value,
+                str | int | float | bool | np.integer | np.floating | np.bool_,
+            ):
                 builder.add_error(
                     code="unsupported_metadata_value",
                     table=table,
@@ -374,7 +408,18 @@ def _validate_trip_rows(
         if row_identifier in builder.blocked_rows:
             continue
         for column in ("origin", "destination", "purpose", "mode"):
-            value = cast("ScalarValue", row[column])
+            raw_value = row[column]
+            if not pd.api.types.is_scalar(raw_value):
+                builder.add_error(
+                    code="unsupported_trip_value",
+                    table=TRIPS_TABLE,
+                    row_identifier=row_identifier,
+                    column=column,
+                    bad_value=repr(raw_value),
+                    message=f"`trips` row {row_identifier} has non-scalar `{column}`. Movement and behavior columns must contain simple scalar values.",
+                )
+                break
+            value = cast("ScalarValue", raw_value)
             if _is_missing(value) or str(value) == "":
                 builder.add_error(
                     code="missing_trip_value",
@@ -422,7 +467,9 @@ def _validate_trip_rows(
                     break
         if row_identifier in builder.blocked_rows:
             continue
-        pattern = _detect_timing_pattern(row, travel_time_function=travel_time_function)
+        pattern = _detect_timing_pattern(
+            row, travel_time_function=travel_time_function
+        )
         if pattern is None:
             builder.add_error(
                 code="invalid_timing_pattern",
@@ -454,24 +501,37 @@ def _validate_trip_chains(
     trips: pd.DataFrame,
 ) -> list[Hashable]:
     """Validate diary ordering and chain-level warnings, returning row labels in trusted diary order."""
-    valid_trip_rows = [index for index in trips.index if _row_identifier(TRIPS_TABLE, index) not in builder.blocked_rows]
+    valid_trip_rows = [
+        index
+        for index in trips.index
+        if _row_identifier(TRIPS_TABLE, index) not in builder.blocked_rows
+    ]
     if not valid_trip_rows:
         return []
     sortable = trips.loc[valid_trip_rows].copy()
     sortable["_input_order"] = range(len(sortable))
     ordered_rows: list[Hashable] = []
-    for (household_id, person_id), group in sortable.groupby(["household_id", "person_id"], sort=False):
+    for (household_id, person_id), group in sortable.groupby(
+        ["household_id", "person_id"], sort=False
+    ):
         chain_identifier = f"household_id={household_id}; person_id={person_id}"
-        order_column = _resolve_trip_order_column(builder, group, chain_identifier)
+        order_column = _resolve_trip_order_column(
+            builder, group, chain_identifier
+        )
         if order_column is None:
             continue
-        ordered_group = group.sort_values([order_column, "_input_order"], kind="mergesort")
+        ordered_group = group.sort_values(
+            [order_column, "_input_order"], kind="mergesort"
+        )
         ordered_rows.extend(ordered_group.index.to_list())
         previous_destination: str | None = None
         previous_arrival: int | None = None
         for row_index, row in ordered_group.iterrows():
             origin = str(row["origin"])
-            if previous_destination is not None and origin != previous_destination:
+            if (
+                previous_destination is not None
+                and origin != previous_destination
+            ):
                 builder.add_warning(
                     code="origin_mismatch",
                     table=TRIPS_TABLE,
@@ -489,7 +549,11 @@ def _validate_trip_chains(
                 if departure_second is None or travel_time_seconds is None
                 else departure_second + travel_time_seconds
             )
-            if previous_arrival is not None and departure_second is not None and departure_second < previous_arrival:
+            if (
+                previous_arrival is not None
+                and departure_second is not None
+                and departure_second < previous_arrival
+            ):
                 builder.add_error(
                     code="overlapping_trips",
                     table=TRIPS_TABLE,
@@ -499,27 +563,23 @@ def _validate_trip_chains(
                 )
                 builder.mark_chain_invalid(chain_identifier)
                 break
-            if previous_arrival is not None and departure_second is not None and departure_second - previous_arrival < DEFAULT_MIN_ACTIVITY_DURATION_SECONDS:
-                builder.add_warning(
-                    code="short_activity_duration",
-                    table=TRIPS_TABLE,
-                    row_identifier=_row_identifier(TRIPS_TABLE, row_index),
-                    column="departure_second",
-                    message=f"`trips` row {_row_identifier(TRIPS_TABLE, row_index)} leaves {departure_second - previous_arrival} second(s) after the previous arrival in {chain_identifier}. The default scheduler uses a {DEFAULT_MIN_ACTIVITY_DURATION_SECONDS}-second minimum activity duration.",
-                )
             previous_destination = str(row["destination"])
             previous_arrival = computed_arrival
     return ordered_rows
 
 
-def _resolve_trip_order_column(builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str) -> str | None:
+def _resolve_trip_order_column(
+    builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str
+) -> str | None:
     """Choose explicit `trip_sequence` ordering or concrete departure ordering for one diary chain."""
     if "trip_sequence" in group.columns:
         return _resolve_trip_sequence_order(builder, group, chain_identifier)
     return _resolve_concrete_departure_order(builder, group, chain_identifier)
 
 
-def _resolve_trip_sequence_order(builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str) -> str | None:
+def _resolve_trip_sequence_order(
+    builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str
+) -> str | None:
     """Validate explicit non-negative unique trip sequence values for one diary chain."""
     seen_sequences: dict[int, Hashable] = {}
     for row_index, row in group.iterrows():
@@ -564,7 +624,9 @@ def _resolve_trip_sequence_order(builder: ValidationReportBuilder, group: pd.Dat
     return "trip_sequence"
 
 
-def _resolve_concrete_departure_order(builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str) -> str | None:
+def _resolve_concrete_departure_order(
+    builder: ValidationReportBuilder, group: pd.DataFrame, chain_identifier: str
+) -> str | None:
     """Use concrete departures as diary order only when they are present and unique within the chain."""
     seen_departures: dict[int, Hashable] = {}
     for row_index, row in group.iterrows():
@@ -595,7 +657,9 @@ def _resolve_concrete_departure_order(builder: ValidationReportBuilder, group: p
     return "departure_second"
 
 
-def _detect_timing_pattern(row: pd.Series, *, travel_time_function: TravelTimeFunction | None) -> TimingPattern | None:
+def _detect_timing_pattern(
+    row: pd.Series, *, travel_time_function: TravelTimeFunction | None
+) -> TimingPattern | None:
     """Detect the single supported timing pattern represented by one row's populated timing columns."""
     has_departure = _has_value(row, "departure_second")
     has_arrival = _has_value(row, "arrival_second")
@@ -603,20 +667,54 @@ def _detect_timing_pattern(row: pd.Series, *, travel_time_function: TravelTimeFu
     has_earliest = _has_value(row, "earliest_departure_second")
     has_latest = _has_value(row, "latest_departure_second")
     candidates: list[TimingPattern] = []
-    if has_departure and has_arrival and not has_travel_time and not has_earliest and not has_latest:
+    if (
+        has_departure
+        and has_arrival
+        and not has_travel_time
+        and not has_earliest
+        and not has_latest
+    ):
         candidates.append(TimingPattern.DEPARTURE_ARRIVAL)
-    if has_departure and has_travel_time and not has_arrival and not has_earliest and not has_latest:
+    if (
+        has_departure
+        and has_travel_time
+        and not has_arrival
+        and not has_earliest
+        and not has_latest
+    ):
         candidates.append(TimingPattern.DEPARTURE_DURATION)
-    if has_departure and travel_time_function is not None and not has_arrival and not has_travel_time and not has_earliest and not has_latest:
+    if (
+        has_departure
+        and travel_time_function is not None
+        and not has_arrival
+        and not has_travel_time
+        and not has_earliest
+        and not has_latest
+    ):
         candidates.append(TimingPattern.DEPARTURE_TRAVEL_TIME_FUNCTION)
-    if has_earliest and has_latest and has_travel_time and not has_departure and not has_arrival:
+    if (
+        has_earliest
+        and has_latest
+        and has_travel_time
+        and not has_departure
+        and not has_arrival
+    ):
         candidates.append(TimingPattern.DEPARTURE_WINDOW_DURATION)
-    if has_earliest and has_latest and travel_time_function is not None and not has_departure and not has_arrival and not has_travel_time:
+    if (
+        has_earliest
+        and has_latest
+        and travel_time_function is not None
+        and not has_departure
+        and not has_arrival
+        and not has_travel_time
+    ):
         candidates.append(TimingPattern.DEPARTURE_WINDOW_TRAVEL_TIME_FUNCTION)
     return candidates[0] if len(candidates) == 1 else None
 
 
-def _validate_timing_semantics(row: pd.Series, pattern: TimingPattern) -> tuple[str, str, str] | None:
+def _validate_timing_semantics(
+    row: pd.Series, pattern: TimingPattern
+) -> tuple[str, str, str] | None:
     """Validate timing inequalities that depend on the detected timing pattern."""
     if pattern == TimingPattern.DEPARTURE_ARRIVAL:
         departure_second = _required_int(row, "departure_second")
@@ -708,7 +806,9 @@ def _required_int(row: pd.Series, column: str) -> int:
     """Read a required integer-second value after validation has already narrowed the row."""
     value = _integer_second_value(cast("ScalarValue", row[column]))
     if value is None:
-        raise RuntimeError(f"`{column}` was not narrowed to an integer second before model construction.")
+        raise RuntimeError(
+            f"`{column}` was not narrowed to an integer second before model construction."
+        )
     return int(value)
 
 
@@ -718,5 +818,7 @@ def _optional_int(row: pd.Series, column: str) -> int | None:
         return None
     value = _integer_second_value(cast("ScalarValue", row[column]))
     if value is None:
-        raise RuntimeError(f"`{column}` was not narrowed to an integer second before model construction.")
+        raise RuntimeError(
+            f"`{column}` was not narrowed to an integer second before model construction."
+        )
     return int(value)

@@ -8,15 +8,41 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "matplotlib>=3.10.8",
     "numpy>=2.4.2",
     "pandas>=3.0.1",
     "scipy>=1.17.1",
 ]
 
+[project.optional-dependencies]
+visualization = [
+    "matplotlib>=3.10.8",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/docs",
+    "/examples",
+    "/src",
+    "/tests",
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/uv.lock",
+]
+exclude = [
+    "/.claude",
+    "/CSuM2026.pdf",
+    "/CSuM2026.zip",
+    "/docs/_build",
+    "/docs/design",
+    "/docs/plans",
+    "/examples/athens/data",
+    "/tests/example_data",
+]
 
 [dependency-groups]
 docs = [
@@ -26,6 +52,7 @@ docs = [
 ]
 dev = [
     { include-group = "docs" },
+    "matplotlib>=3.10.8",
     "nbmake>=1.5.5",
     "pytest>=9.0.0",
     "pytest-cov>=7.0.0",
@@ -36,7 +63,7 @@ dev = [
 [tool.ruff]
 target-version = "py312"
 src = ["src", "tests", "examples"]
-line-length = 160
+line-length = 80
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -108,7 +135,7 @@ convention = "google"
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "examples/athens/tests"]
 
 [tool.ty.environment]
 python-version = "3.12"

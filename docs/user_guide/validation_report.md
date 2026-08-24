@@ -23,7 +23,6 @@ Warnings mean the data can be loaded, but the user should inspect a methodologic
 Current warnings include:
 
 - `origin_mismatch`: a trip starts somewhere other than the previous trip's destination.
-- `short_activity_duration`: the gap between two concrete trips is shorter than the default scheduler's minimum activity duration.
 
 Validation does not enforce built-in purpose names, mode names, home-location columns, or return-home rules.
 Those are study assumptions, so examples should document and test them locally.

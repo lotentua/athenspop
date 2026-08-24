@@ -18,14 +18,19 @@ from athenspop.io import (
         ("03:30", 84_600),
         ("09:15", 18_900),
         (time(hour=3, minute=30), 84_600),
-        (datetime(year=2026, month=1, day=1, hour=4, minute=15, tzinfo=UTC), 900),
+        (
+            datetime(year=2026, month=1, day=1, hour=4, minute=15, tzinfo=UTC),
+            900,
+        ),
         (timedelta(hours=5), 3_600),
         (12_600, 84_600),
         (pd.Timestamp("2026-01-01 04:01:00"), 60),
         (pd.Timedelta(hours=4, minutes=30), 1_800),
     ],
 )
-def test_clock_seconds_from_time_origin_wraps_clock_values_around_diary_start(value: ClockValue, expected: int) -> None:
+def test_clock_seconds_from_time_origin_wraps_clock_values_around_diary_start(
+    value: ClockValue, expected: int
+) -> None:
     assert clock_seconds_from_time_origin(value) == expected
 
 
@@ -37,7 +42,9 @@ def test_clock_seconds_from_time_origin_rejects_invalid_clock_values(
         clock_seconds_from_time_origin(bad_value)
 
 
-def test_convert_clock_columns_returns_copy_with_none_for_missing_values() -> None:
+def test_convert_clock_columns_returns_copy_with_none_for_missing_values() -> (
+    None
+):
     frame = pd.DataFrame(
         [
             {"departure_clock": "04:00", "arrival_clock": "04:30"},
@@ -55,3 +62,11 @@ def test_convert_clock_columns_returns_copy_with_none_for_missing_values() -> No
     assert converted["departure_second"].tolist() == [0, 84_600]
     assert converted["arrival_second"].iloc[0] == 1_800
     assert pd.isna(converted["arrival_second"].iloc[1])
+    assert str(converted["arrival_second"].dtype) == "Int64"
+
+
+def test_convert_clock_columns_rejects_non_scalar_cells() -> None:
+    frame = pd.DataFrame([{"departure_clock": ["04:00"]}])
+
+    with pytest.raises(ValueError, match="scalar clock values"):
+        convert_clock_columns(frame, {"departure_clock": "departure_second"})

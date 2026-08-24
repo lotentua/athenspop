@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Final
 
 from athenspop.clustering import LinkageMatrix, cluster_time_distribution
-from athenspop.visualization import TemporalDendrogramPlotStyle, plot_cut_dendrogram_state_distribution
+from athenspop.visualization import (
+    TemporalDendrogramPlotStyle,
+    plot_cut_dendrogram_state_distribution,
+)
 
 ATHENS_MODE_PREFIX: Final[str] = "trip_"
 ATHENS_STATE_COLORS: Final[dict[str, str]] = {
@@ -44,9 +47,15 @@ def write_cut_dendrogram_distribution_svg(
             Number of displayed cut clusters.
     """
     states = _states(sequences)
-    mode_states = tuple(state for state in states if _state_without_period(state).startswith(ATHENS_MODE_PREFIX))
+    mode_states = tuple(
+        state
+        for state in states
+        if _state_without_period(state).startswith(ATHENS_MODE_PREFIX)
+    )
     mode_state_set = set(mode_states)
-    activity_states = tuple(state for state in states if state not in mode_state_set)
+    activity_states = tuple(
+        state for state in states if state not in mode_state_set
+    )
     figure = plot_cut_dendrogram_state_distribution(
         linkage_matrix,
         sequences,
@@ -66,7 +75,9 @@ def write_cut_dendrogram_distribution_svg(
 
 def _states(sequences: Sequence[Sequence[str]]) -> tuple[str, ...]:
     """Return sorted unique states from example sequences."""
-    return tuple(sorted({str(state) for sequence in sequences for state in sequence}))
+    return tuple(
+        sorted({str(state) for sequence in sequences for state in sequence})
+    )
 
 
 def _state_without_period(state: str) -> str:
@@ -74,7 +85,7 @@ def _state_without_period(state: str) -> str:
     return state.split("@", maxsplit=1)[0]
 
 
-__all__ = [
+__all__: Final[tuple[str, ...]] = (
     "cluster_time_distribution",
     "write_cut_dendrogram_distribution_svg",
-]
+)

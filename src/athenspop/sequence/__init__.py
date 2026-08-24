@@ -1,5 +1,7 @@
 """Generic sequence construction and optimal-matching helpers."""
 
+from typing import Final
+
 from athenspop.sequence.distance import (
     dissimilarity_matrix,
     optimal_matching_dissimilarity,
@@ -15,7 +17,7 @@ from athenspop.sequence.episodes import (
     trip_mode_state,
 )
 
-__all__ = [
+__all__: Final[tuple[str, ...]] = (
     "DEFAULT_INTERVAL_SECONDS",
     "DEFAULT_WINDOW_SECONDS",
     "Episode",
@@ -26,4 +28,4 @@ __all__ = [
     "overlap_duration",
     "state_sequence_from_diary",
     "trip_mode_state",
-]
+)

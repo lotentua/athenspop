@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-import numpy as np
 import pandas as pd
 
 from athenspop import (
@@ -21,14 +20,15 @@ from athenspop import (
     validate_dataframes,
 )
 from athenspop.clustering import ClusterLabels, LinkageMatrix
-from athenspop.model import TravelTimeFunction
+from athenspop.types import DissimilarityMatrix, TravelTimeFunction
 from examples.athens.method import (
     athens_dissimilarity_matrix,
     compound_sequence_from_diary,
 )
 
-type DissimilarityMatrix = np.ndarray[tuple[int, int], np.dtype[np.float64]]
-type ScheduledSurveyTransform = Callable[[ScheduledSurveyDataset], ScheduledSurveyDataset]
+type ScheduledSurveyTransform = Callable[
+    [ScheduledSurveyDataset], ScheduledSurveyDataset
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,9 +64,19 @@ def run_pipeline(
     scheduled_transform: ScheduledSurveyTransform | None = None,
 ) -> AthensSmokeOutputs:
     """Run the canonical sequence and clustering pipeline for supplied canonical dataframes."""
-    validation = validate_dataframes(trips, persons=persons, households=households, travel_time_function=travel_time_function)
+    validation = validate_dataframes(
+        trips,
+        persons=persons,
+        households=households,
+        travel_time_function=travel_time_function,
+    )
     validation.report.raise_if_invalid()
-    dataset = SurveyDataset.from_dataframes(trips, persons=persons, households=households, travel_time_function=travel_time_function)
+    dataset = SurveyDataset.from_dataframes(
+        trips,
+        persons=persons,
+        households=households,
+        travel_time_function=travel_time_function,
+    )
     scheduled = schedule_once(
         dataset,
         seed=2026,
@@ -77,19 +87,31 @@ def run_pipeline(
         travel_time_function=travel_time_function,
     )
     if scheduled.diagnostics.has_errors and not allow_infeasible_diaries:
-        issue_codes = ", ".join(issue.code for issue in scheduled.diagnostics.issues)
-        raise RuntimeError(f"The paper pipeline expected every supplied diary to schedule, but got: {issue_codes}.")
+        issue_codes = ", ".join(
+            issue.code for issue in scheduled.diagnostics.issues
+        )
+        raise RuntimeError(
+            f"The paper pipeline expected every supplied diary to schedule, but got: {issue_codes}."
+        )
     if scheduled_transform is not None:
         scheduled = scheduled_transform(scheduled)
         if scheduled.diagnostics.has_errors and not allow_infeasible_diaries:
-            issue_codes = ", ".join(issue.code for issue in scheduled.diagnostics.issues)
-            raise RuntimeError(f"The paper pipeline expected transformed diaries to schedule, but got: {issue_codes}.")
-    sequences = tuple(compound_sequence_from_diary(diary) for diary in scheduled.diaries)
+            issue_codes = ", ".join(
+                issue.code for issue in scheduled.diagnostics.issues
+            )
+            raise RuntimeError(
+                f"The paper pipeline expected transformed diaries to schedule, but got: {issue_codes}."
+            )
+    sequences = tuple(
+        compound_sequence_from_diary(diary) for diary in scheduled.diaries
+    )
     dissimilarity_matrix = athens_dissimilarity_matrix(sequences)
     linkage_matrix = average_linkage(dissimilarity_matrix)
     labels = flat_cluster_labels(linkage_matrix, n_clusters=n_clusters)
     label_tuple = tuple(int(label) for label in labels.tolist())
-    diary_labels = tuple(f"{diary.household_id}:{diary.person_id}" for diary in scheduled.diaries)
+    diary_labels = tuple(
+        f"{diary.household_id}:{diary.person_id}" for diary in scheduled.diaries
+    )
     return AthensSmokeOutputs(
         validation_report=validation.report,
         dataset=dataset,
@@ -104,7 +126,9 @@ def run_pipeline(
     )
 
 
-def build_example_dataframes() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def build_example_dataframes() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
     """Return canonical `trips`, `persons`, and `households` dataframes for the smoke example."""
     trips = pd.DataFrame(
         [
@@ -239,9 +263,15 @@ def build_example_dataframes() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame
 def main() -> None:
     """Run the example as a directly executed script and print compact stage counts."""
     outputs = run_example()
-    print(f"validated errors={len(outputs.validation_report.errors)} warnings={len(outputs.validation_report.warnings)}")
-    print(f"scheduled diaries={outputs.scheduled.diagnostics.scheduled_diaries}")
-    print(f"sequence shape={len(outputs.sequences)}x{len(outputs.sequences[0])}")
+    print(
+        f"validated errors={len(outputs.validation_report.errors)} warnings={len(outputs.validation_report.warnings)}"
+    )
+    print(
+        f"scheduled diaries={outputs.scheduled.diagnostics.scheduled_diaries}"
+    )
+    print(
+        f"sequence shape={len(outputs.sequences)}x{len(outputs.sequences[0])}"
+    )
     print(outputs.cluster_sizes.to_string(index=False))
 
 

@@ -1,5 +1,7 @@
 """Boundary validation for long-form travel survey dataframes."""
 
+from typing import Final
+
 from athenspop.validation.report import (
     ValidationError,
     ValidationIssue,
@@ -11,11 +13,11 @@ from athenspop.validation.schema import (
     validate_dataframes,
 )
 
-__all__ = [
+__all__: Final[tuple[str, ...]] = (
     "NormalizedTables",
     "ValidationError",
     "ValidationIssue",
     "ValidationReport",
     "ValidationResult",
     "validate_dataframes",
-]
+)
