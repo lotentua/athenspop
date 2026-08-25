@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.csv text eol=lf
+*.npy binary
+*.npz binary
+*.pdf binary
+*.png binary
+*.zip binary
+
+# Preserve the authoritative legal-code payload, including its final blank line.
+data/athens/LICENSE -whitespace

@@ -1,0 +1,53 @@
+name: Continuous integration
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.5"
+
+      - name: Install Python and dependencies
+        run: |
+          uv python install
+          uv sync --locked --all-groups
+
+      - name: Check formatting and lint
+        run: |
+          uv run ruff format --check src tests examples docs/conf.py
+          uv run ruff check src tests examples docs/conf.py
+
+      - name: Check static types
+        run: uv run ty check src tests examples docs/conf.py
+
+      - name: Run tests with branch coverage
+        run: |
+          uv run coverage run -m pytest
+          uv run coverage report
+
+      - name: Run the compositional examples
+        run: |
+          uv run python examples/compose_schedule.py
+          uv run python examples/analyze_athens.py
+
+      - name: Build warning-free documentation and distributions
+        run: |
+          uv run sphinx-build -W -b html docs docs/_build/html
+          uv build

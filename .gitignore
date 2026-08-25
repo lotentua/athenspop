@@ -1,0 +1,12 @@
+/.idea/
+/.venv/
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/.ruff_cache/
+/.mypy_cache/
+/.coverage
+/htmlcov/
+/dist/
+/docs/_build/
+/examples/output/

@@ -1,0 +1,5 @@
+# Copyright (c) 2022 Theodore Chatziioannou
+# Copyright (c) 2026 National Technical University of Athens
+# Licensed under the MIT License.
+
+"""This package realizes schedules for validated travel diaries."""

@@ -1,0 +1,95 @@
+[project]
+name = "athenspop"
+version = "0.1.0"
+description = "Composable validation, scheduling, sequence, and clustering tools for travel diaries."
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Theodore Chatziioannou" },
+    { name = "National Technical University of Athens" },
+]
+keywords = ["activity-travel", "clustering", "scheduling", "travel-survey"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26.4",
+    "pandas>=2.2.3",
+    "scipy>=1.12.0",
+]
+
+[project.urls]
+Issues = "https://github.com/lotentua/athenspop/issues"
+Repository = "https://github.com/lotentua/athenspop"
+
+[project.optional-dependencies]
+visualization = [
+    "matplotlib>=3.8.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/examples",
+    "/data",
+    "/docs",
+    "/LICENSE",
+    "/README.md",
+    "/CONTRIBUTING.md",
+    "/pyproject.toml",
+]
+[tool.hatch.build.targets.wheel]
+packages = ["src/athenspop"]
+
+[dependency-groups]
+docs = [
+    "myst-parser>=5.1.0",
+    "pydata-sphinx-theme>=0.19.0",
+    "sphinx>=9.1.0",
+]
+dev = [
+    { include-group = "docs" },
+    "coverage[toml]>=7.13.0",
+    "matplotlib>=3.8.4",
+    "pytest>=9.0.0",
+    "ruff>=0.15.8",
+    "ty>=0.0.50",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP"]
+extend-select = ["ANN", "B", "C4", "C90", "D", "ICN", "N", "PIE", "RUF", "SIM", "TID"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["athenspop"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
