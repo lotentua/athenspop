@@ -7,18 +7,18 @@
 import pathlib
 import sys
 
-#: This path identifies the repository source directory used by autodoc.
+#: Repository source directory used by autodoc.
 SOURCE_DIRECTORY = pathlib.Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE_DIRECTORY))
 
-#: Sphinx displays this public project name.
+#: Public project name displayed by Sphinx.
 project = "athenspop"
-#: Generated pages display this copyright attribution.
+#: Copyright attribution displayed on generated pages.
 copyright = "2022 Theodore Chatziioannou; 2026 National Technical University of Athens"
-#: Sphinx displays these public project authors.
+#: Public project authors displayed by Sphinx.
 author = "Theodore Chatziioannou and National Technical University of Athens"
 
-#: These Sphinx extensions support the Markdown manuals and API reference.
+#: Sphinx extensions for the Markdown manuals and API reference.
 extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",
@@ -26,20 +26,20 @@ extensions = [
     "sphinx.ext.viewcode",
 ]
 
-#: Sphinx treats these file extensions as documentation sources.
+#: File extensions treated as documentation sources.
 source_suffix = {".md": "markdown"}
-#: This value identifies the root documentation page.
+#: Root documentation page.
 root_doc = "index"
-#: Sphinx omits these paths from the documentation source tree.
+#: Paths omitted from the documentation source tree.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-#: The public documentation uses this HTML theme.
+#: HTML theme used by the public documentation.
 html_theme = "pydata_sphinx_theme"
-#: Generated HTML pages use this browser title.
+#: Browser title for generated HTML pages.
 html_title = "athenspop"
-#: Sphinx copies these static assets into the generated documentation.
+#: Static assets copied into generated documentation.
 html_static_path = ["_static"]
-#: These values configure navigation in the HTML theme.
+#: HTML-theme navigation settings.
 html_theme_options = {
     "show_toc_level": 2,
     "navigation_with_keys": False,
@@ -54,7 +54,7 @@ napoleon_google_docstring = True
 #: Disable NumPy-style docstring parsing.
 napoleon_numpy_docstring = False
 
-#: The manuals use these MyST features.
+#: MyST features used by the manuals.
 myst_enable_extensions = ["colon_fence", "deflist", "dollarmath"]
-#: This value controls the heading depth exposed for stable fragment links.
+#: Heading depth exposed for stable fragment links.
 myst_heading_anchors = 3

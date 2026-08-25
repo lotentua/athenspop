@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines release contracts for the processed Athens diaries."""
+"""Release contracts for the processed Athens diaries."""
 
 import hashlib
 import pathlib
@@ -13,11 +13,11 @@ import pandas as pd
 import athenspop.model.survey
 import athenspop.validation.schema
 
-#: This path identifies the directory containing the three Athens tables.
+#: Directory containing the three Athens tables.
 DATA_DIRECTORY: Final[pathlib.Path] = (
     pathlib.Path(__file__).resolve().parents[1] / "data" / "athens"
 )
-#: These pairs bind each immutable CSV payload to its published SHA-256 value.
+#: Immutable CSV payloads paired with their published SHA-256 values.
 EXPECTED_HASHES: Final[tuple[tuple[str, str], ...]] = (
     (
         "households.csv",
@@ -32,7 +32,7 @@ EXPECTED_HASHES: Final[tuple[tuple[str, str], ...]] = (
         "4b36212ae877df944e451b36a121d4a4f688334b421ad9b0666e51346241e591",
     ),
 )
-#: This digest identifies Creative Commons' authoritative CC BY 4.0 legal code.
+#: Digest of Creative Commons' authoritative CC BY 4.0 legal code.
 EXPECTED_CC_BY_LICENSE_HASH: Final[str] = (
     "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
 )

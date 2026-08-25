@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines behavior contracts for dataframe validation and models."""
+"""Behavior contracts for dataframe validation and models."""
 
 from typing import cast
 

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines episode and state-sequence construction contracts."""
+"""Episode and state-sequence construction contracts."""
 
 import dataclasses
 

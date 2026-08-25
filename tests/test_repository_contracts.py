@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines repository contracts for packaging and Python files."""
+"""Repository contracts for packaging and Python files."""
 
 import ast
 import pathlib
@@ -13,17 +13,17 @@ import tarfile
 import tomllib
 from typing import Final
 
-#: This path is the absolute repository root used by release contracts.
+#: Absolute repository root used by release contracts.
 PROJECT_ROOT: Final[pathlib.Path] = pathlib.Path(__file__).resolve().parents[1]
-#: These paths identify the Python surfaces governed by the style contract.
+#: Python surfaces governed by the style contract.
 PYTHON_ROOTS: Final[tuple[pathlib.Path, ...]] = (
     PROJECT_ROOT / "src",
     PROJECT_ROOT / "tests",
     PROJECT_ROOT / "examples",
 )
-#: These standard-library modules must remain qualified module imports.
+#: Standard-library modules that must remain qualified imports.
 MODULE_IMPORT_ONLY_STDLIB_MODULES: Final[frozenset[str]] = frozenset({"math", "random"})
-#: These conventional aliases preserve established third-party notation.
+#: Conventional aliases that preserve established third-party notation.
 ALLOWED_MODULE_ALIASES: Final[frozenset[tuple[str, str]]] = frozenset(
     {
         ("matplotlib", "mpl"),

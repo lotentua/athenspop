@@ -1,6 +1,6 @@
 # Compose a synthetic schedule
 
-This workflow combines every analytical stage on a self-contained three-respondent dataset. It is structured as notebook cells, but the same code is maintained as [`examples/compose_schedule.py`](https://github.com/lotentua/athenspop/blob/main/examples/compose_schedule.py).
+This workflow combines every analytical stage on a self-contained three-respondent dataset. It is structured as notebook cells, but the same code is maintained as [`examples/compose_schedule.py`](https://github.com/lotentua/athenspop/blob/v2/examples/compose_schedule.py).
 
 The values are deliberately synthetic. The result demonstrates interface composition and does not represent observed travel behavior.
 
@@ -22,11 +22,11 @@ The table builder creates two departure-window trips for each respondent and att
 :pyobject: example_tables
 ```
 
-Each diary begins at `home`, visits one activity, and returns home. The explicit `trip_sequence` establishes order. The departure windows and constant travel time leave enough dwell time for the configured minimum activity duration.
+Each diary begins at `home`, visits one activity, and returns home. The explicit `trip_sequence` establishes order. The first departure window extends to 8,000 seconds, but the reverse pass tightens its latest admissible departure to 7,200 seconds so that the return trip can still depart by 9,000 seconds after the required dwell time.
 
 ## 3. Compose the operations
 
-The complete function validates the dataframes through `SurveyDataset`, schedules one realization, turns successful diaries into 30-minute state sequences, calculates unit-cost optimal-matching dissimilarities, performs average-linkage clustering, and returns a two-cluster temporal dendrogram.
+The complete function validates the dataframes through `SurveyDataset`, schedules one realization, turns successful diaries into 15-minute state sequences, calculates unit-cost optimal-matching dissimilarities, performs average-linkage clustering, and returns a two-cluster temporal dendrogram.
 
 ```{literalinclude} ../../examples/compose_schedule.py
 :language: python
@@ -36,9 +36,9 @@ The complete function validates the dataframes through `SurveyDataset`, schedule
 The error branch is material: later operations must not silently proceed when scheduling has excluded a diary. In a production workflow, report `scheduled.diagnostics.issues` with the source records instead of replacing the diagnostic with a generic exception.
 
 ```{figure} ../_static/composed-schedule.svg
-:alt: The figure shows a cut dendrogram for three synthetic scheduled diaries. Each displayed node contains a temporal distribution of activity and trip states.
+:alt: The figure shows a normalized-height two-cluster dendrogram above aligned activity-state and travel-state share charts for three synthetic scheduled diaries.
 
-This figure shows the composed synthetic result. It inherits dimensions, fonts, lines, and colors from the active Matplotlib stylesheet.
+Synthetic composition result. Dimensions, typography, default colors, tree-line width, and unspecified styling inherit from the active Matplotlib stylesheet. Quantitative axes and bar geometry remain fixed.
 ```
 
 ## 4. Adapt the composition

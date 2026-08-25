@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines scheduling and conditional-generation contracts."""
+"""Scheduling and conditional-generation contracts."""
 
 import dataclasses
 import functools

@@ -44,7 +44,7 @@ Regression tests should name the behavior that would fail without the correction
 
 Documentation is standalone product guidance. Keep methodological assumptions next to the operation they govern and distinguish measured results from exploratory choices. Ordinary Markdown prose is not hard-wrapped. Code examples use the same module-import and typing conventions as source code.
 
-Executable files under `examples/` contain reusable functions and a small script entry point. Workflow pages explain those functions as notebook-like cells, show material output, and state the limits of interpretation. Plotting functions return figures and defer dimensions, typography, lines, and default colors to the active Matplotlib stylesheet.
+Executable files under `examples/` contain reusable functions and a small script entry point. Workflow pages explain those functions as notebook-like cells, show material output, and state the limits of interpretation. Plotting functions return figures and defer dimensions, typography, default colors, tree-line width, and unspecified styling to the active Matplotlib stylesheet. Quantitative axes and bar geometry remain fixed.
 
 ## Change discipline
 

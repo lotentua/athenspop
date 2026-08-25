@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module tests the integration of composable survey workflows."""
+"""Integration contracts for composable survey workflows."""
 
 from collections.abc import Mapping
 

@@ -46,7 +46,7 @@ At each step, the algorithm merges a pair with minimum current inter-cluster dis
 
 `cluster_size_summary` counts observations. `cluster_state_distribution` counts all state tokens, so longer sequences contribute more tokens when sequence lengths differ. `cluster_time_distribution` requires equal-length sequences and reports within-cluster state shares at each bin.
 
-`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution` returns a Matplotlib figure. It inherits figure size, fonts, lines, and default colors from the active Matplotlib stylesheet. Optional style values are limited to a title and explicit state groups, colors, or labels. The caller owns display context, export format, and accessibility checks for any custom palette.
+`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution` returns a Matplotlib figure with a normalized-height cut tree and aligned temporal state-share panels for the cut clusters. Dimensions, typography, default colors, tree-line width, and unspecified styling inherit the active Matplotlib stylesheet. Quantitative axes and bar geometry remain fixed. Optional style values are limited to a title and explicit state groups, colors, or labels. The caller owns display context, export format, and accessibility checks for any custom palette.
 
 ## References
 

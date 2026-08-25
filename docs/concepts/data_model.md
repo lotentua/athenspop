@@ -6,7 +6,7 @@
 
 The trip table is required. Person and household tables are optional metadata layers.
 
-| The table has this name. | These fields identify each row. | The table has this role. |
+| Table | Row key | Role |
 | --- | --- | --- |
 | `trips` | `household_id`, `person_id`, `trip_id` | Each row represents one movement and includes movement labels and timing fields. |
 | `persons` | `household_id`, `person_id` | Each row provides optional respondent attributes for the matching diary. |
@@ -20,13 +20,13 @@ Each trip also requires nonempty `origin`, `destination`, `purpose`, and `mode` 
 
 Each trip row must match exactly one pattern. All times are nonnegative integer seconds from a diary-specific origin.
 
-| The pattern has this name. | The pattern requires these timing fields. | Use the pattern under this condition. |
+| Pattern | Required timing fields | Condition |
 | --- | --- | --- |
-| This pattern uses a concrete interval. | `departure_second`, `arrival_second` | Both endpoints are observed or otherwise fixed. |
-| This pattern uses a concrete departure and duration. | `departure_second`, `travel_time_seconds` | The departure and positive duration are fixed. |
-| This pattern uses a concrete departure and resolver. | `departure_second` | A travel-time function supplies the positive duration. |
-| This pattern uses a departure window and duration. | `earliest_departure_second`, `latest_departure_second`, `travel_time_seconds` | The departure is uncertain within an inclusive window, and the duration is fixed. |
-| This pattern uses a departure window and resolver. | `earliest_departure_second`, `latest_departure_second` | The departure is uncertain, and a travel-time function supplies the duration. |
+| Concrete interval | `departure_second`, `arrival_second` | Both endpoints are observed or otherwise fixed. |
+| Concrete departure and duration | `departure_second`, `travel_time_seconds` | The departure and positive duration are fixed. |
+| Concrete departure and resolver | `departure_second` | A travel-time function supplies the positive duration. |
+| Departure window and duration | `earliest_departure_second`, `latest_departure_second`, `travel_time_seconds` | The departure is uncertain within an inclusive window, and the duration is fixed. |
+| Departure window and resolver | `earliest_departure_second`, `latest_departure_second` | The departure is uncertain, and a travel-time function supplies the duration. |
 
 Arrival windows are outside the supported contract. A departure window must satisfy `earliest_departure_second <= latest_departure_second`. Concrete arrivals and fixed travel times must imply positive movement duration.
 
@@ -58,7 +58,7 @@ result.report.raise_if_invalid()
 
 Use `athenspop.model.survey.SurveyDataset.from_dataframes` when raising `athenspop.validation.report.ValidationError` is the desired control flow. On success, it returns immutable `Diary`, `Trip`, `PersonMetadata`, and `HouseholdMetadata` objects. Validation does not invoke a travel-time function; function evaluation occurs only during scheduling.
 
-```{admonition} This note defines the interpretation boundary.
+```{admonition} Interpretation boundary
 :class: note
 
 Schema validity establishes that the supplied records satisfy the package contract. It does not establish survey representativeness, trip-chain completeness, geographic accuracy, or fitness of an analyst's state definitions and costs.

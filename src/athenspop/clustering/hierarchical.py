@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module uses SciPy to cluster precomputed dissimilarities."""
+"""Use SciPy to cluster precomputed dissimilarities."""
 
 import dataclasses
 import heapq
@@ -17,17 +17,17 @@ import scipy.spatial.distance
 import athenspop._sequences
 import athenspop.types
 
-#: This type represents a SciPy-compatible hierarchical-linkage matrix.
+#: SciPy-compatible hierarchical-linkage matrix.
 type LinkageMatrix = np.ndarray[tuple[int, int], np.dtype[np.float64]]
-#: This type represents one positive integer cluster label per observation.
+#: One positive integer cluster label per observation.
 type ClusterLabels = np.ndarray[tuple[int], np.dtype[np.int64]]
-#: This type represents observation indices in dendrogram leaf order.
+#: Observation indices in dendrogram leaf order.
 type LeafOrder = np.ndarray[tuple[int], np.dtype[np.int64]]
-#: This type represents four-point coordinates for each dendrogram branch.
+#: Four-point coordinates for each dendrogram branch.
 type BranchCoordinates = tuple[tuple[float, float, float, float], ...]
-#: This type represents a heap entry selected by node height and identifier.
+#: Heap entry selected by node height and identifier.
 type _NodeHeapEntry = tuple[float, int, scipy.cluster.hierarchy.ClusterNode]
-#: This type represents a heap entry used to assign cut-tree display depths.
+#: Heap entry used to assign cut-tree display depths.
 type _DisplayNodeHeapEntry = tuple[float, int, "_DisplayNode"]
 
 #: One dendrogram branch requires this number of coordinates.
@@ -36,22 +36,22 @@ DENDROGRAM_COORDINATE_COUNT: Final[int] = 4
 MINIMUM_CLUSTERING_OBSERVATIONS: Final[int] = 2
 #: Dissimilarity and linkage matrices must have this rank.
 TWO_DIMENSIONAL_ARRAY_RANK: Final[int] = 2
-#: This value is the absolute tolerance for dissimilarity invariants.
+#: Absolute tolerance for dissimilarity invariants.
 DISSIMILARITY_ABSOLUTE_TOLERANCE: Final[float] = 1e-12
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class DendrogramLayout:
-    """This class stores plotting-ready dendrogram geometry.
+    """Plotting-ready dendrogram geometry.
 
     Attributes:
-        branch_x: These values are the x-coordinates for dendrogram branch polylines.
-        branch_y: These values are the y-coordinates for dendrogram branch polylines.
-        leaf_indices: These values are the original observation indices in dendrogram
+        branch_x: X-coordinates for dendrogram branch polylines.
+        branch_y: Y-coordinates for dendrogram branch polylines.
+        leaf_indices: Original observation indices in dendrogram
             leaf order.
-        leaf_labels: These values are the leaf labels in dendrogram order.
-        branch_colors: These values are the branch color labels produced by SciPy.
-        leaf_colors: These values are the leaf color labels produced by SciPy.
+        leaf_labels: Leaf labels in dendrogram order.
+        branch_colors: Branch color labels produced by SciPy.
+        leaf_colors: Leaf color labels produced by SciPy.
     """
 
     branch_x: BranchCoordinates
@@ -64,26 +64,26 @@ class DendrogramLayout:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class CutDendrogramNode:
-    """This class represents one node in a cut dendrogram.
+    """One node in a cut dendrogram.
 
     Attributes:
-        members: These values are the original observation indices in the displayed
+        members: Original observation indices in the displayed
             node.
-        height: This value is the raw linkage height for the represented SciPy tree
+        height: Raw linkage height for the represented SciPy tree
             node.
-        normalized_height: This value is `height` divided by the root linkage height.
+        normalized_height: `height` divided by the root linkage height.
             A zero-height root produces zero.
-        order: This value is the horizontal plotting order. Displayed leaves occupy
+        order: Horizontal plotting order. Displayed leaves occupy
             consecutive integer positions, and internal nodes are centered over their
             children.
-        depth: This value is the vertical split-order depth. The root has depth zero,
+        depth: Vertical split-order depth. The root has depth zero,
             and later displayed splits have larger depths.
-        is_leaf: This value indicates whether the displayed node is a cut cluster or
+        is_leaf: Whether the displayed node is a cut cluster or
             singleton leaf instead of an expanded internal split.
-        leaf_label: This value is the one-based cut-cluster label for displayed
+        leaf_label: One-based cut-cluster label for displayed
             leaves, or it is `None` for expanded internal nodes.
-        left: This value is the left displayed child when the node is expanded.
-        right: This value is the right displayed child when the node is expanded.
+        left: Left displayed child when the node is expanded.
+        right: Right displayed child when the node is expanded.
     """
 
     members: tuple[int, ...]
@@ -99,7 +99,7 @@ class CutDendrogramNode:
 
 @dataclasses.dataclass(slots=True)
 class _DisplayNode:
-    """This mutable node is used to construct a public cut-dendrogram node."""
+    """Mutable node used to construct a public cut-dendrogram node."""
 
     linkage_node: scipy.cluster.hierarchy.ClusterNode
     is_leaf: bool
@@ -117,13 +117,13 @@ def average_linkage(
     """Run average-linkage clustering on a precomputed dissimilarity matrix.
 
     Args:
-        dissimilarity_matrix: This precomputed dissimilarity matrix must be square and
-            symmetric.
-        optimal_ordering: This value controls whether SciPy reorders leaves to
+        dissimilarity_matrix: Precomputed dissimilarity matrix, which must be square
+            and symmetric.
+        optimal_ordering: Whether SciPy reorders leaves to
             minimize adjacent distances.
 
     Returns:
-        The function returns a SciPy linkage matrix in float64 form.
+        SciPy linkage matrix in float64 form.
     """
     validated_matrix = _validate_dissimilarity_matrix(dissimilarity_matrix)
     condensed = scipy.spatial.distance.squareform(validated_matrix, checks=False)
@@ -138,15 +138,15 @@ def flat_cluster_labels(
     """Extract flat cluster labels from a linkage matrix.
 
     Args:
-        linkage_matrix: This value is a SciPy linkage matrix.
-        n_clusters: This value is the positive number of flat clusters to extract.
+        linkage_matrix: SciPy linkage matrix.
+        n_clusters: Positive number of flat clusters to extract.
 
     Returns:
-        The function returns one positive integer cluster label per original
+        One positive integer cluster label per original
         observation.
 
     Raises:
-        ValueError: The function raises this error if `n_clusters` is not positive.
+        ValueError: If `n_clusters` is not positive.
     """
     tree = cut_dendrogram_tree(linkage_matrix, n_clusters=n_clusters)
     labels = np.empty(len(tree.members), dtype=np.int64)
@@ -164,10 +164,10 @@ def leaf_order(linkage_matrix: LinkageMatrix) -> LeafOrder:
     """Return the observation index order used by the hierarchical dendrogram leaves.
 
     Args:
-        linkage_matrix: This value is a SciPy linkage matrix.
+        linkage_matrix: SciPy linkage matrix.
 
     Returns:
-        The function returns an integer array of original observation indices in leaf
+        Integer array of original observation indices in leaf
         order.
     """
     validated_linkage = _validate_linkage_matrix(linkage_matrix)
@@ -182,11 +182,11 @@ def dendrogram_layout(
     """Return plotting-ready dendrogram coordinates without rendering a figure.
 
     Args:
-        linkage_matrix: This value is a SciPy linkage matrix.
-        labels: These optional values label the original observations.
+        linkage_matrix: SciPy linkage matrix.
+        labels: Optional labels for the original observations.
 
     Returns:
-        The function returns dendrogram geometry and labels extracted from SciPy
+        Dendrogram geometry and labels extracted from SciPy
         without importing matplotlib.
     """
     validated_linkage = _validate_linkage_matrix(linkage_matrix)
@@ -219,13 +219,13 @@ def cluster_size_summary(labels: Sequence[int]) -> pd.DataFrame:
     """Return one row per cluster with the number and share of assigned observations.
 
     Args:
-        labels: These values are positive integer cluster labels.
+        labels: Positive integer cluster labels.
 
     Returns:
-        The dataframe contains `cluster`, `n_observations`, and `share` columns.
+        Dataframe with `cluster`, `n_observations`, and `share` columns.
 
     Raises:
-        ValueError: The function raises this error if any label is boolean or not
+        ValueError: If any label is boolean or not
             positive.
     """
     label_tuple = _label_tuple(labels)
@@ -252,15 +252,15 @@ def cluster_state_distribution(
     """Return state counts and within-cluster shares for clustered sequences.
 
     Args:
-        sequences: These state sequences are assigned to clusters.
-        labels: These positive integer cluster labels align with `sequences`.
+        sequences: State sequences assigned to clusters.
+        labels: Positive integer cluster labels aligned with `sequences`.
 
     Returns:
-        The function returns a dataframe with `cluster`, `state`, `count`, and `share`
+        Dataframe with `cluster`, `state`, `count`, and `share`
         columns.
 
     Raises:
-        ValueError: The function raises this error if `sequences` and `labels` have
+        ValueError: If `sequences` and `labels` have
             different lengths or a label is invalid.
     """
     materialized_sequences = athenspop._sequences.materialize_sequences(sequences)
@@ -296,15 +296,15 @@ def cluster_time_distribution(
     """Return temporal state shares by cluster and sequence time bin.
 
     Args:
-        sequences: These equal-length state sequences align with `labels`.
-        labels: These positive integer cluster labels align with `sequences`.
+        sequences: Equal-length state sequences aligned with `labels`.
+        labels: Positive integer cluster labels aligned with `sequences`.
 
     Returns:
-        The function returns a dataframe with `cluster`, `bin_index`, `state`,
+        Dataframe with `cluster`, `bin_index`, `state`,
         `count`, and `share` columns.
 
     Raises:
-        ValueError: The function raises this error if `sequences` and `labels` have
+        ValueError: If `sequences` and `labels` have
             different lengths or the sequences are not equal length.
     """
     materialized_sequences = athenspop._sequences.materialize_equal_length_sequences(
@@ -350,14 +350,14 @@ def cut_dendrogram_tree(
     instead of returning full-dendrogram geometry.
 
     Args:
-        linkage_matrix: This value is a SciPy linkage matrix.
-        n_clusters: This value is the requested number of displayed clusters.
+        linkage_matrix: SciPy linkage matrix.
+        n_clusters: Requested number of displayed clusters.
 
     Returns:
-        The function returns the root node of the displayed cut dendrogram.
+        Root node of the displayed cut dendrogram.
 
     Raises:
-        ValueError: The function raises this error if `n_clusters` is not positive or
+        ValueError: If `n_clusters` is not positive or
             `linkage_matrix` is empty.
     """
     validated_linkage = _validate_linkage_matrix(linkage_matrix)
@@ -389,12 +389,12 @@ def cophenetic_correlation(
     """Return the cophenetic correlation with the source dissimilarities.
 
     Args:
-        linkage_matrix: This value is a SciPy linkage matrix.
-        dissimilarity_matrix: This value is the original square precomputed
+        linkage_matrix: SciPy linkage matrix.
+        dissimilarity_matrix: Original square precomputed
             dissimilarity matrix.
 
     Returns:
-        The function returns the cophenetic correlation coefficient as a Python
+        Cophenetic correlation coefficient as a Python
         float.
     """
     validated_linkage = _validate_linkage_matrix(linkage_matrix)

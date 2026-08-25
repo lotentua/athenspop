@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module validates dataframe schemas for long-form survey input."""
+"""Validate dataframe schemas for long-form survey input."""
 
 import dataclasses
 import types
@@ -15,12 +15,12 @@ import pandas as pd
 import athenspop.schema
 import athenspop.validation.report
 
-#: This type represents scalar values accepted at the dataframe boundary.
+#: Scalar values accepted at the dataframe boundary.
 type ScalarValue = str | int | float | bool | np.integer | np.floating | np.bool_ | None
-#: This type represents integer scalars accepted for second-valued fields.
+#: Integer scalars accepted for second-valued fields.
 type IntegerSecondValue = int | np.integer
 
-#: This mapping resolves timing patterns from the presence of five timing fields.
+#: Timing patterns indexed by the presence of five timing fields.
 _TIMING_PATTERN_BY_PRESENCE: Final[
     Mapping[tuple[bool, bool, bool, bool, bool], athenspop.schema.TimingPattern]
 ] = types.MappingProxyType(
@@ -66,14 +66,14 @@ _TIMING_PATTERN_BY_PRESENCE: Final[
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class NormalizedTables:
-    """This class contains validated tables for trusted model construction.
+    """Validated tables for trusted model construction.
 
     Attributes:
-        trips: This trip table copy is sorted into validated diary order and annotated
+        trips: Trip table copy sorted into validated diary order and annotated
             with `timing_pattern`.
-        persons: This optional person table copy has passed table, key, and join
+        persons: Optional person table copy that passed table, key, and join
             validation.
-        households: This optional household table copy has passed table and key
+        households: Optional household table copy that passed table and key
             validation.
     """
 
@@ -84,12 +84,12 @@ class NormalizedTables:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class ValidationResult:
-    """This class pairs validation diagnostics with normalized tables.
+    """Validation diagnostics paired with normalized tables.
 
     Attributes:
-        report: These validation diagnostics come from all independent checks.
-        normalized_tables: This value contains validated table copies when no hard
-            errors were found, or it is `None` otherwise.
+        report: Diagnostics from all independent validation checks.
+        normalized_tables: Validated table copies when no hard errors were found, or
+            `None` otherwise.
     """
 
     report: athenspop.validation.report.ValidationReport
@@ -104,18 +104,18 @@ def validate_dataframes(
     """Validate long-form survey dataframes and collect independent diagnostics.
 
     Args:
-        trips: This required trip table contains identity, movement, and timing
+        trips: Required trip table containing identity, movement, and timing
             columns.
-        persons: This optional person or respondent table is keyed by `household_id`
+        persons: Optional person or respondent table keyed by `household_id`
             and `person_id`.
-        households: This optional household table is keyed by `household_id`.
+        households: Optional household table keyed by `household_id`.
 
     Returns:
-        The function returns a validation result containing a report and normalized
-        tables when no hard errors exist.
+        Validation result containing a report and normalized tables when no hard
+        errors exist.
 
     Notes:
-        The function collects independent schema, key, join, timing, and diary-chain
+        The validator collects independent schema, key, join, timing, and diary-chain
         diagnostics without cascading row errors after the first row-blocking
         failure.
         A result with normalized tables is the boundary after which downstream code

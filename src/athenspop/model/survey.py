@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module builds trusted survey models after dataframe validation."""
+"""Build trusted survey models after dataframe validation."""
 
 import collections.abc
 import dataclasses
@@ -16,24 +16,23 @@ import athenspop.schema
 import athenspop.types
 import athenspop.validation.schema
 
-#: This type represents a scalar value preserved in immutable user metadata.
+#: Scalar value preserved in immutable user metadata.
 type MetadataValue = str | int | float | bool | None
-#: This type represents a scalar metadata value accepted at the dataframe boundary.
+#: Scalar metadata value accepted at the dataframe boundary.
 type RawMetadataValue = (
     str | int | float | bool | np.integer | np.floating | np.bool_ | None
 )
-#: This type maps user-defined metadata column names to normalized values.
+#: Mapping from user-defined metadata column names to normalized values.
 type Metadata = collections.abc.Mapping[str, MetadataValue]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class TimeWindow:
-    """This class represents an inclusive departure window in integer seconds.
+    """Inclusive departure window in integer seconds.
 
     Attributes:
-        earliest_second: This value is the earliest allowed departure second,
-            inclusive.
-        latest_second: This value is the latest allowed departure second, inclusive.
+        earliest_second: Earliest allowed departure second, inclusive.
+        latest_second: Latest allowed departure second, inclusive.
     """
 
     earliest_second: int
@@ -42,16 +41,16 @@ class TimeWindow:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Trip:
-    """This class represents one validated long-form movement record.
+    """One validated long-form movement record.
 
     Attributes:
-        household_id: This identifier is copied from the input trip row.
-        person_id: This person identifier is copied from the input trip row.
-        trip_id: This trip identifier is unique within the trip table identity.
-        origin: This value labels the movement origin.
-        destination: This value labels the movement destination.
-        purpose: This value is the activity state reached after the trip.
-        mode: This travel-mode label is used for sequence states and travel-time
+        household_id: Identifier copied from the input trip row.
+        person_id: Person identifier copied from the input trip row.
+        trip_id: Trip identifier unique within the trip table identity.
+        origin: Movement-origin label.
+        destination: Movement-destination label.
+        purpose: Activity state reached after the trip.
+        mode: Travel-mode label used for sequence states and travel-time
             lookup.
         departure_second:
             The concrete departure is measured in seconds from the diary time origin,
@@ -59,13 +58,13 @@ class Trip:
         arrival_second:
             The concrete arrival is measured in seconds from the diary time origin,
             or it is `None` when a duration or travel-time callable must derive it.
-        travel_time_seconds: This value is the positive integer travel duration, or
+        travel_time_seconds: Positive integer travel duration, or
             it is `None` when a travel-time callable must supply the duration.
-        departure_window: This value is the optional feasible departure range for
+        departure_window: Optional feasible departure range for
             trips that are not concrete at load time.
-        timing_pattern: This validation-classified pattern identifies the timing
+        timing_pattern: Validation-classified pattern identifying the timing
             columns that supplied the trip.
-        metadata: This immutable typed metadata preserves additional non-key input
+        metadata: Immutable typed metadata preserving additional non-key input
             columns.
     """
 
@@ -88,20 +87,19 @@ class Trip:
         """Return whether this trip already has concrete departure and arrival seconds.
 
         Returns:
-            The property returns `True` when both `departure_second` and
-            `arrival_second` are present.
+            `True` when both `departure_second` and `arrival_second` are present.
         """
         return self.departure_second is not None and self.arrival_second is not None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class PersonMetadata:
-    """This class represents an optional respondent record for one diary.
+    """Optional respondent record for one diary.
 
     Attributes:
-        household_id: This household identifier is shared with the diary.
-        person_id: This person identifier is shared with the diary.
-        values: This immutable mapping contains additional person table columns after
+        household_id: Household identifier shared with the diary.
+        person_id: Person identifier shared with the diary.
+        values: Immutable mapping containing additional person table columns after
             boundary normalization.
     """
 
@@ -112,11 +110,11 @@ class PersonMetadata:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class HouseholdMetadata:
-    """This class represents an optional household record for its diaries.
+    """Optional household record for its diaries.
 
     Attributes:
-        household_id: This household identifier is shared with diaries and persons.
-        values: This immutable mapping contains additional household table columns
+        household_id: Household identifier shared with diaries and persons.
+        values: Immutable mapping containing additional household table columns
             after boundary normalization.
     """
 
@@ -126,15 +124,15 @@ class HouseholdMetadata:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Diary:
-    """This class represents an ordered trip chain for one person.
+    """Ordered trip chain for one person.
 
     Attributes:
-        household_id: This value is the household identifier for the diary.
-        person_id: This value is the person identifier for the diary.
-        trips: These validated trips are sorted into diary order.
-        person: This optional respondent metadata is matched by `(household_id,
+        household_id: Household identifier for the diary.
+        person_id: Person identifier for the diary.
+        trips: Validated trips sorted into diary order.
+        person: Optional respondent metadata matched by `(household_id,
             person_id)`.
-        household: This optional household metadata is matched by `household_id`.
+        household: Optional household metadata matched by `household_id`.
     """
 
     household_id: str
@@ -146,15 +144,15 @@ class Diary:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class SurveyDataset:
-    """This class represents a validated survey grouped into person diaries.
+    """Validated survey grouped into person diaries.
 
     Attributes:
-        diaries: These person-level travel diaries are built from the trip table.
-        households: These optional household metadata records were supplied at the
+        diaries: Person-level travel diaries built from the trip table.
+        households: Optional household metadata records supplied at the
             dataframe boundary.
-        persons: These optional person metadata records were supplied at the
+        persons: Optional person metadata records supplied at the
             dataframe boundary.
-        travel_time_function: This optional default resolver is retained for
+        travel_time_function: Optional default resolver retained for
             unresolved departure-window trips.
     """
 
@@ -175,29 +173,29 @@ class SurveyDataset:
         """Validate input dataframes and build trusted model objects.
 
         Args:
-            trips: This value is the required long-form trip table.
-            persons: This optional person or respondent table is keyed by
+            trips: Required long-form trip table.
+            persons: Optional person or respondent table keyed by
                 `household_id` and `person_id`.
-            households: This optional household table is keyed by `household_id`.
-            travel_time_function: This optional callable returns positive integer
+            households: Optional household table keyed by `household_id`.
+            travel_time_function: Optional callable that returns positive integer
                 travel seconds for timing patterns that provide a departure time but
                 no duration or arrival time.
 
         Returns:
-            The method returns a trusted `SurveyDataset` containing immutable diaries
-            and metadata records.
+            Trusted `SurveyDataset` containing immutable diaries and metadata
+            records.
 
         Raises:
-            TypeError: The method raises this error if `travel_time_function` is
+            TypeError: If `travel_time_function` is
                 provided but is not callable.
-            ValidationError: The method raises this error if dataframe validation
+            ValidationError: If dataframe validation
                 collects any hard errors.
-            RuntimeError: The method raises this error if validation reports success
+            RuntimeError: If validation reports success
                 but does not provide normalized tables.
 
         Notes:
-            The returned objects are complete and trusted; validation belongs at
-            this dataframe boundary.
+            Returned objects are complete and trusted. Validation belongs at this
+            dataframe boundary.
         """
         if travel_time_function is not None and not callable(travel_time_function):
             raise TypeError("`travel_time_function` must be callable when provided.")

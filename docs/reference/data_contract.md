@@ -1,10 +1,10 @@
 # Data contract
 
-This reference defines the generic dataframe boundary and the additional semantics of the released Athens tables. The validator accepts pandas dataframes. File format, source-system parsing, category harmonization, clock-rollover handling, and disclosure control belong before this boundary.
+`athenspop` defines a generic dataframe boundary and additional semantics for the released Athens tables. The validator accepts pandas dataframes. File format, source-system parsing, category harmonization, clock-rollover handling, and disclosure control belong before this boundary.
 
 ## Generic trip fields
 
-| The field has this name. | The field is required as stated. | This type and rule govern the field. |
+| Field | Requirement | Type and rule |
 | --- | --- | --- |
 | `household_id` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
 | `person_id` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
@@ -13,7 +13,7 @@ This reference defines the generic dataframe boundary and the additional semanti
 | `destination` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
 | `purpose` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
 | `mode` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `trip_sequence` | Conditional | The value must be a unique nonnegative integer within a diary. This field is required when distinct concrete departures do not establish order. |
+| `trip_sequence` | Conditional | A unique nonnegative integer within a diary. Required when distinct concrete departures do not establish order. |
 | `departure_second` | Pattern-dependent | The value must be a nonnegative integer second from the diary time origin. |
 | `arrival_second` | Pattern-dependent | The value must be a nonnegative integer second that occurs strictly after its concrete departure. |
 | `travel_time_seconds` | Pattern-dependent | The value must be a positive integer duration. |
@@ -30,9 +30,9 @@ Extra trip, person, and household columns may contain strings, integers, floats,
 
 ## Released Athens tables
 
-The processed release is stored under `data/athens` and licensed separately under CC BY 4.0 International. Its complete field dictionary, privacy transformation, integrity hashes, and attribution text are in the [dataset README](https://github.com/lotentua/athenspop/blob/main/data/athens/README.md).
+The processed release is stored under `data/athens` and licensed separately under CC BY 4.0 International. Its complete field dictionary, privacy transformation, integrity hashes, and attribution text are in the [dataset README](https://github.com/lotentua/athenspop/blob/v2/data/athens/README.md).
 
-| The file has this name. | The file has this many rows. | Each row has this observation unit. |
+| File | Rows | Observation unit |
 | --- | ---: | --- |
 | `households.csv` | 513 | Each row is one structural grouping record for a respondent. |
 | `persons.csv` | 513 | Each row represents one respondent. |

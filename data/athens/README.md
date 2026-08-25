@@ -1,12 +1,12 @@
 # Athens respondent travel diaries
 
-This directory contains a processed, de-identified release of travel diaries reported by 513 respondents in the Athens metropolitan area. The records were collected through a revealed-preference online survey distributed through Hellenic Broadcasting Corporation websites and radio frequencies in 2022. Respondents described as many as five trips on a typical workday and could omit demographic answers. The collection context is reported by Andrinopoulou and Tzouras (2025), [doi:10.3390/app15073419](https://doi.org/10.3390/app15073419).
+The `data/athens` directory contains a processed, de-identified release of travel diaries reported by 513 respondents in the Athens metropolitan area. The records were collected through a revealed-preference online survey distributed through Hellenic Broadcasting Corporation websites and radio frequencies in 2022. Respondents described as many as five trips on a typical workday and could omit demographic answers. The collection context is reported by Andrinopoulou and Tzouras (2025), [doi:10.3390/app15073419](https://doi.org/10.3390/app15073419).
 
 The release is a standalone data product. It contains no routing matrix, geographic zone crosswalk, questionnaire export, source respondent identifiers, or exact ages. The maintainers recorded the deterministic source-to-release transformations documented below. Raw source files and preprocessing code are outside the public release.
 
 ## Files and observation units
 
-| The file has this name. | The file has this many rows. | Each row has this observation unit. |
+| File | Rows | Observation unit |
 | --- | ---: | --- |
 | `households.csv` | 513 | Each row is one structural grouping record for a respondent. |
 | `persons.csv` | 513 | Each row represents one respondent. |
@@ -38,29 +38,29 @@ All missing values are empty CSV fields. Identifier and category values are UTF-
 
 ### `households.csv`
 
-| The field has this name. | The field permits null values as stated. | This contract governs the field. |
+| Field | Nullable | Contract |
 | --- | --- | --- |
-| `household_id` | No | This field is the primary key and a synthetic structural key that matches `persons.household_id` and `trips.household_id`. |
-| `home_zone` | No | This field is a synthetic home-zone label from `z001` through `z036`. No geographic crosswalk is released. |
+| `household_id` | No | Primary key and synthetic structural key that matches `persons.household_id` and `trips.household_id`. |
+| `home_zone` | No | Synthetic home-zone label from `z001` through `z036`. No geographic crosswalk is released. |
 
 ### `persons.csv`
 
-| The field has this name. | The field permits null values as stated. | This contract governs the field. |
+| Field | Nullable | Contract |
 | --- | --- | --- |
-| `household_id` | No | This field is a foreign key to `households.household_id`. |
-| `person_id` | No | This field is a synthetic respondent identifier. The pair `(household_id, person_id)` is the primary key. |
+| `household_id` | No | Foreign key to `households.household_id`. |
+| `person_id` | No | Synthetic respondent identifier. The pair `(household_id, person_id)` is the primary key. |
 | `gender` | Yes | The reported category is `female` or `male`. Six values are missing. The survey offered no released category beyond these two labels. |
 | `age_group_years` | Yes | The de-identification band is `18_to_30`, `31_to_40`, `41_to_50`, `51_to_65`, or `66_or_older`. Seven values are missing. |
 | `education_level` | Yes | The normalized category is `primary_school`, `secondary_school`, `bachelors_degree`, or `masters_or_doctoral_degree`. Two values are missing. |
 | `employment_status` | Yes | The normalized category is `employed`, `unemployed`, `student`, or `not_in_labor_force`. Five values are missing. |
 | `monthly_income_eur_band` | Yes | The reported categorical band is normalized as `no_income`, `up_to_750_eur`, `750_to_1500_eur`, `1500_to_2500_eur`, or `2500_eur_or_more`. The source labels did not document endpoint conventions for adjacent bands. Forty-five values are missing. |
-| `owns_car` | No | This Boolean indicates whether the respondent reported private-car ownership. |
+| `owns_car` | No | Whether the respondent reported private-car ownership. |
 
 ## Demographic normalization
 
 The person table uses the following deterministic source-to-release mapping. Blank optional responses remain blank. Three reported ages below the documented adult analysis range are also blanked, so `age_group_years` contains seven missing values: four missing responses and three suppressed values.
 
-| The released field has this name. | Source responses map to released values as stated. |
+| Released field | Source-to-release mapping |
 | --- | --- |
 | `gender` | Female responses map to `female`, and male responses map to `male`. Blank responses remain blank. |
 | `age_group_years` | Ages from 18 through 30 map to `18_to_30`. Ages from 31 through 40 map to `31_to_40`. Ages from 41 through 50 map to `41_to_50`. Ages from 51 through 65 map to `51_to_65`. Ages of 66 or older map to `66_or_older`. Values below 18 and blank responses remain blank. |
@@ -71,18 +71,18 @@ The person table uses the following deterministic source-to-release mapping. Bla
 
 ### `trips.csv`
 
-| The field has this name. | The field permits null values as stated. | This contract governs the field. |
+| Field | Nullable | Contract |
 | --- | --- | --- |
-| `household_id` | No | This field is a foreign key to `households.household_id`. |
-| `person_id` | No | This field forms a foreign key to the composite person key with `household_id`. |
-| `trip_id` | No | This field is the primary key and a synthetic trip identifier. |
-| `trip_sequence` | No | This field gives the one-based position in the respondent's reported chain. Values range from one through five. |
-| `origin` | No | This field contains a synthetic origin-zone label. The first value is the reported home zone. Later values equal the preceding destination. |
-| `destination` | No | This field contains the reported synthetic destination-zone label. |
+| `household_id` | No | Foreign key to `households.household_id`. |
+| `person_id` | No | Foreign key to the composite person key with `household_id`. |
+| `trip_id` | No | Primary key and synthetic trip identifier. |
+| `trip_sequence` | No | One-based position in the respondent's reported chain. Values range from one through five. |
+| `origin` | No | Synthetic origin-zone label. The first value is the reported home zone. Later values equal the preceding destination. |
+| `destination` | No | Reported synthetic destination-zone label. |
 | `purpose` | No | The reported category is `education`, `home`, `market`, `other`, `recreation`, `service`, or `work`. |
 | `mode` | No | The reported category is `bicycle`, `bus`, `car`, `escooter`, `motorcycle`, `taxi`, `train`, or `walk`. |
-| `earliest_departure_second` | No | This field gives the inclusive lower bound of the reported one-hour departure interval. |
-| `latest_departure_second` | No | This field gives the inclusive upper bound, which is exactly 3,599 seconds after the lower bound. |
+| `earliest_departure_second` | No | Inclusive lower bound of the reported one-hour departure interval. |
+| `latest_departure_second` | No | Inclusive upper bound, exactly 3,599 seconds after the lower bound. |
 
 ## Analytical scope
 
@@ -90,7 +90,7 @@ The released records are an unweighted respondent sample. Recruitment through br
 
 ## Integrity
 
-| The file has this name. | The file has this SHA-256 digest. |
+| File | SHA-256 digest |
 | --- | --- |
 | `households.csv` | `772c4ecc15418f02c34826b190e4773b510de50af8c2409e2956af4cb36ab560` |
 | `persons.csv` | `2a24378c38089ae8ca107181222ef3d15a55d8496df47eef5635c1b60e5b9ab3` |

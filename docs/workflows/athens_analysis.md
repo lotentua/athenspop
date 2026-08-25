@@ -1,6 +1,6 @@
 # Explore the released Athens diaries
 
-This workflow describes exact purpose-chain frequencies in the released processed Athens tables. It then shows how an analyst can compose optimal matching and average linkage as an explicitly exploratory extension. The executable source is [`examples/analyze_athens.py`](https://github.com/lotentua/athenspop/blob/main/examples/analyze_athens.py).
+This workflow describes exact purpose-chain frequencies in the released processed Athens tables. It then shows how an analyst can compose optimal matching and average linkage as an explicitly exploratory extension. The executable source is [`examples/analyze_athens.py`](https://github.com/lotentua/athenspop/blob/v2/examples/analyze_athens.py).
 
 The release contains 1,347 reported trips from 513 respondents. It contains no routes, distances, or travel durations. The analysis therefore uses reported purpose order and does not require a routing product.
 
@@ -22,7 +22,7 @@ The three CSV files pass through the same dataframe validation boundary as user 
 
 The 513 respondents produce 144 distinct ordered purpose chains. The twelve most frequent chains are:
 
-| Respondents reported this purpose chain. | This many respondents reported the chain. |
+| Purpose chain | Respondents |
 | --- | ---: |
 | `work -> home` | 100 |
 | `work -> work` | 42 |

@@ -2,4 +2,4 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This package constructs sequences and computes optimal matching."""
+"""Sequence construction and optimal matching."""

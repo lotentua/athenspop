@@ -2,29 +2,29 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines the canonical dataframe schema vocabulary."""
+"""Define the canonical dataframe schema vocabulary."""
 
 import enum
 import typing
 
-#: This value is the canonical trip-table name.
+#: Canonical trip-table name.
 TRIPS_TABLE: typing.Final[str] = "trips"
-#: This value is the canonical person-table name.
+#: Canonical person-table name.
 PERSONS_TABLE: typing.Final[str] = "persons"
-#: This value is the canonical household-table name.
+#: Canonical household-table name.
 HOUSEHOLDS_TABLE: typing.Final[str] = "households"
 
-#: These columns uniquely identify a trip.
+#: Columns that uniquely identify a trip.
 TRIP_KEY_COLUMNS: typing.Final[tuple[str, ...]] = (
     "household_id",
     "person_id",
     "trip_id",
 )
-#: These columns uniquely identify a person.
+#: Columns that uniquely identify a person.
 PERSON_KEY_COLUMNS: typing.Final[tuple[str, ...]] = ("household_id", "person_id")
-#: These columns uniquely identify a household.
+#: Columns that uniquely identify a household.
 HOUSEHOLD_KEY_COLUMNS: typing.Final[tuple[str, ...]] = ("household_id",)
-#: These domain columns are required in every trip table.
+#: Domain columns required in every trip table.
 TRIP_REQUIRED_COLUMNS: typing.Final[tuple[str, ...]] = (
     *TRIP_KEY_COLUMNS,
     "origin",
@@ -32,7 +32,7 @@ TRIP_REQUIRED_COLUMNS: typing.Final[tuple[str, ...]] = (
     "purpose",
     "mode",
 )
-#: These columns form the supported timing patterns.
+#: Columns that form the supported timing patterns.
 TRIP_TIMING_COLUMNS: typing.Final[tuple[str, ...]] = (
     "departure_second",
     "arrival_second",
@@ -40,20 +40,19 @@ TRIP_TIMING_COLUMNS: typing.Final[tuple[str, ...]] = (
     "earliest_departure_second",
     "latest_departure_second",
 )
-#: These columns are reserved by the canonical trip schema.
+#: Columns reserved by the canonical trip schema.
 TRIP_RESERVED_COLUMNS: typing.Final[tuple[str, ...]] = (
     *TRIP_REQUIRED_COLUMNS,
     *TRIP_TIMING_COLUMNS,
     "trip_sequence",
     "timing_pattern",
 )
-#: These arrival-window columns are rejected because the scheduler does not
-#: support them.
+#: Unsupported arrival-window columns rejected by the scheduler.
 UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS: typing.Final[tuple[str, ...]] = (
     "earliest_arrival_second",
     "latest_arrival_second",
 )
-#: These columns represent integer seconds from the diary time origin.
+#: Columns containing integer seconds from the diary time origin.
 SECOND_COLUMNS: typing.Final[tuple[str, ...]] = (
     "departure_second",
     "arrival_second",
@@ -66,7 +65,7 @@ SECOND_COLUMNS: typing.Final[tuple[str, ...]] = (
 
 
 class TimingPattern(enum.StrEnum):
-    """This enumeration defines the supported timing patterns for trip rows.
+    """Supported timing patterns for trip rows.
 
     Attributes:
         DEPARTURE_ARRIVAL: The row supplies concrete departure and arrival seconds.

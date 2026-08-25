@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module parses clock-of-day values into normalized integer seconds."""
+"""Parse clock-of-day values into normalized integer seconds."""
 
 import collections.abc
 import datetime
@@ -13,7 +13,7 @@ import pandas as pd
 
 import athenspop.time_units
 
-#: This type represents a clock-like scalar accepted by the conversion boundary.
+#: Clock-like scalar accepted by the conversion boundary.
 type ClockValue = (
     str
     | int
@@ -25,11 +25,11 @@ type ClockValue = (
     | pd.Timedelta
 )
 
-#: An `HH:MM:SS` clock string contains this number of fields.
+#: Number of fields in an `HH:MM:SS` clock string.
 HH_MM_SS_PARTS: typing.Final[int] = 3
-#: This value is the largest valid hour in a civil-clock value.
+#: Largest valid hour in a civil-clock value.
 MAX_CLOCK_HOUR: typing.Final[int] = 23
-#: This value is the largest valid minute or second in a civil-clock value.
+#: Largest valid minute or second in a civil-clock value.
 MAX_CLOCK_MINUTE_OR_SECOND: typing.Final[int] = 59
 
 
@@ -41,20 +41,19 @@ def clock_seconds_from_time_origin(
     """Convert a clock value to seconds from a diary time origin.
 
     Args:
-        value: This clock value is expressed as `HH:MM`, `HH:MM:SS`, a datetime or
+        value: Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime or
             time object, a timedelta, a pandas temporal value, or integer seconds
             after civil midnight.
-        time_origin_clock: This clock value defines the diary time origin.
+        time_origin_clock: Clock value that defines the diary time origin.
 
     Returns:
-        The function returns integer seconds from the diary time-origin clock and
-        wraps overnight within one civil day.
+        Integer seconds from the diary time-origin clock, wrapped within one civil
+        day.
 
     Raises:
-        TypeError: The function raises this error if a value has an unsupported type
-            or is boolean.
-        ValueError: The function raises this error if a value cannot be represented
-            as whole seconds within one civil day.
+        TypeError: If a value has an unsupported type or is boolean.
+        ValueError: If a value cannot be represented as whole seconds within one
+            civil day.
     """
     civil_second = _clock_second_of_day(value, parameter_name="value")
     time_origin_second = _clock_second_of_day(
@@ -72,22 +71,19 @@ def convert_clock_columns(
     """Convert dataframe clock columns to normalized second columns.
 
     Args:
-        frame: This input dataframe contains the source clock columns.
-        columns: This mapping associates source clock column names with target
+        frame: Input dataframe containing the source clock columns.
+        columns: Mapping from source clock column names to target
             integer-second column names.
-        time_origin_clock: This clock value defines the diary time origin.
+        time_origin_clock: Clock value that defines the diary time origin.
 
     Returns:
-        The function returns a dataframe copy with converted target columns. Missing
-        source values remain missing.
+        Dataframe copy with converted target columns. Missing source values remain
+        missing.
 
     Raises:
-        KeyError: The function raises this error if a requested source column is
-            absent.
-        TypeError: The function raises this error if a non-missing value has an
-            unsupported type.
-        ValueError: The function raises this error if a non-missing value is outside
-            the supported clock domain.
+        KeyError: If a requested source column is absent.
+        TypeError: If a non-missing value has an unsupported type.
+        ValueError: If a non-missing value is outside the supported clock domain.
     """
     target_columns = tuple(columns.values())
     if len(target_columns) != len(set(target_columns)):

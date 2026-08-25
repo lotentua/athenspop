@@ -4,7 +4,24 @@ This page records the package's computational definitions and their interpretati
 
 ## Schedule realization
 
-The scheduler preserves concrete departures and draws uncertain departures from feasible inclusive integer windows. Reverse bounds incorporate later departures before the forward draws. Each draw is uniform only over that trip's current feasible integer interval. The resulting diary distribution is therefore induced by sequential conditional draws. It is not a uniform distribution over complete feasible schedules.
+For each trip, $[E_i,L_i]$ is its own inclusive departure interval and $B_i$ is the latest departure retained by the reverse pass. Given a successor and known duration $\tau_i$,
+
+$$
+B_i=\min\left(L_i, B_{i+1}-m-\tau_i\right),
+$$
+
+with the applicable observation-horizon arrival target included in the same minimum. A deterministic FIFO travel-time function uses bisection to find the greatest departure whose arrival respects that target.
+
+The forward pass sets $F_1=0$ and $F_i=a_{i-1}+m$, then draws an uncertain departure from
+
+$$
+\left[
+\max(E_i,F_i),
+\min(L_i,B_i,H_d)
+\right]\cap\mathbb Z.
+$$
+
+Concrete departures are checked rather than redrawn. Each random draw is uniform only over the current locally admissible interval. The resulting diary distribution is induced by sequential conditional draws, not a uniform distribution over complete feasible schedules. When callable refinement is unavailable or disabled, a failed realization does not establish global diary infeasibility.
 
 A fixed positive `travel_time_seconds` determines arrival directly. Otherwise, the scheduler evaluates a user-supplied `TravelTimeFunction(origin, destination, mode, departure_second)`. Callable refinement by bisection assumes deterministic first-in, first-out arrival behavior over the searched window. See [Scheduling](../concepts/scheduling.md) for the equations and policy boundaries.
 

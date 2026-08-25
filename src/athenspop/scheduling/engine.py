@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module realizes concrete trips from trusted survey diaries."""
+"""Concrete trip scheduling for trusted survey diaries."""
 
 import dataclasses
 import random
@@ -14,24 +14,21 @@ import athenspop.types
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class SchedulingConfig:
-    """This class defines the policy for one scheduling realization.
+    """Policy for one scheduling realization.
 
     Attributes:
         min_activity_duration_seconds:
-            This value is the minimum dwell time required between an arrival and the
-            next departure.
-        observation_window_seconds: The diary observation horizon is measured in
-            integer seconds from the
-            diary time origin.
-        allow_trips_after_observation_window: This value controls whether any trip
-            may depart or arrive after the observation window.
-        allow_final_trip_after_observation_window: This value controls whether only
-            the final trip may arrive after the observation window.
-        refine_callable_departure_windows: This value controls whether callable
-            travel-time trips use bisection to tighten feasible departure windows
-            against later fixed trips. Keep this enabled only when the travel-time
-            callable is deterministic and FIFO over the searched window. Under FIFO,
-            later departures cannot produce earlier arrivals.
+            Minimum dwell time between an arrival and the next departure.
+        observation_window_seconds:
+            Diary observation horizon in integer seconds from the time origin.
+        allow_trips_after_observation_window:
+            Whether trips may depart or arrive after the observation window.
+        allow_final_trip_after_observation_window:
+            Whether only the final arrival may exceed the observation window.
+        refine_callable_departure_windows:
+            Whether bisection tightens callable travel-time windows against later
+            trips. This requires deterministic FIFO arrivals over each searched
+            window.
     """
 
     min_activity_duration_seconds: int = (
@@ -73,15 +70,14 @@ class SchedulingConfig:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class SchedulingIssue:
-    """This class represents one scheduler diagnostic for a diary or trip.
+    """A scheduler diagnostic for one diary or trip.
 
     Attributes:
-        code: This value is the stable machine-readable issue code.
-        message: This text explains the infeasibility or invalid callable result.
-        household_id: This value identifies the household for the affected diary.
-        person_id: This value identifies the person for the affected diary.
-        trip_id: This optional value identifies the trip when the issue is
-            trip-specific.
+        code: Stable machine-readable issue code.
+        message: Explanation of the infeasibility or invalid callable result.
+        household_id: Household containing the affected diary.
+        person_id: Person associated with the affected diary.
+        trip_id: Affected trip, when the diagnostic is trip-specific.
     """
 
     code: str
@@ -93,16 +89,13 @@ class SchedulingIssue:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class SchedulingDiagnostics:
-    """This class summarizes one scheduling pass.
+    """Summary of one scheduling pass.
 
     Attributes:
-        attempted_diaries: This value is the number of diaries submitted to the
-            scheduler.
-        scheduled_diaries: This value is the number of diaries returned with concrete
-            schedules.
-        infeasible_diaries: These values identify diaries that could not be scheduled.
-        issues: These values provide detailed scheduler diagnostics for infeasible
-            diaries.
+        attempted_diaries: Number of diaries submitted to the scheduler.
+        scheduled_diaries: Number of diaries returned with concrete schedules.
+        infeasible_diaries: Identifiers for diaries that could not be scheduled.
+        issues: Detailed diagnostics for infeasible diaries.
     """
 
     attempted_diaries: int
@@ -115,19 +108,18 @@ class SchedulingDiagnostics:
         """Return whether any diary failed scheduling.
 
         Returns:
-            The property returns `True` when at least one diary identifier appears in
-            `infeasible_diaries`.
+            `True` when at least one diary is infeasible.
         """
         return len(self.infeasible_diaries) > 0
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class ScheduledSurveyDataset:
-    """This class combines a scheduled survey with realization diagnostics.
+    """A scheduled survey paired with realization diagnostics.
 
     Attributes:
-        dataset: This survey dataset contains only successfully scheduled diaries.
-        diagnostics: These counts and issues describe the scheduling pass.
+        dataset: Survey data containing only successfully scheduled diaries.
+        diagnostics: Counts and issues from the scheduling pass.
     """
 
     dataset: athenspop.model.survey.SurveyDataset
@@ -144,21 +136,17 @@ def schedule_once(
     """Realize one concrete schedule from a validated survey dataset.
 
     Args:
-        dataset: This trusted survey dataset was produced by validation or model
-            loading.
-        seed: This optional seed produces repeatable uniform draws within departure
-            windows.
-        config: This optional value defines the scheduling policy. The function uses
-            the default policy when this value is omitted.
-        travel_time_function: This optional callable returns positive integer travel
+        dataset: Trusted survey data produced by validation or model loading.
+        seed: Optional seed for repeatable uniform departure draws.
+        config: Scheduling policy; omit to use the default policy.
+        travel_time_function: Optional callable returning positive integer travel
             seconds for trips whose duration is not already concrete.
             When callable departure-window refinement is enabled, this function must
             make departure second plus travel time monotone nondecreasing over each
             searched departure window.
 
     Returns:
-        The function returns a scheduled dataset containing only feasible diaries and
-        diagnostics for attempted and infeasible diaries.
+        A dataset containing successful diaries and diagnostics for the full pass.
 
     Notes:
         The scheduler assumes its input model is already valid and complete except

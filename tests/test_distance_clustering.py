@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines sequence-dissimilarity and clustering contracts."""
+"""Sequence-dissimilarity and clustering contracts."""
 
 from typing import cast
 

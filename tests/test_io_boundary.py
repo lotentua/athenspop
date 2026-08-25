@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module defines clock-conversion contracts at dataframe boundaries."""
+"""Clock-conversion contracts at dataframe boundaries."""
 
 import datetime
 

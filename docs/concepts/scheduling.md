@@ -20,19 +20,61 @@ $$
 
 By default, each departure and arrival must also satisfy $d_i \le H$ and $a_i \le H$. `allow_trips_after_observation_window` removes both horizon restrictions. `allow_final_trip_after_observation_window` permits only the final arrival to exceed $H$; the final departure must still occur by $H$.
 
-Concrete departures remain fixed. Window departures are drawn uniformly from the integer seconds that remain after the previous-arrival, future-trip, and horizon bounds are applied.
+Concrete departures remain fixed. Window departures are drawn uniformly from the integer seconds that remain after the previous-arrival, successor, and horizon bounds are applied.
 
 ```{figure} ../_static/scheduling-flow.svg
-:alt: The flow diagram traces validated diaries through reverse feasibility bounds and forward departure realization to a scheduled dataset and diagnostics.
+:alt: Two interval diagrams show a reverse pass tightening latest departures from right to left and a forward pass raising earliest departures from left to right.
 
-The scheduler derives future bounds before drawing departures, then returns successful diaries and diagnostics as separate parts of one result.
+Reverse and forward scheduling passes for a two-trip diary. Shaded interval segments are removed by propagated constraints; points mark one valid realization.
 ```
 
 ## Reverse bounds and forward realization
 
-The scheduler first traverses a diary in reverse. It tightens each latest departure so that later fixed or bounded trips can still occur after the required activity duration. It then traverses forward. At each departure window, it intersects the reported window with the previous arrival, the reverse bound, and the horizon policy before drawing an integer second.
+Let $E_i$ and $L_i$ denote trip $i$'s own inclusive departure bounds. A fixed departure has $E_i=L_i$. A reported window supplies both values, with $L_i$ capped by $H$ unless the policy permits every trip to exceed the observation window.
 
-This procedure prevents an early unconstrained draw from making a later trip infeasible when a tighter bound can be derived. It does not sample uniformly from the joint set of all feasible diary schedules. Repeated results from `athenspop.generation.schedules.generate_schedules` are conditional realizations of the same records, not new respondents or population replicates.
+The reverse pass visits trips from $n$ to $1$ and computes a latest admissible departure $B_i$. It begins with $B_i=L_i$. When a successor exists, the current trip must arrive by
+
+$$
+C_i = B_{i+1} - m.
+$$
+
+The observation horizon contributes another arrival target when the current uncertain trip must arrive by $H$. When both targets apply, $C_i$ is their minimum. For a known duration $\tau_i$,
+
+$$
+B_i = \min\left(L_i, C_i - \tau_i\right).
+$$
+
+For a deterministic FIFO travel-time function with arrival function $A_i(d)=d+t_i(d)$, bisection instead finds the greatest integer $d\in[E_i,L_i]$ satisfying
+
+$$
+A_i(d) \le C_i.
+$$
+
+That value caps $B_i$. A bound below $E_i$ leaves an empty interval, which the forward pass reports as infeasible.
+
+The forward pass visits trips from $1$ to $n$. Its lower bound comes from the preceding realized arrival:
+
+$$
+F_1=0,
+\qquad
+F_i=a_{i-1}+m \quad \text{for } i>1.
+$$
+
+For an uncertain departure, the scheduler draws uniformly over the inclusive integers
+
+$$
+d_i \sim \operatorname{Uniform}_{\mathbb Z}
+\left[
+\max(E_i,F_i),
+\min(L_i,B_i,H_d)
+\right],
+$$
+
+where $H_d$ is omitted only when departures after the observation window are allowed. It then evaluates $a_i=d_i+t_i(d_i)$ and uses that realized arrival to raise the next trip's lower bound. A fixed departure is accepted only when it lies between the applicable forward and reverse bounds.
+
+The figure uses $H=140$, $m=10$, and two 20-second trips with windows $[0,100]$ and $[90,120]$. The reverse pass gives $B_2=120$ and tightens $B_1$ to $90$. The illustrated forward draw chooses $d_1=80$, so $a_1=100$ raises the second lower bound from $90$ to $110$.
+
+This procedure prevents an early unconstrained draw from making a later trip infeasible when the scheduler can derive a tighter bound. It does not sample uniformly from the joint set of all feasible diary schedules. Repeated results from `athenspop.generation.schedules.generate_schedules` are conditional realizations of the same records, not new respondents or population replicates.
 
 ## Travel-time functions
 
@@ -56,7 +98,7 @@ $$
 d_1 \le d_2 \implies d_1 + t(d_1) \le d_2 + t(d_2).
 $$
 
-Disable refinement when that condition is not defensible. The scheduler will still evaluate the callable at the selected departure, but it cannot preclude every later-trip conflict before the draw.
+Disable refinement when that condition is not defensible. The scheduler will still evaluate the callable at the selected departure, but its reverse bound may then be only partially tightened. A failed draw in that mode does not prove that no other departure could produce a feasible diary.
 
 ## Results and failures
 

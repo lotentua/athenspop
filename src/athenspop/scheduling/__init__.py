@@ -2,4 +2,4 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This package realizes schedules for validated travel diaries."""
+"""Schedule realization for validated travel diaries."""

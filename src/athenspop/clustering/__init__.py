@@ -2,4 +2,4 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This package implements hierarchical clustering for dissimilarity matrices."""
+"""Hierarchical clustering for dissimilarity matrices."""

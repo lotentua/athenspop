@@ -22,18 +22,13 @@ def travel_time(origin: str, destination: str, mode: str, departure_second: int)
     """Return a deterministic duration for the self-contained example.
 
     Args:
-        origin:
-            This label identifies the origin location.
-        destination:
-            This label identifies the destination location.
-        mode:
-            This label identifies the movement mode.
-        departure_second:
-            This value is the candidate departure in seconds from the diary time
-            origin.
+        origin: Origin location label.
+        destination: Destination location label.
+        mode: Movement-mode label.
+        departure_second: Candidate departure in seconds from the diary time origin.
 
     Returns:
-        The function returns fifteen minutes for every synthetic movement.
+        Fifteen minutes for every synthetic movement.
     """
     del origin, destination, mode, departure_second
     return 900
@@ -67,7 +62,7 @@ def example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
                     "purpose": purpose,
                     "mode": mode_name,
                     "earliest_departure_second": 1_800,
-                    "latest_departure_second": 2_700,
+                    "latest_departure_second": 8_000,
                 },
                 {
                     "household_id": household_id,
@@ -107,11 +102,16 @@ def build_figure() -> matplotlib.figure.Figure:
             diary,
             initial_activity_state="home",
             window_end_second=14_400,
-            interval_seconds=1_800,
+            interval_seconds=900,
         )
         for diary in scheduled.dataset.diaries
     )
     states = {state for row in sequences for state in row}
+    travel_states = {"trip_bus", "trip_car", "trip_walk"}
+    if not travel_states <= states:
+        raise RuntimeError(
+            "The synthetic schedule must represent every configured travel state."
+        )
     costs = {
         (source, target): 0.0 if source == target else 1.0
         for source in states
@@ -127,19 +127,24 @@ def build_figure() -> matplotlib.figure.Figure:
         sequences,
         n_clusters=2,
         style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
-            title="This figure shows synthetic activity and travel states.",
+            title="Synthetic activity and travel states",
             state_groups={
-                "These states represent activities.": (
+                "Activity states": (
                     "education",
                     "home",
                     "market",
                     "work",
                 ),
-                "These states represent travel.": (
-                    "trip_bus",
-                    "trip_car",
-                    "trip_walk",
-                ),
+                "Travel states": (*sorted(travel_states),),
+            },
+            state_labels={
+                "education": "Education",
+                "home": "Home",
+                "market": "Market",
+                "trip_bus": "Bus",
+                "trip_car": "Car",
+                "trip_walk": "Walk",
+                "work": "Work",
             },
         ),
     )

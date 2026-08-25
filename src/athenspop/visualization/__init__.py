@@ -2,4 +2,4 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This package returns visualization objects for travel diary analysis."""
+"""Visualization objects for travel diary analysis."""

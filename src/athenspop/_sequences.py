@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module validates sequences for analysis and visualization internals."""
+"""Validate sequences for analysis and visualization internals."""
 
 import collections.abc
 

@@ -2,4 +2,4 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This package validates long-form survey dataframes at their boundaries."""
+"""Boundary validation for long-form survey dataframes."""

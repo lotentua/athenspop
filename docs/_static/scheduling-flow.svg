@@ -1,37 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 210" role="img" aria-labelledby="title description">
-  <title id="title">This diagram shows the travel-diary scheduling flow.</title>
-  <desc id="description">Validated diaries pass through reverse feasibility bounds and forward departure realization. Successful diaries form a scheduled dataset, while infeasible diaries produce diagnostics.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" role="img" aria-labelledby="title description">
+  <title id="title">Scheduling bound propagation</title>
+  <desc id="description">The reverse pass tightens latest departures from right to left. The forward pass raises earliest departures from left to right and realizes departures and arrivals.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0L8 4L0 8Z" fill="currentColor"/>
+    </marker>
+  </defs>
+
   <g fill="none" stroke="currentColor">
-    <rect x="20" y="70" width="160" height="60" rx="4"/>
-    <rect x="250" y="70" width="180" height="60" rx="4"/>
-    <rect x="500" y="70" width="180" height="60" rx="4"/>
-    <rect x="750" y="20" width="150" height="60" rx="4"/>
-    <rect x="750" y="130" width="150" height="60" rx="4"/>
-    <path d="M180 100H250M430 100H500M680 100H715V50H750M715 100V160H750"/>
-    <path d="M240 94L250 100L240 106M490 94L500 100L490 106M740 44L750 50L740 56M740 154L750 160L740 166"/>
+    <rect x="20" y="20" width="920" height="210" rx="4"/>
+    <rect x="20" y="250" width="920" height="230" rx="4"/>
+
+    <path d="M140 200H840M140 430H840"/>
+    <path d="M140 195V205M240 195V205M340 195V205M440 195V205M540 195V205M640 195V205M740 195V205M840 195V205"/>
+    <path d="M140 425V435M240 425V435M340 425V435M440 425V435M540 425V435M640 425V435M740 425V435M840 425V435"/>
+
+    <path d="M140 105H640M590 98V112M590 105H640" stroke-width="4"/>
+    <path d="M590 155H740M740 148V162" stroke-width="4"/>
+    <rect x="590" y="93" width="50" height="24" fill="currentColor" fill-opacity="0.12" stroke-dasharray="5 4"/>
+    <path d="M735 145C705 105 650 80 595 98" marker-end="url(#arrow)"/>
+
+    <path d="M140 335H590M590 328V342" stroke-width="4"/>
+    <path d="M590 385H740M690 378V392M690 385H740" stroke-width="4"/>
+    <rect x="590" y="373" width="100" height="24" fill="currentColor" fill-opacity="0.12" stroke-dasharray="5 4"/>
+    <circle cx="540" cy="335" r="6" fill="currentColor"/>
+    <circle cx="640" cy="335" r="6"/>
+    <path d="M546 335H634" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+    <circle cx="715" cy="385" r="6" fill="currentColor"/>
+    <circle cx="815" cy="385" r="6"/>
+    <path d="M721 385H809" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+    <path d="M645 345C660 355 675 365 687 378" marker-end="url(#arrow)"/>
   </g>
-  <g fill="currentColor" text-anchor="middle" font-size="14">
-    <text x="100" y="94">
-      <tspan x="100">The input contains</tspan>
-      <tspan x="100" dy="22">validated diaries.</tspan>
-    </text>
-    <text x="340" y="94">
-      <tspan x="340">The scheduler derives</tspan>
-      <tspan x="340" dy="22">future bounds.</tspan>
-    </text>
-    <text x="590" y="94">
-      <tspan x="590">The scheduler realizes</tspan>
-      <tspan x="590" dy="22">departures.</tspan>
-    </text>
-    <text x="825" y="38">
-      <tspan x="825">Successful diaries</tspan>
-      <tspan x="825" dy="17">form the scheduled</tspan>
-      <tspan x="825" dy="17">dataset.</tspan>
-    </text>
-    <text x="825" y="148">
-      <tspan x="825">Infeasible diaries</tspan>
-      <tspan x="825" dy="17">produce structured</tspan>
-      <tspan x="825" dy="17">diagnostics.</tspan>
-    </text>
+
+  <g fill="currentColor">
+    <text x="40" y="50" font-weight="bold">Reverse pass: latest bounds (right → left)</text>
+    <text x="40" y="75">H = 140, m = 10, τ₁ = τ₂ = 20</text>
+    <text x="60" y="110">Trip 1</text>
+    <text x="60" y="160">Trip 2</text>
+    <text x="140" y="90">[E₁, L₁] = [0, 100]</text>
+    <text x="590" y="135">B₁ = min(100, 120 − 10 − 20) = 90</text>
+    <text x="590" y="180">[E₂, L₂] = [90, 120]; B₂ = 120</text>
+    <text x="625" y="82">removed</text>
+
+    <text x="40" y="280" font-weight="bold">Forward pass: realized lower bounds (left → right)</text>
+    <text x="60" y="340">Trip 1</text>
+    <text x="60" y="390">Trip 2</text>
+    <text x="450" y="320">d₁ = 80</text>
+    <text x="615" y="320">a₁ = 100</text>
+    <text x="330" y="380">F₂ = max(90, 100 + 10) = 110</text>
+    <text x="680" y="415">d₂ = 115</text>
+    <text x="820" y="410">a₂ = 135</text>
+    <text x="600" y="410">removed</text>
+
+    <text x="140" y="220" text-anchor="middle">0</text>
+    <text x="240" y="220" text-anchor="middle">20</text>
+    <text x="340" y="220" text-anchor="middle">40</text>
+    <text x="440" y="220" text-anchor="middle">60</text>
+    <text x="540" y="220" text-anchor="middle">80</text>
+    <text x="640" y="220" text-anchor="middle">100</text>
+    <text x="740" y="220" text-anchor="middle">120</text>
+    <text x="840" y="220" text-anchor="middle">140</text>
+    <text x="490" y="245" text-anchor="middle">Seconds from diary origin</text>
+
+    <text x="140" y="450" text-anchor="middle">0</text>
+    <text x="240" y="450" text-anchor="middle">20</text>
+    <text x="340" y="450" text-anchor="middle">40</text>
+    <text x="440" y="450" text-anchor="middle">60</text>
+    <text x="540" y="450" text-anchor="middle">80</text>
+    <text x="640" y="450" text-anchor="middle">100</text>
+    <text x="740" y="450" text-anchor="middle">120</text>
+    <text x="840" y="450" text-anchor="middle">140</text>
+    <text x="490" y="472" text-anchor="middle">Seconds from diary origin</text>
   </g>
 </svg>

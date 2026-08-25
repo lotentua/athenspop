@@ -2,7 +2,7 @@
 # Copyright (c) 2026 National Technical University of Athens
 # Licensed under the MIT License.
 
-"""This module computes optimal-matching dissimilarities for state sequences."""
+"""Compute optimal-matching dissimilarities for state sequences."""
 
 import math
 from collections.abc import Mapping, Sequence
@@ -13,11 +13,11 @@ import numpy as np
 import athenspop._sequences
 import athenspop.types
 
-#: This type represents a dense substitution-cost matrix indexed by encoded states.
+#: Dense substitution-cost matrix indexed by encoded states.
 type CostMatrix = np.ndarray[tuple[int, int], np.dtype[np.float64]]
-#: This type represents encoded target sequences used by the vectorized recurrence.
+#: Encoded target sequences used by the vectorized recurrence.
 type EncodedTargetMatrix = np.ndarray[tuple[int, int], np.dtype[np.int64]]
-#: This type represents dissimilarities from one source to each target sequence.
+#: Dissimilarities from one source to each target sequence.
 type DistanceVector = np.ndarray[tuple[int], np.dtype[np.float64]]
 
 
@@ -31,20 +31,18 @@ def optimal_matching_dissimilarity(
     """Compute Wagner-Fischer optimal-matching dissimilarity for two sequences.
 
     Args:
-        first: This value is the first symbolic state sequence.
-        second: This value is the second symbolic state sequence.
-        substitution_cost: This mapping contains pairwise substitution costs keyed
+        first: First symbolic state sequence.
+        second: Second symbolic state sequence.
+        substitution_cost: Pairwise substitution costs keyed
             by `(source_state, target_state)`.
-        indel_cost: This value is the positive insertion and deletion cost.
+        indel_cost: Positive insertion and deletion cost.
 
     Returns:
-        The function returns the optimal-matching dissimilarity between the two
-        sequences.
+        Optimal-matching dissimilarity between the two sequences.
 
     Raises:
-        TypeError: The function raises this error if either sequence contains a state
-            that is not a non-empty string.
-        ValueError: The function raises this error if either sequence is empty,
+        TypeError: If either sequence contains a state that is not a non-empty string.
+        ValueError: If either sequence is empty,
             `indel_cost` is not positive, or a required substitution cost is missing.
     """
     indel_cost = _validate_positive_cost(indel_cost, name="indel_cost")
@@ -76,19 +74,18 @@ def dissimilarity_matrix(
     """Compute a symmetric pairwise optimal-matching dissimilarity matrix.
 
     Args:
-        sequences: These symbolic state sequences are compared pairwise.
-        substitution_cost: This mapping contains symmetric pairwise substitution
+        sequences: Symbolic state sequences to compare pairwise.
+        substitution_cost: Symmetric pairwise substitution
             costs keyed by source and target state.
-        indel_cost: This value is the positive insertion and deletion cost.
+        indel_cost: Positive insertion and deletion cost.
 
     Returns:
-        The function returns a square float64 matrix whose `[i, j]` entry is the
+        Square float64 matrix whose `[i, j]` entry is the
         optimal-matching dissimilarity between sequence `i` and sequence `j`.
 
     Raises:
-        TypeError: The function raises this error if any sequence contains a state
-            that is not a non-empty string.
-        ValueError: The function raises this error if no non-empty sequence is
+        TypeError: If any sequence contains a state that is not a non-empty string.
+        ValueError: If no non-empty sequence is
             provided, `indel_cost` is not positive, a required substitution cost is
             missing, or a cost differs from its reverse direction.
 

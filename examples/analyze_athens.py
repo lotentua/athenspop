@@ -16,7 +16,7 @@ import athenspop.clustering.hierarchical
 import athenspop.model.survey
 import athenspop.sequence.distance
 
-#: This path is the default directory containing the released Athens CSV tables.
+#: Default directory for the released Athens CSV tables.
 DEFAULT_DATA_DIRECTORY: Final[pathlib.Path] = (
     pathlib.Path(__file__).resolve().parents[1] / "data" / "athens"
 )
@@ -29,11 +29,10 @@ def load_purpose_chains(
 
     Args:
         data_directory:
-            This directory contains `trips.csv`, `persons.csv`, and
-            `households.csv`.
+            Directory containing `trips.csv`, `persons.csv`, and `households.csv`.
 
     Returns:
-        The returned purpose sequences follow the validated trip-chain order.
+        Purpose sequences in validated trip-chain order.
     """
     dataset = athenspop.model.survey.SurveyDataset.from_dataframes(
         pd.read_csv(data_directory / "trips.csv"),
@@ -51,11 +50,10 @@ def unit_substitution_cost(
     """Return symmetric unit substitution costs for all observed states.
 
     Args:
-        chains:
-            These symbolic purpose chains define the states in the cost mapping.
+        chains: Symbolic purpose chains that define the cost-mapping states.
 
     Returns:
-        The mapping has zero diagonal costs and unit off-diagonal costs.
+        Zero diagonal and unit off-diagonal costs.
     """
     states = {state for chain in chains for state in chain}
     return {
@@ -71,11 +69,10 @@ def chain_frequency_table(
     """Summarize exact reported purpose-chain frequencies.
 
     Args:
-        chains:
-            These purpose chains are counted without imputation or completion.
+        chains: Purpose chains counted without imputation or completion.
 
     Returns:
-        The frequency table is sorted by decreasing count and then by chain label.
+        Frequencies sorted by decreasing count and then by chain label.
     """
     labels = pd.Series(
         (" -> ".join(chain) for chain in chains),
@@ -98,15 +95,11 @@ def illustrative_cluster_labels(
     """Return an explicitly illustrative average-linkage cut of purpose chains.
 
     Args:
-        chains:
-            These reported purpose chains are compared by unnormalized optimal
-            matching.
-        n_clusters:
-            The analyst selects this display cut. The workflow does not estimate it
-            as an optimum.
+        chains: Reported purpose chains compared by unnormalized optimal matching.
+        n_clusters: Analyst-selected display cut, not an estimated optimum.
 
     Returns:
-        The returned tuple contains one positive cluster label per input chain.
+        One positive cluster label per input chain.
     """
     distances = athenspop.sequence.distance.dissimilarity_matrix(
         chains, substitution_cost=unit_substitution_cost(chains)
@@ -125,13 +118,11 @@ def plot_chain_frequencies(
 
     Args:
         frequencies:
-            This table is returned by `chain_frequency_table`.
-        limit:
-            This value sets the maximum number of rows to display.
+            Table returned by `chain_frequency_table`.
+        limit: Maximum rows to display.
 
     Returns:
-        The Matplotlib figure inherits its size, fonts, lines, and colors from the
-        active stylesheet.
+        Matplotlib figure using the active stylesheet.
     """
     if isinstance(limit, bool) or not isinstance(limit, int):
         raise TypeError("`limit` must be an integer.")
@@ -140,8 +131,8 @@ def plot_chain_frequencies(
     displayed = frequencies.head(limit).sort_values("respondents", kind="stable")
     figure_object, axes_object = plt.subplots(layout="constrained")
     axes_object.barh(displayed["purpose_chain"], displayed["respondents"])
-    axes_object.set_xlabel("This axis shows the number of respondents.")
-    axes_object.set_ylabel("This axis shows each reported purpose chain.")
+    axes_object.set_xlabel("Respondents")
+    axes_object.set_ylabel("Purpose chain")
     return figure_object
 
 
