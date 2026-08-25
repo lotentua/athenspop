@@ -20,7 +20,7 @@ Episodes use half-open intervals: a state includes its start time and excludes i
 
 ## Choosing a temporal resolution
 
-Most distance and clustering operations work on equal-width sequence bins rather than continuous episodes. {py:func}`athenspop.sequence.episodes.discretize_episodes` assigns each bin to the state that occupies the largest share of that interval. If two states occupy equal time, the state that begins first wins.
+Aligned temporal summaries and dendrogram node panels work on equal-width sequence bins rather than continuous episodes. {py:func}`athenspop.sequence.episodes.discretize_episodes` assigns each bin to the state that occupies the largest share of that interval. If two states occupy equal time, the state that begins first wins. Optimal matching can also compare sequences of unequal length.
 
 A 15-minute interval can preserve a short trip that a one-hour interval may absorb into the surrounding activity. Shorter intervals retain more temporal detail and create longer sequences; longer intervals are cheaper to compare and emphasize broad daily structure.
 
@@ -60,7 +60,9 @@ The clustering module provides three complementary summaries:
 - {py:func}`athenspop.clustering.hierarchical.cluster_state_distribution` counts state tokens; and
 - {py:func}`athenspop.clustering.hierarchical.cluster_time_distribution` reports state shares at each aligned sequence bin.
 
-{py:func}`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution` combines a normalized-height cut tree with the temporal state shares of its displayed clusters. It fixes the quantitative axes and unit-width bar geometry, while dimensions, typography, default colors, tree-line width, and other presentation choices follow the active Matplotlib configuration.
+{py:func}`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution` draws the selected cut as one tree. Every displayed node contains two stacked distributions; with the default grouping, travel states appear above activity states. A parent therefore summarizes all schedules below it, while a leaf summarizes one cluster at the chosen cut. Nodes are arranged by split order so the path from the full sample to the final clusters remains visible even when merge heights are close.
+
+Each narrow bar represents one aligned sequence bin, and its colored segments show the share of node members in each state. The function fixes the panel placement, hidden ticks, visible borders, legend placement, and unit-width bar geometry. Figure dimensions, typography, default colors, tree-line width, and unspecified styling follow the active Matplotlib configuration; callers may also supply state colors explicitly.
 
 The [synthetic workflow](../workflows/compose_schedule.md) shows the complete composition. The [Athens workflow](../workflows/athens_analysis.md) demonstrates a deliberately exploratory use of purpose chains and explains why unit costs and a chosen cluster count are only a starting point.
 

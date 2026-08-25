@@ -6,7 +6,7 @@ A reported departure window says when a trip may begin, not when it did begin. C
 
 ## The constraints in everyday terms
 
-Every scheduled diary preserves four kinds of information:
+Scheduling respects four constraints:
 
 - a concrete departure stays fixed, while a departure window remains inclusive at both ends;
 - arrival equals departure plus a positive travel duration;
@@ -22,9 +22,9 @@ Consider two 20-second trips. The first may depart between second 0 and second 1
 The second trip can leave as late as second 120. Working backward, the first trip must therefore arrive by second 110, which means it must depart by second 90. Its reported window ended at second 100, but only the range from 0 through 90 can lead to a feasible continuation.
 
 ```{figure} ../_static/scheduling-flow.svg
-:alt: The reverse panel removes the end of the first departure window because the trip must arrive before the second trip. The forward panel removes the beginning of the second window after the first arrival is known.
+:alt: The backward panel removes departures after second 90 from the first trip's reported window. The forward panel removes departures before second 110 from the second trip's reported window after the first arrival is known.
 
-The reverse pass tightens latest departures from right to left. The forward pass then raises earliest departures from left to right and realizes one schedule.
+Hatched intervals cannot lead to a feasible continuation. The backward pass removes the late end of the first window; the forward pass removes the early end of the second window before choosing departures.
 ```
 
 This look-ahead is the main reason for the two-pass design. Without it, a valid but late first draw could make the second trip fail even though an earlier first departure would have produced a feasible diary.
@@ -70,11 +70,17 @@ Pass a seed to {py:func}`athenspop.scheduling.engine.schedule_once` for a reprod
 Scheduling never mutates its input. The returned {py:class}`athenspop.scheduling.engine.ScheduledSurveyDataset` separates successful diaries from {py:class}`athenspop.scheduling.engine.SchedulingDiagnostics`.
 
 ```python
-result = athenspop.scheduling.engine.schedule_once(diaries, seed=2026)
+result = athenspop.scheduling.engine.schedule_once(dataset, seed=2026)
 
 if result.diagnostics.has_errors:
     for issue in result.diagnostics.issues:
-        print(issue.diary_key, issue.code, issue.message)
+        print(
+            issue.household_id,
+            issue.person_id,
+            issue.trip_id,
+            issue.code,
+            issue.message,
+        )
 else:
     continue_analysis(result.dataset)
 ```

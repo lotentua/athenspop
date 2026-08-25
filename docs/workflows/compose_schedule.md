@@ -53,12 +53,12 @@ The complete function:
 The diagnostic check is part of the composition, not incidental error handling. Sequence construction should not continue silently with a subset of respondents when scheduling has excluded a diary.
 
 ```{figure} ../_static/composed-schedule.svg
-:alt: A two-cluster hierarchy appears above activity and travel state-share panels. One synthetic diary forms the first cluster, while two form the second.
+:alt: A five-node hierarchy contains a pair of state-distribution panels at its root, internal branch, and three leaves. Travel states appear above activity states in every node.
 
-The three synthetic schedules after a two-cluster cut. The upper tree shows the hierarchy; the lower panels show which activity and travel states occupy each 15-minute bin. Cluster membership illustrates the mechanics only and has no population interpretation.
+The three synthetic schedules at a three-cluster cut. Every node combines the hierarchy with its own temporal summary: travel modes are above and activity purposes are below. The root describes all three schedules, the internal branch describes its two descendants, and each leaf describes one selected cluster. Membership illustrates the mechanics only and has no population interpretation.
 ```
 
-The plotting function owns the quantitative axes and bar geometry. Figure dimensions, typography, default colors, tree-line width, and other presentation choices follow the active Matplotlib configuration.
+The plotting function owns the tree layout, panel borders, tick visibility, legend placement, and bar geometry. Figure dimensions, typography, default colors, tree-line width, and unspecified styling follow the active Matplotlib configuration.
 
 ## 4. Adapt one boundary at a time
 

@@ -6,16 +6,32 @@
 
 import dataclasses
 from collections.abc import Mapping, Sequence
+from typing import Final
 
 import matplotlib.axes
 import matplotlib.figure
-import matplotlib.gridspec
+import matplotlib.legend
 import matplotlib.patches
 import matplotlib.pyplot as plt
-import matplotlib.ticker
+import matplotlib.text
 
 import athenspop._sequences
 import athenspop.clustering.hierarchical
+
+#: Horizontal margin around the embedded dendrogram.
+_HORIZONTAL_MARGIN: Final[float] = 0.04
+#: Vertical gap between text, legends, and the embedded tree.
+_VERTICAL_MARGIN: Final[float] = 0.02
+#: Largest fraction of the figure width occupied by one node panel.
+_MAX_NODE_WIDTH: Final[float] = 0.20
+#: Largest fraction of the figure height occupied by one two-panel node.
+_MAX_NODE_HEIGHT: Final[float] = 0.14
+#: Figure-width budget divided among displayed leaves for node panels.
+_NODE_WIDTH_BUDGET: Final[float] = 0.82
+#: Share of available tree height divided among split-order levels.
+_NODE_HEIGHT_BUDGET: Final[float] = 0.75
+#: Vertical gap between the two distribution axes in one node.
+_PANEL_GAP: Final[float] = 0.004
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -26,7 +42,8 @@ class TemporalDendrogramPlotStyle:
         title:
             Optional figure title.
         state_groups:
-            Optional panel-title mapping to included state names.
+            Optional two-item mapping from panel titles to included state names.
+            The first group is drawn above the second group.
         state_colors:
             Optional color mapping keyed by raw state name.
         state_labels:
@@ -57,7 +74,7 @@ def plot_cut_dendrogram_state_distribution(
     n_clusters: int,
     style: TemporalDendrogramPlotStyle | None = None,
 ) -> matplotlib.figure.Figure:
-    """Plot a cut hierarchy with temporal state shares for every cut cluster.
+    """Plot a cut hierarchy whose nodes contain temporal state distributions.
 
     Args:
         linkage_matrix:
@@ -67,10 +84,11 @@ def plot_cut_dendrogram_state_distribution(
         n_clusters:
             Number of displayed cut clusters.
         style:
-            Optional title, state groups, colors, and labels.
+            Optional title, two state groups, colors, and labels.
 
     Returns:
-        A Matplotlib figure with a quantitative tree axis and state-share panels.
+        A Matplotlib figure containing one embedded tree and two distribution axes
+        for every displayed node.
 
     Raises:
         ValueError:
@@ -79,8 +97,8 @@ def plot_cut_dendrogram_state_distribution(
 
     Notes:
         No files are written. Dimensions, typography, default colors, tree-line
-        width, and unspecified styling inherit from Matplotlib configuration.
-        Quantitative axes and bar geometry follow the visual contract.
+        width, and unspecified styling inherit from Matplotlib configuration. Node
+        positions and unit-width bar geometry follow the visual contract.
     """
     resolved_style = TemporalDendrogramPlotStyle() if style is None else style
     materialized_sequences = athenspop._sequences.materialize_equal_length_sequences(
@@ -93,23 +111,20 @@ def plot_cut_dendrogram_state_distribution(
             f"linkage matrix, got {len(materialized_sequences)}."
         )
 
-    groups = _state_groups(materialized_sequences, resolved_style.state_groups)
     tree = athenspop.clustering.hierarchical.cut_dendrogram_tree(
         linkage_matrix, n_clusters=n_clusters
     )
+    groups = _state_groups(materialized_sequences, resolved_style.state_groups)
+    nodes = _display_nodes(tree)
     leaves = _display_leaves(tree)
+    maximum_depth = max(node.depth for node in nodes)
 
-    figure_object = plt.figure(layout="constrained")
-    grid = figure_object.add_gridspec(
-        1 + len(groups),
-        len(leaves),
-        height_ratios=(2.0,) + (1.0,) * len(groups),
+    figure_object = plt.figure()
+    title_artist = (
+        None
+        if resolved_style.title is None
+        else figure_object.suptitle(resolved_style.title)
     )
-    tree_axes = figure_object.add_subplot(grid[0, :])
-    if resolved_style.title is not None:
-        figure_object.suptitle(resolved_style.title)
-    _draw_tree(tree_axes, tree, leaves)
-
     context = _PlotContext(
         figure=figure_object,
         sequences=materialized_sequences,
@@ -117,27 +132,57 @@ def plot_cut_dendrogram_state_distribution(
         colors=_state_color_map(materialized_sequences, resolved_style),
         labels=_state_label_map(materialized_sequences, resolved_style),
     )
-    _draw_distribution_grid(context, grid, leaves)
-    _draw_legend(context)
+    legends = _draw_legends(context)
+    tree_bottom, tree_top = _tree_vertical_bounds(
+        figure_object,
+        legends,
+        title_artist=title_artist,
+    )
+    tree_axes = figure_object.add_axes(
+        (0.0, 0.0, 1.0, 1.0), label="dendrogram-tree", zorder=0
+    )
+    _draw_tree(
+        tree_axes,
+        tree,
+        leaf_count=len(leaves),
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
+    _draw_node_distribution_panels(
+        context,
+        nodes,
+        leaf_count=len(leaves),
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
     return figure_object
 
 
 def _draw_tree(
     axes_object: matplotlib.axes.Axes,
     root: athenspop.clustering.hierarchical.CutDendrogramNode,
-    leaves: tuple[athenspop.clustering.hierarchical.CutDendrogramNode, ...],
+    *,
+    leaf_count: int,
+    maximum_depth: int,
+    tree_bottom: float,
+    tree_top: float,
 ) -> None:
-    """Draw the cut hierarchy on quantitative normalized-height coordinates."""
+    """Draw one split-order tree behind all embedded node panels."""
     tree_color = str(plt.rcParams["grid.color"])
-    _draw_tree_edges(axes_object, root, color=tree_color)
-    axes_object.set_xlim(-0.5, len(leaves) - 0.5)
-    axes_object.set_ylim(0.0, 1.05)
-    axes_object.set_xticks(
-        [leaf.order for leaf in leaves],
-        [f"Cluster {leaf.leaf_label}" for leaf in leaves],
+    _draw_tree_edges(
+        axes_object,
+        root,
+        color=tree_color,
+        leaf_count=leaf_count,
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
     )
-    axes_object.set_xlabel("Cut cluster")
-    axes_object.set_ylabel("Normalized height", rotation=0, ha="right", va="center")
+    axes_object.set_xlim(0.0, 1.0)
+    axes_object.set_ylim(0.0, 1.0)
+    axes_object.set_axis_off()
 
 
 def _draw_tree_edges(
@@ -145,55 +190,158 @@ def _draw_tree_edges(
     node: athenspop.clustering.hierarchical.CutDendrogramNode,
     *,
     color: str,
+    leaf_count: int,
+    maximum_depth: int,
+    tree_bottom: float,
+    tree_top: float,
 ) -> None:
-    """Draw one displayed subtree with a single neutral structural color."""
+    """Connect one panel to its two children with neutral orthogonal branches."""
     if node.is_leaf:
         return
     left = _required_child(node.left)
     right = _required_child(node.right)
+    parent_rectangle = _node_rectangle(
+        node,
+        leaf_count=leaf_count,
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
+    left_rectangle = _node_rectangle(
+        left,
+        leaf_count=leaf_count,
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
+    right_rectangle = _node_rectangle(
+        right,
+        leaf_count=leaf_count,
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
+    parent_x = parent_rectangle[0] + parent_rectangle[2] / 2.0
+    parent_bottom = parent_rectangle[1]
+    left_x = left_rectangle[0] + left_rectangle[2] / 2.0
+    right_x = right_rectangle[0] + right_rectangle[2] / 2.0
+    child_top = left_rectangle[1] + left_rectangle[3]
+    branch_y = (parent_bottom + child_top) / 2.0
     axes_object.plot(
-        (left.order, left.order),
-        (left.normalized_height, node.normalized_height),
+        (parent_x, parent_x),
+        (parent_bottom, branch_y),
         color=color,
     )
     axes_object.plot(
-        (right.order, right.order),
-        (right.normalized_height, node.normalized_height),
+        (left_x, right_x),
+        (branch_y, branch_y),
         color=color,
     )
     axes_object.plot(
-        (left.order, right.order),
-        (node.normalized_height, node.normalized_height),
+        (left_x, left_x),
+        (branch_y, child_top),
         color=color,
     )
-    _draw_tree_edges(axes_object, left, color=color)
-    _draw_tree_edges(axes_object, right, color=color)
+    axes_object.plot(
+        (right_x, right_x),
+        (branch_y, child_top),
+        color=color,
+    )
+    _draw_tree_edges(
+        axes_object,
+        left,
+        color=color,
+        leaf_count=leaf_count,
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
+    _draw_tree_edges(
+        axes_object,
+        right,
+        color=color,
+        leaf_count=leaf_count,
+        maximum_depth=maximum_depth,
+        tree_bottom=tree_bottom,
+        tree_top=tree_top,
+    )
 
 
-def _draw_distribution_grid(
+def _draw_node_distribution_panels(
     context: _PlotContext,
-    grid: matplotlib.gridspec.GridSpec,
-    leaves: tuple[athenspop.clustering.hierarchical.CutDendrogramNode, ...],
+    nodes: tuple[athenspop.clustering.hierarchical.CutDendrogramNode, ...],
+    *,
+    leaf_count: int,
+    maximum_depth: int,
+    tree_bottom: float,
+    tree_top: float,
 ) -> None:
-    """Draw aligned state-share axes for every cut cluster."""
-    last_group_index = len(context.groups) - 1
-    for column, node in enumerate(leaves):
-        for group_index, (group_title, states) in enumerate(context.groups):
-            axes_object = context.figure.add_subplot(grid[1 + group_index, column])
-            _draw_state_bars(
-                axes_object,
-                context,
-                node,
-                states,
-                group_title=group_title,
+    """Draw a two-by-one state-distribution panel at every displayed node."""
+    for node_index, node in enumerate(nodes):
+        left, bottom, width, height = _node_rectangle(
+            node,
+            leaf_count=leaf_count,
+            maximum_depth=maximum_depth,
+            tree_bottom=tree_bottom,
+            tree_top=tree_top,
+        )
+        axes_height = (height - _PANEL_GAP) / 2.0
+        for group_index, (_, states) in enumerate(context.groups):
+            axes_bottom = bottom + (1 - group_index) * (axes_height + _PANEL_GAP)
+            axes_object = context.figure.add_axes(
+                (left, axes_bottom, width, axes_height),
+                label=f"dendrogram-node-{node_index}-group-{group_index}",
+                zorder=1,
             )
-            if column != 0:
-                axes_object.tick_params(labelleft=False)
-                axes_object.set_ylabel("")
-            if group_index != last_group_index:
-                axes_object.tick_params(labelbottom=False)
-            else:
-                axes_object.set_xlabel("Sequence bin")
+            _draw_state_bars(axes_object, context, node, states)
+            if group_index == 0:
+                axes_object.text(
+                    0.0,
+                    1.02,
+                    _node_title(node),
+                    ha="left",
+                    va="bottom",
+                    transform=axes_object.transAxes,
+                )
+
+
+def _node_rectangle(
+    node: athenspop.clustering.hierarchical.CutDendrogramNode,
+    *,
+    leaf_count: int,
+    maximum_depth: int,
+    tree_bottom: float,
+    tree_top: float,
+) -> tuple[float, float, float, float]:
+    """Return one node-panel rectangle in normalized figure coordinates."""
+    width = min(_MAX_NODE_WIDTH, _NODE_WIDTH_BUDGET / leaf_count)
+    available_height = tree_top - tree_bottom
+    height = min(
+        _MAX_NODE_HEIGHT,
+        _NODE_HEIGHT_BUDGET * available_height / (maximum_depth + 1),
+    )
+    if leaf_count == 1:
+        left = 0.5 - width / 2.0
+    else:
+        horizontal_span = 1.0 - 2.0 * _HORIZONTAL_MARGIN - width
+        left = _HORIZONTAL_MARGIN + horizontal_span * node.order / (leaf_count - 1)
+    top_center = tree_top - height / 2.0
+    bottom_center = tree_bottom + height / 2.0
+    if maximum_depth == 0:
+        center = (top_center + bottom_center) / 2.0
+    else:
+        center = top_center - (
+            (top_center - bottom_center) * node.depth / maximum_depth
+        )
+    return left, center - height / 2.0, width, height
+
+
+def _node_title(
+    node: athenspop.clustering.hierarchical.CutDendrogramNode,
+) -> str:
+    """Return a compact cluster label and member count."""
+    cluster_label = "" if node.leaf_label is None else f"C{node.leaf_label} · "
+    return f"{cluster_label}n={len(node.members)}"
 
 
 def _draw_state_bars(
@@ -201,8 +349,6 @@ def _draw_state_bars(
     context: _PlotContext,
     node: athenspop.clustering.hierarchical.CutDendrogramNode,
     states: tuple[str, ...],
-    *,
-    group_title: str,
 ) -> None:
     """Draw unit-width stacked bars for one node and state group."""
     bin_count = len(context.sequences[0])
@@ -226,30 +372,60 @@ def _draw_state_bars(
         ]
     axes_object.set_xlim(-0.5, bin_count - 0.5)
     axes_object.set_ylim(0.0, 1.0)
-    tick_step = max(1, (bin_count + 3) // 4)
-    axes_object.set_xticks(range(0, bin_count, tick_step))
-    axes_object.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(0.5))
-    axes_object.set_ylabel(group_title, rotation=0, ha="right", va="center")
+    axes_object.set_xticks([])
+    axes_object.set_yticks([])
     for spine in axes_object.spines.values():
         spine.set_visible(True)
 
 
-def _draw_legend(context: _PlotContext) -> None:
-    """Draw one figure-level legend for all grouped states."""
-    states = tuple(
-        dict.fromkeys(state for _, group in context.groups for state in group)
-    )
-    handles = [
-        matplotlib.patches.Patch(
-            facecolor=context.colors[state], label=context.labels[state]
+def _draw_legends(context: _PlotContext) -> tuple[matplotlib.legend.Legend, ...]:
+    """Draw and return one figure-level legend for each distribution panel."""
+    legends: list[matplotlib.legend.Legend] = []
+    for legend_index, (group_title, states) in enumerate(reversed(context.groups)):
+        handles = [
+            matplotlib.patches.Patch(
+                facecolor=context.colors[state], label=context.labels[state]
+            )
+            for state in states
+        ]
+        legends.append(
+            context.figure.legend(
+                handles=handles,
+                title=group_title,
+                loc="lower left" if legend_index == 0 else "lower right",
+                bbox_to_anchor=(0.01 if legend_index == 0 else 0.99, 0.01),
+            )
         )
-        for state in states
-    ]
-    context.figure.legend(
-        handles=handles,
-        loc="outside lower center",
-        ncols=min(3, len(handles)),
+    return tuple(legends)
+
+
+def _tree_vertical_bounds(
+    figure_object: matplotlib.figure.Figure,
+    legends: tuple[matplotlib.legend.Legend, ...],
+    *,
+    title_artist: matplotlib.text.Text | None,
+) -> tuple[float, float]:
+    """Return tree bounds that clear the rendered legends and title."""
+    renderer = figure_object.draw_without_rendering()
+    inverse_transform = figure_object.transFigure.inverted()
+    tree_bottom = (
+        max(
+            legend.get_window_extent(renderer).transformed(inverse_transform).y1
+            for legend in legends
+        )
+        + _VERTICAL_MARGIN
     )
+    label_height = float(plt.rcParams["font.size"]) / (
+        72.0 * figure_object.get_figheight()
+    )
+    if title_artist is None:
+        tree_top = 1.0 - label_height - _VERTICAL_MARGIN
+    else:
+        title_bottom = (
+            title_artist.get_window_extent(renderer).transformed(inverse_transform).y0
+        )
+        tree_top = title_bottom - label_height - _VERTICAL_MARGIN
+    return tree_bottom, tree_top
 
 
 def _state_shares(
@@ -272,13 +448,25 @@ def _state_groups(
     sequences: tuple[tuple[str, ...], ...],
     requested_groups: Mapping[str, Sequence[str]] | None,
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """Return validated state groups for panel rendering."""
+    """Return the two validated state groups rendered at every node."""
     states = _states(sequences)
     if requested_groups is None:
-        return (("All states", states),)
-    if not requested_groups:
+        travel_states = tuple(state for state in states if state.startswith("trip_"))
+        activity_states = tuple(
+            state for state in states if not state.startswith("trip_")
+        )
+        if not travel_states or not activity_states:
+            raise ValueError(
+                "`state_groups` must define exactly two groups when both activity "
+                "and `trip_`-prefixed travel states cannot be inferred."
+            )
+        return (
+            ("Travel states", travel_states),
+            ("Activity states", activity_states),
+        )
+    if len(requested_groups) != 2:
         raise ValueError(
-            "`state_groups` must contain at least one group when provided."
+            "`state_groups` must contain exactly two groups when provided."
         )
 
     state_set = set(states)

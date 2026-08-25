@@ -129,17 +129,17 @@ def build_figure() -> matplotlib.figure.Figure:
     return athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution(
         linkage_matrix,
         sequences,
-        n_clusters=2,
+        n_clusters=3,
         style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
             title="Synthetic activity and travel states",
             state_groups={
+                "Travel states": (*sorted(travel_states),),
                 "Activity states": (
                     "education",
                     "home",
                     "market",
                     "work",
                 ),
-                "Travel states": (*sorted(travel_states),),
             },
             state_labels={
                 "education": "Education",

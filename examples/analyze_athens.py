@@ -77,7 +77,7 @@ def chain_frequency_table(
         Frequencies sorted by decreasing count and then by chain label.
     """
     labels = pd.Series(
-        (" -> ".join(chain) for chain in chains),
+        (" → ".join(chain) for chain in chains),
         dtype="string",
         name="purpose_chain",
     )
@@ -135,7 +135,9 @@ def plot_chain_frequencies(
         raise ValueError("`limit` must be positive.")
     displayed = frequencies.head(limit).sort_values("respondents", kind="stable")
     figure_object, axes_object = plt.subplots(layout="constrained")
-    axes_object.barh(displayed["purpose_chain"], displayed["respondents"])
+    bars = axes_object.barh(displayed["purpose_chain"], displayed["respondents"])
+    axes_object.bar_label(bars, padding=3)
+    axes_object.margins(x=0.1)
     axes_object.set_xlabel("Respondents")
     axes_object.set_ylabel("Purpose chain")
     return figure_object

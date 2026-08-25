@@ -62,19 +62,21 @@ def test_cut_dendrogram_tree_keeps_requested_number_of_displayed_clusters() -> N
 
 
 @pytest.mark.parametrize("font_size", (10.0, 16.0))
-def test_plot_cut_dendrogram_exposes_quantitative_axes_and_aligned_bars(
-    font_size: float,
+@pytest.mark.parametrize("mirrored", (False, True))
+@pytest.mark.parametrize("title", (None, "Purpose and travel states"))
+def test_plot_cut_dendrogram_embeds_two_distributions_at_every_tree_node(
+    font_size: float, *, mirrored: bool, title: str | None
 ) -> None:
-    """Expose unclipped hierarchy coordinates and unit-width state-share bars."""
+    """Render one tree whose every node owns a stacked pair of state panels."""
     sequences = (
-        ("home", "car", "work"),
-        ("home", "bus", "home"),
-        ("home", "walk", "shop"),
+        ("home", "car", "work", "education"),
+        ("home", "bus", "home", "education"),
+        ("home", "walk", "shop", "education"),
     )
     linkage_matrix = np.array(
         [
             [0.0, 1.0, 1.0, 2.0],
-            [2.0, 3.0, 2.0, 3.0],
+            [3.0, 2.0, 2.0, 3.0] if mirrored else [2.0, 3.0, 2.0, 3.0],
         ],
         dtype=np.float64,
     )
@@ -90,12 +92,21 @@ def test_plot_cut_dendrogram_exposes_quantitative_axes_and_aligned_bars(
             athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution(
                 linkage_matrix,
                 sequences,
-                n_clusters=2,
+                n_clusters=3,
                 style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
-                    title="Purpose and travel states",
+                    title=title,
                     state_groups={
-                        "Activity states": ("home", "shop", "work"),
                         "Travel states": ("bus", "car", "walk"),
+                        "Activity states": ("education", "home", "shop", "work"),
+                    },
+                    state_labels={
+                        "education": "Education",
+                        "home": "Home",
+                        "shop": "Market",
+                        "work": "Work",
+                        "bus": "Bus",
+                        "car": "Car",
+                        "walk": "Walk",
                     },
                 ),
             )
@@ -103,28 +114,31 @@ def test_plot_cut_dendrogram_exposes_quantitative_axes_and_aligned_bars(
 
     try:
         assert isinstance(figure_object, matplotlib.figure.Figure)
-        assert len(figure_object.axes) == 5
+        assert len(figure_object.axes) == 11
         tree_axes, *distribution_axes = figure_object.axes
-        assert tree_axes.get_title() == ""
-        assert any(
-            text.get_text() == "Purpose and travel states"
-            for text in figure_object.texts
+        assert tree_axes.get_label() == "dendrogram-tree"
+        assert tree_axes.axison is False
+        assert any(text.get_text() == title for text in figure_object.texts) is (
+            title is not None
         )
-        assert tree_axes.get_xlabel() == "Cut cluster"
-        assert tree_axes.get_ylabel() == "Normalized height"
-        assert [tick.get_text() for tick in tree_axes.get_xticklabels()] == [
-            "Cluster 1",
-            "Cluster 2",
-        ]
-        assert tree_axes.lines
+        assert len(tree_axes.lines) == 8
         assert all(line.get_color() == "#123456" for line in tree_axes.lines)
-
-        bottom_axes = distribution_axes[1::2]
-        assert all(axis.get_xlabel() == "Sequence bin" for axis in bottom_axes)
-        assert all(axis.get_title() == "" for axis in distribution_axes)
-        assert distribution_axes[0].get_ylabel() == "Activity states"
-        assert distribution_axes[1].get_ylabel() == "Travel states"
-        assert all(axis.get_ylabel() == "" for axis in distribution_axes[2:])
+        assert [axis.get_label() for axis in distribution_axes] == [
+            f"dendrogram-node-{node_index}-group-{group_index}"
+            for node_index in range(5)
+            for group_index in range(2)
+        ]
+        for top_axes, bottom_axes in zip(
+            distribution_axes[::2], distribution_axes[1::2], strict=True
+        ):
+            top_position = top_axes.get_position()
+            bottom_position = bottom_axes.get_position()
+            assert top_position.x0 == bottom_position.x0
+            assert top_position.width == bottom_position.width
+            assert top_position.y0 > bottom_position.y0
+            assert top_axes.get_xlim() == bottom_axes.get_xlim()
+        assert all(not axis.get_xticks().size for axis in distribution_axes)
+        assert all(not axis.get_yticks().size for axis in distribution_axes)
         assert all(
             all(spine.get_visible() for spine in axis.spines.values())
             for axis in distribution_axes
@@ -138,18 +152,33 @@ def test_plot_cut_dendrogram_exposes_quantitative_axes_and_aligned_bars(
         assert bars
         assert all(patch.get_width() == 1.0 for patch in bars)
         renderer = figure_object.draw_without_rendering()
-        tick_values = [
-            int(text.get_text()) for text in distribution_axes[-1].get_xticklabels()
+        assert [legend.get_title().get_text() for legend in figure_object.legends] == [
+            "Activity states",
+            "Travel states",
         ]
-        assert tick_values
-        assert min(tick_values) >= 0
-        assert max(tick_values) < len(sequences[0])
+        assert (
+            not figure_object.legends[0]
+            .get_window_extent(renderer)
+            .overlaps(figure_object.legends[1].get_window_extent(renderer))
+        )
+        assert all(
+            not legend.get_window_extent(renderer).overlaps(
+                axis.get_window_extent(renderer)
+            )
+            for legend in figure_object.legends
+            for axis in distribution_axes
+        )
+        if title is not None:
+            assert (
+                not figure_object.texts[0]
+                .get_window_extent(renderer)
+                .overlaps(distribution_axes[0].texts[0].get_window_extent(renderer))
+            )
 
         canvas_bounds = figure_object.bbox
         layout_artists = [
             *figure_object.texts,
-            *(axis.xaxis.label for axis in figure_object.axes),
-            *(axis.yaxis.label for axis in figure_object.axes),
+            *(text for axis in distribution_axes for text in axis.texts),
             *figure_object.legends,
         ]
         for artist in layout_artists:
@@ -158,11 +187,6 @@ def test_plot_cut_dendrogram_exposes_quantitative_axes_and_aligned_bars(
             assert bounds.y0 >= canvas_bounds.y0
             assert bounds.x1 <= canvas_bounds.x1
             assert bounds.y1 <= canvas_bounds.y1
-        legend_bounds = figure_object.legends[0].get_window_extent(renderer)
-        assert all(
-            not legend_bounds.overlaps(axis.xaxis.label.get_window_extent(renderer))
-            for axis in bottom_axes
-        )
     finally:
         plt.close(figure_object)
 
@@ -197,7 +221,7 @@ def test_plot_cut_dendrogram_rejects_invalid_state_groups() -> None:
     linkage_matrix = np.array([[0.0, 1.0, 1.0, 2.0]], dtype=np.float64)
     sequences = (("home",), ("work",))
 
-    with pytest.raises(ValueError, match="at least one group"):
+    with pytest.raises(ValueError, match="exactly two groups"):
         athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution(
             linkage_matrix,
             sequences,
@@ -213,7 +237,10 @@ def test_plot_cut_dendrogram_rejects_invalid_state_groups() -> None:
             sequences,
             n_clusters=1,
             style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
-                state_groups={"Activity states": ("home", "shop")}
+                state_groups={
+                    "Travel states": ("home",),
+                    "Activity states": ("work", "shop"),
+                }
             ),
         )
 
@@ -223,7 +250,7 @@ def test_plot_cut_dendrogram_rejects_invalid_state_groups() -> None:
             sequences,
             n_clusters=1,
             style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
-                state_groups={"": ("home",)}
+                state_groups={"": ("home",), "Activity states": ("work",)}
             ),
         )
 
@@ -233,7 +260,10 @@ def test_plot_cut_dendrogram_rejects_invalid_state_groups() -> None:
             sequences,
             n_clusters=1,
             style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
-                state_groups={"Activity states": ()}
+                state_groups={
+                    "Travel states": (),
+                    "Activity states": ("home", "work"),
+                }
             ),
         )
 
@@ -243,7 +273,10 @@ def test_plot_cut_dendrogram_rejects_invalid_state_groups() -> None:
             sequences,
             n_clusters=1,
             style=athenspop.visualization.dendrogram.TemporalDendrogramPlotStyle(
-                state_groups={"Activity states": ("",)}
+                state_groups={
+                    "Travel states": ("",),
+                    "Activity states": ("home", "work"),
+                }
             ),
         )
 
