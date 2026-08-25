@@ -22,19 +22,26 @@ def generate_schedules(
     """Generate repeated stochastic schedules from one trusted dataset.
 
     Args:
-        dataset: Trusted survey dataset produced by validation or model loading.
-        n: Number of conditional scheduling realizations to produce.
-        seed: Optional seed used to derive one repeatable child seed per realization.
-        config: Optional scheduling policy applied to all realizations.
-        travel_time_function: Optional callable that returns positive integer travel
+        dataset:
+            Trusted survey dataset produced by validation or model loading.
+        n:
+            Number of conditional scheduling realizations to produce.
+        seed:
+            Optional seed used to derive one repeatable child seed per realization.
+        config:
+            Optional scheduling policy applied to all realizations.
+        travel_time_function:
+            Optional callable that returns positive integer travel
             seconds for trips whose duration is not already concrete.
 
     Returns:
         One scheduled survey dataset per requested realization.
 
     Raises:
-        TypeError: If `n` is not an integer.
-        ValueError: If `n` is negative.
+        TypeError:
+            If `n` is not an integer.
+        ValueError:
+            If `n` is negative.
 
     Notes:
         Each result uses a child seed derived from the configured pseudorandom

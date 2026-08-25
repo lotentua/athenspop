@@ -31,18 +31,24 @@ def optimal_matching_dissimilarity(
     """Compute Wagner-Fischer optimal-matching dissimilarity for two sequences.
 
     Args:
-        first: First symbolic state sequence.
-        second: Second symbolic state sequence.
-        substitution_cost: Pairwise substitution costs keyed
+        first:
+            First symbolic state sequence.
+        second:
+            Second symbolic state sequence.
+        substitution_cost:
+            Pairwise substitution costs keyed
             by `(source_state, target_state)`.
-        indel_cost: Positive insertion and deletion cost.
+        indel_cost:
+            Positive insertion and deletion cost.
 
     Returns:
         Optimal-matching dissimilarity between the two sequences.
 
     Raises:
-        TypeError: If either sequence contains a state that is not a non-empty string.
-        ValueError: If either sequence is empty,
+        TypeError:
+            If either sequence contains a state that is not a non-empty string.
+        ValueError:
+            If either sequence is empty,
             `indel_cost` is not positive, or a required substitution cost is missing.
     """
     indel_cost = _validate_positive_cost(indel_cost, name="indel_cost")
@@ -74,18 +80,23 @@ def dissimilarity_matrix(
     """Compute a symmetric pairwise optimal-matching dissimilarity matrix.
 
     Args:
-        sequences: Symbolic state sequences to compare pairwise.
-        substitution_cost: Symmetric pairwise substitution
+        sequences:
+            Symbolic state sequences to compare pairwise.
+        substitution_cost:
+            Symmetric pairwise substitution
             costs keyed by source and target state.
-        indel_cost: Positive insertion and deletion cost.
+        indel_cost:
+            Positive insertion and deletion cost.
 
     Returns:
         Square float64 matrix whose `[i, j]` entry is the
         optimal-matching dissimilarity between sequence `i` and sequence `j`.
 
     Raises:
-        TypeError: If any sequence contains a state that is not a non-empty string.
-        ValueError: If no non-empty sequence is
+        TypeError:
+            If any sequence contains a state that is not a non-empty string.
+        ValueError:
+            If no non-empty sequence is
             provided, `indel_cost` is not positive, a required substitution cost is
             missing, or a cost differs from its reverse direction.
 

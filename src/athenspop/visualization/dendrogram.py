@@ -23,10 +23,14 @@ class TemporalDendrogramPlotStyle:
     """Display settings for a temporal cut dendrogram.
 
     Attributes:
-        title: Optional figure title.
-        state_groups: Optional panel-title mapping to included state names.
-        state_colors: Optional color mapping keyed by raw state name.
-        state_labels: Optional display-label mapping keyed by raw state name.
+        title:
+            Optional figure title.
+        state_groups:
+            Optional panel-title mapping to included state names.
+        state_colors:
+            Optional color mapping keyed by raw state name.
+        state_labels:
+            Optional display-label mapping keyed by raw state name.
     """
 
     title: str | None = None
@@ -56,16 +60,21 @@ def plot_cut_dendrogram_state_distribution(
     """Plot a cut hierarchy with temporal state shares for every cut cluster.
 
     Args:
-        linkage_matrix: SciPy hierarchy over the supplied observations.
-        sequences: Equal-length state sequences aligned with the hierarchy.
-        n_clusters: Number of displayed cut clusters.
-        style: Optional title, state groups, colors, and labels.
+        linkage_matrix:
+            SciPy hierarchy over the supplied observations.
+        sequences:
+            Equal-length state sequences aligned with the hierarchy.
+        n_clusters:
+            Number of displayed cut clusters.
+        style:
+            Optional title, state groups, colors, and labels.
 
     Returns:
         A Matplotlib figure with a quantitative tree axis and state-share panels.
 
     Raises:
-        ValueError: If sequence counts or lengths disagree with the hierarchy, or a
+        ValueError:
+            If sequence counts or lengths disagree with the hierarchy, or a
             state group contains an absent state.
 
     Notes:

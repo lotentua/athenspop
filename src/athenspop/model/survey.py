@@ -4,10 +4,10 @@
 
 """Build trusted survey models after dataframe validation."""
 
-import collections.abc
 import dataclasses
 import types
-import typing
+from collections.abc import Mapping
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -23,7 +23,7 @@ type RawMetadataValue = (
     str | int | float | bool | np.integer | np.floating | np.bool_ | None
 )
 #: Mapping from user-defined metadata column names to normalized values.
-type Metadata = collections.abc.Mapping[str, MetadataValue]
+type Metadata = Mapping[str, MetadataValue]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -31,8 +31,10 @@ class TimeWindow:
     """Inclusive departure window in integer seconds.
 
     Attributes:
-        earliest_second: Earliest allowed departure second, inclusive.
-        latest_second: Latest allowed departure second, inclusive.
+        earliest_second:
+            Earliest allowed departure second, inclusive.
+        latest_second:
+            Latest allowed departure second, inclusive.
     """
 
     earliest_second: int
@@ -44,13 +46,20 @@ class Trip:
     """One validated long-form movement record.
 
     Attributes:
-        household_id: Identifier copied from the input trip row.
-        person_id: Person identifier copied from the input trip row.
-        trip_id: Trip identifier unique within the trip table identity.
-        origin: Movement-origin label.
-        destination: Movement-destination label.
-        purpose: Activity state reached after the trip.
-        mode: Travel-mode label used for sequence states and travel-time
+        household_id:
+            Identifier copied from the input trip row.
+        person_id:
+            Person identifier copied from the input trip row.
+        trip_id:
+            Trip identifier unique within the trip table identity.
+        origin:
+            Movement-origin label.
+        destination:
+            Movement-destination label.
+        purpose:
+            Activity state reached after the trip.
+        mode:
+            Travel-mode label used for sequence states and travel-time
             lookup.
         departure_second:
             The concrete departure is measured in seconds from the diary time origin,
@@ -58,13 +67,17 @@ class Trip:
         arrival_second:
             The concrete arrival is measured in seconds from the diary time origin,
             or it is `None` when a duration or travel-time callable must derive it.
-        travel_time_seconds: Positive integer travel duration, or
+        travel_time_seconds:
+            Positive integer travel duration, or
             it is `None` when a travel-time callable must supply the duration.
-        departure_window: Optional feasible departure range for
+        departure_window:
+            Optional feasible departure range for
             trips that are not concrete at load time.
-        timing_pattern: Validation-classified pattern identifying the timing
+        timing_pattern:
+            Validation-classified pattern identifying the timing
             columns that supplied the trip.
-        metadata: Immutable typed metadata preserving additional non-key input
+        metadata:
+            Immutable typed metadata preserving additional non-key input
             columns.
     """
 
@@ -97,9 +110,12 @@ class PersonMetadata:
     """Optional respondent record for one diary.
 
     Attributes:
-        household_id: Household identifier shared with the diary.
-        person_id: Person identifier shared with the diary.
-        values: Immutable mapping containing additional person table columns after
+        household_id:
+            Household identifier shared with the diary.
+        person_id:
+            Person identifier shared with the diary.
+        values:
+            Immutable mapping containing additional person table columns after
             boundary normalization.
     """
 
@@ -113,8 +129,10 @@ class HouseholdMetadata:
     """Optional household record for its diaries.
 
     Attributes:
-        household_id: Household identifier shared with diaries and persons.
-        values: Immutable mapping containing additional household table columns
+        household_id:
+            Household identifier shared with diaries and persons.
+        values:
+            Immutable mapping containing additional household table columns
             after boundary normalization.
     """
 
@@ -127,12 +145,17 @@ class Diary:
     """Ordered trip chain for one person.
 
     Attributes:
-        household_id: Household identifier for the diary.
-        person_id: Person identifier for the diary.
-        trips: Validated trips sorted into diary order.
-        person: Optional respondent metadata matched by `(household_id,
+        household_id:
+            Household identifier for the diary.
+        person_id:
+            Person identifier for the diary.
+        trips:
+            Validated trips sorted into diary order.
+        person:
+            Optional respondent metadata matched by `(household_id,
             person_id)`.
-        household: Optional household metadata matched by `household_id`.
+        household:
+            Optional household metadata matched by `household_id`.
     """
 
     household_id: str
@@ -147,12 +170,16 @@ class SurveyDataset:
     """Validated survey grouped into person diaries.
 
     Attributes:
-        diaries: Person-level travel diaries built from the trip table.
-        households: Optional household metadata records supplied at the
+        diaries:
+            Person-level travel diaries built from the trip table.
+        households:
+            Optional household metadata records supplied at the
             dataframe boundary.
-        persons: Optional person metadata records supplied at the
+        persons:
+            Optional person metadata records supplied at the
             dataframe boundary.
-        travel_time_function: Optional default resolver retained for
+        travel_time_function:
+            Optional default resolver retained for
             unresolved departure-window trips.
     """
 
@@ -173,11 +200,15 @@ class SurveyDataset:
         """Validate input dataframes and build trusted model objects.
 
         Args:
-            trips: Required long-form trip table.
-            persons: Optional person or respondent table keyed by
+            trips:
+                Required long-form trip table.
+            persons:
+                Optional person or respondent table keyed by
                 `household_id` and `person_id`.
-            households: Optional household table keyed by `household_id`.
-            travel_time_function: Optional callable that returns positive integer
+            households:
+                Optional household table keyed by `household_id`.
+            travel_time_function:
+                Optional callable that returns positive integer
                 travel seconds for timing patterns that provide a departure time but
                 no duration or arrival time.
 
@@ -186,11 +217,14 @@ class SurveyDataset:
             records.
 
         Raises:
-            TypeError: If `travel_time_function` is
+            TypeError:
+                If `travel_time_function` is
                 provided but is not callable.
-            ValidationError: If dataframe validation
+            ValidationError:
+                If dataframe validation
                 collects any hard errors.
-            RuntimeError: If validation reports success
+            RuntimeError:
+                If validation reports success
                 but does not provide normalized tables.
 
         Notes:
@@ -323,7 +357,7 @@ def _build_households(
 def _metadata(row: pd.Series, *, exclude: set[str]) -> Metadata:
     """Preserve non-domain columns as normalized, immutable metadata."""
     values = {
-        str(column): _metadata_value(typing.cast("RawMetadataValue", row[column]))
+        str(column): _metadata_value(cast("RawMetadataValue", row[column]))
         for column in row.index
         if str(column) not in exclude
     }

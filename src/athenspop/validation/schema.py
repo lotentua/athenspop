@@ -69,11 +69,14 @@ class NormalizedTables:
     """Validated tables for trusted model construction.
 
     Attributes:
-        trips: Trip table copy sorted into validated diary order and annotated
+        trips:
+            Trip table copy sorted into validated diary order and annotated
             with `timing_pattern`.
-        persons: Optional person table copy that passed table, key, and join
+        persons:
+            Optional person table copy that passed table, key, and join
             validation.
-        households: Optional household table copy that passed table and key
+        households:
+            Optional household table copy that passed table and key
             validation.
     """
 
@@ -87,8 +90,10 @@ class ValidationResult:
     """Validation diagnostics paired with normalized tables.
 
     Attributes:
-        report: Diagnostics from all independent validation checks.
-        normalized_tables: Validated table copies when no hard errors were found, or
+        report:
+            Diagnostics from all independent validation checks.
+        normalized_tables:
+            Validated table copies when no hard errors were found, or
             `None` otherwise.
     """
 
@@ -104,11 +109,14 @@ def validate_dataframes(
     """Validate long-form survey dataframes and collect independent diagnostics.
 
     Args:
-        trips: Required trip table containing identity, movement, and timing
+        trips:
+            Required trip table containing identity, movement, and timing
             columns.
-        persons: Optional person or respondent table keyed by `household_id`
+        persons:
+            Optional person or respondent table keyed by `household_id`
             and `person_id`.
-        households: Optional household table keyed by `household_id`.
+        households:
+            Optional household table keyed by `household_id`.
 
     Returns:
         Validation result containing a report and normalized tables when no hard

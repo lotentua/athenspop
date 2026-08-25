@@ -5,10 +5,10 @@
 """Collect validation diagnostics at dataframe boundaries."""
 
 import dataclasses
-import typing
+from typing import Literal
 
 #: Severity of one structured validation issue.
-type Severity = typing.Literal["error", "warning"]
+type Severity = Literal["error", "warning"]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -16,17 +16,23 @@ class ValidationIssue:
     """Diagnostic with enough context to fix the input.
 
     Attributes:
-        severity: `error` for hard failures or `warning` for
+        severity:
+            `error` for hard failures or `warning` for
             methodological and data-quality concerns.
-        code: Stable machine-readable diagnostic code.
-        table: Input table associated with the diagnostic.
+        code:
+            Stable machine-readable diagnostic code.
+        table:
+            Input table associated with the diagnostic.
         message:
             The message explains the detected condition in human-readable prose.
-        row_identifier: Optional row label such as `trips[3]` when
+        row_identifier:
+            Optional row label such as `trips[3]` when
             the issue is row-specific.
-        column: Optional column or comma-separated column
+        column:
+            Optional column or comma-separated column
             group associated with the issue.
-        bad_value: Optional string representation of the problematic
+        bad_value:
+            Optional string representation of the problematic
             value.
     """
 
@@ -43,7 +49,8 @@ class ValidationError(ValueError):
     """Exception raised when hard validation errors exist.
 
     Attributes:
-        report: Complete validation report that triggered the
+        report:
+            Complete validation report that triggered the
             exception.
     """
 
@@ -51,7 +58,8 @@ class ValidationError(ValueError):
         """Create an exception carrying the complete validation report.
 
         Args:
-            report: Validation report containing at least one hard error.
+            report:
+                Validation report containing at least one hard error.
         """
         super().__init__(report.summary)
         self.report = report
@@ -62,11 +70,15 @@ class ValidationReport:
     """Diagnostics grouped with row and chain suppression state.
 
     Attributes:
-        errors: Hard validation issues that prevent trusted model construction.
-        warnings: Methodological or data-quality issues that do not prevent model
+        errors:
+            Hard validation issues that prevent trusted model construction.
+        warnings:
+            Methodological or data-quality issues that do not prevent model
             construction.
-        invalid_rows: Row identifiers that failed row-level validation.
-        invalid_chains: Diary chain identifiers with suppressed downstream chain
+        invalid_rows:
+            Row identifiers that failed row-level validation.
+        invalid_chains:
+            Diary chain identifiers with suppressed downstream chain
             checks.
     """
 
@@ -118,7 +130,8 @@ class ValidationReport:
         """Raise `ValidationError` if any hard errors were collected.
 
         Raises:
-            ValidationError: If `has_errors` is true.
+            ValidationError:
+                If `has_errors` is true.
         """
         if self.has_errors:
             raise ValidationError(self)
@@ -129,12 +142,17 @@ class ValidationReportBuilder:
     """Mutable helper that allows public reports to remain immutable.
 
     Attributes:
-        errors: Mutable list of hard validation issues collected so far.
-        warnings: Mutable list of warning issues collected so far.
-        invalid_rows: Row identifiers with hard errors.
-        blocked_rows: Row identifiers that should not receive noisy downstream
+        errors:
+            Mutable list of hard validation issues collected so far.
+        warnings:
+            Mutable list of warning issues collected so far.
+        invalid_rows:
+            Row identifiers with hard errors.
+        blocked_rows:
+            Row identifiers that should not receive noisy downstream
             diagnostics.
-        invalid_chains: Diary chain identifiers with suppressed downstream checks.
+        invalid_chains:
+            Diary chain identifiers with suppressed downstream checks.
     """
 
     errors: list[ValidationIssue] = dataclasses.field(default_factory=list)
@@ -157,16 +175,23 @@ class ValidationReportBuilder:
         """Add a hard validation error and optionally block downstream row diagnostics.
 
         Args:
-            code: Stable machine-readable diagnostic code.
-            table: Input table associated with the error.
-            message: Human-readable explanation of the error.
-            row_identifier: Optional row associated with
+            code:
+                Stable machine-readable diagnostic code.
+            table:
+                Input table associated with the error.
+            message:
+                Human-readable explanation of the error.
+            row_identifier:
+                Optional row associated with
                 the error.
-            column: Optional column or column group
+            column:
+                Optional column or column group
                 associated with the error.
-            bad_value: Optional string representation of the
+            bad_value:
+                Optional string representation of the
                 problematic value.
-            suppress_row: Whether later row-level validators skip
+            suppress_row:
+                Whether later row-level validators skip
                 the row after this error.
         """
         self.errors.append(
@@ -198,14 +223,20 @@ class ValidationReportBuilder:
         """Add a methodological or data-quality warning.
 
         Args:
-            code: Stable machine-readable diagnostic code.
-            table: Input table associated with the warning.
-            message: Human-readable explanation of the warning.
-            row_identifier: Optional row associated with
+            code:
+                Stable machine-readable diagnostic code.
+            table:
+                Input table associated with the warning.
+            message:
+                Human-readable explanation of the warning.
+            row_identifier:
+                Optional row associated with
                 the warning.
-            column: Optional column or column group
+            column:
+                Optional column or column group
                 associated with the warning.
-            bad_value: Optional string representation of the
+            bad_value:
+                Optional string representation of the
                 concerning value.
         """
         self.warnings.append(

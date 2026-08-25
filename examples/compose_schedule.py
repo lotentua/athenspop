@@ -22,10 +22,14 @@ def travel_time(origin: str, destination: str, mode: str, departure_second: int)
     """Return a deterministic duration for the self-contained example.
 
     Args:
-        origin: Origin location label.
-        destination: Destination location label.
-        mode: Movement-mode label.
-        departure_second: Candidate departure in seconds from the diary time origin.
+        origin:
+            Origin location label.
+        destination:
+            Destination location label.
+        mode:
+            Movement-mode label.
+        departure_second:
+            Candidate departure in seconds from the diary time origin.
 
     Returns:
         Fifteen minutes for every synthetic movement.

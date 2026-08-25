@@ -4,9 +4,9 @@
 
 """Parse clock-of-day values into normalized integer seconds."""
 
-import collections.abc
 import datetime
-import typing
+from collections.abc import Mapping
+from typing import Final, cast
 
 import numpy as np
 import pandas as pd
@@ -26,11 +26,11 @@ type ClockValue = (
 )
 
 #: Number of fields in an `HH:MM:SS` clock string.
-HH_MM_SS_PARTS: typing.Final[int] = 3
+HH_MM_SS_PARTS: Final[int] = 3
 #: Largest valid hour in a civil-clock value.
-MAX_CLOCK_HOUR: typing.Final[int] = 23
+MAX_CLOCK_HOUR: Final[int] = 23
 #: Largest valid minute or second in a civil-clock value.
-MAX_CLOCK_MINUTE_OR_SECOND: typing.Final[int] = 59
+MAX_CLOCK_MINUTE_OR_SECOND: Final[int] = 59
 
 
 def clock_seconds_from_time_origin(
@@ -41,18 +41,22 @@ def clock_seconds_from_time_origin(
     """Convert a clock value to seconds from a diary time origin.
 
     Args:
-        value: Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime or
+        value:
+            Clock value expressed as `HH:MM`, `HH:MM:SS`, a datetime or
             time object, a timedelta, a pandas temporal value, or integer seconds
             after civil midnight.
-        time_origin_clock: Clock value that defines the diary time origin.
+        time_origin_clock:
+            Clock value that defines the diary time origin.
 
     Returns:
         Integer seconds from the diary time-origin clock, wrapped within one civil
         day.
 
     Raises:
-        TypeError: If a value has an unsupported type or is boolean.
-        ValueError: If a value cannot be represented as whole seconds within one
+        TypeError:
+            If a value has an unsupported type or is boolean.
+        ValueError:
+            If a value cannot be represented as whole seconds within one
             civil day.
     """
     civil_second = _clock_second_of_day(value, parameter_name="value")
@@ -64,26 +68,32 @@ def clock_seconds_from_time_origin(
 
 def convert_clock_columns(
     frame: pd.DataFrame,
-    columns: collections.abc.Mapping[str, str],
+    columns: Mapping[str, str],
     *,
     time_origin_clock: ClockValue = athenspop.time_units.DEFAULT_TIME_ORIGIN_CLOCK,
 ) -> pd.DataFrame:
     """Convert dataframe clock columns to normalized second columns.
 
     Args:
-        frame: Input dataframe containing the source clock columns.
-        columns: Mapping from source clock column names to target
+        frame:
+            Input dataframe containing the source clock columns.
+        columns:
+            Mapping from source clock column names to target
             integer-second column names.
-        time_origin_clock: Clock value that defines the diary time origin.
+        time_origin_clock:
+            Clock value that defines the diary time origin.
 
     Returns:
         Dataframe copy with converted target columns. Missing source values remain
         missing.
 
     Raises:
-        KeyError: If a requested source column is absent.
-        TypeError: If a non-missing value has an unsupported type.
-        ValueError: If a non-missing value is outside the supported clock domain.
+        KeyError:
+            If a requested source column is absent.
+        TypeError:
+            If a non-missing value has an unsupported type.
+        ValueError:
+            If a non-missing value is outside the supported clock domain.
     """
     target_columns = tuple(columns.values())
     if len(target_columns) != len(set(target_columns)):
@@ -104,7 +114,7 @@ def convert_clock_columns(
             else:
                 converted.append(
                     clock_seconds_from_time_origin(
-                        typing.cast("ClockValue", value),
+                        cast("ClockValue", value),
                         time_origin_clock=time_origin_clock,
                     )
                 )

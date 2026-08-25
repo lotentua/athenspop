@@ -45,13 +45,19 @@ class DendrogramLayout:
     """Plotting-ready dendrogram geometry.
 
     Attributes:
-        branch_x: X-coordinates for dendrogram branch polylines.
-        branch_y: Y-coordinates for dendrogram branch polylines.
-        leaf_indices: Original observation indices in dendrogram
+        branch_x:
+            X-coordinates for dendrogram branch polylines.
+        branch_y:
+            Y-coordinates for dendrogram branch polylines.
+        leaf_indices:
+            Original observation indices in dendrogram
             leaf order.
-        leaf_labels: Leaf labels in dendrogram order.
-        branch_colors: Branch color labels produced by SciPy.
-        leaf_colors: Leaf color labels produced by SciPy.
+        leaf_labels:
+            Leaf labels in dendrogram order.
+        branch_colors:
+            Branch color labels produced by SciPy.
+        leaf_colors:
+            Leaf color labels produced by SciPy.
     """
 
     branch_x: BranchCoordinates
@@ -67,23 +73,32 @@ class CutDendrogramNode:
     """One node in a cut dendrogram.
 
     Attributes:
-        members: Original observation indices in the displayed
+        members:
+            Original observation indices in the displayed
             node.
-        height: Raw linkage height for the represented SciPy tree
+        height:
+            Raw linkage height for the represented SciPy tree
             node.
-        normalized_height: `height` divided by the root linkage height.
+        normalized_height:
+            `height` divided by the root linkage height.
             A zero-height root produces zero.
-        order: Horizontal plotting order. Displayed leaves occupy
+        order:
+            Horizontal plotting order. Displayed leaves occupy
             consecutive integer positions, and internal nodes are centered over their
             children.
-        depth: Vertical split-order depth. The root has depth zero,
+        depth:
+            Vertical split-order depth. The root has depth zero,
             and later displayed splits have larger depths.
-        is_leaf: Whether the displayed node is a cut cluster or
+        is_leaf:
+            Whether the displayed node is a cut cluster or
             singleton leaf instead of an expanded internal split.
-        leaf_label: One-based cut-cluster label for displayed
+        leaf_label:
+            One-based cut-cluster label for displayed
             leaves, or it is `None` for expanded internal nodes.
-        left: Left displayed child when the node is expanded.
-        right: Right displayed child when the node is expanded.
+        left:
+            Left displayed child when the node is expanded.
+        right:
+            Right displayed child when the node is expanded.
     """
 
     members: tuple[int, ...]
@@ -117,9 +132,11 @@ def average_linkage(
     """Run average-linkage clustering on a precomputed dissimilarity matrix.
 
     Args:
-        dissimilarity_matrix: Precomputed dissimilarity matrix, which must be square
+        dissimilarity_matrix:
+            Precomputed dissimilarity matrix, which must be square
             and symmetric.
-        optimal_ordering: Whether SciPy reorders leaves to
+        optimal_ordering:
+            Whether SciPy reorders leaves to
             minimize adjacent distances.
 
     Returns:
@@ -138,15 +155,18 @@ def flat_cluster_labels(
     """Extract flat cluster labels from a linkage matrix.
 
     Args:
-        linkage_matrix: SciPy linkage matrix.
-        n_clusters: Positive number of flat clusters to extract.
+        linkage_matrix:
+            SciPy linkage matrix.
+        n_clusters:
+            Positive number of flat clusters to extract.
 
     Returns:
         One positive integer cluster label per original
         observation.
 
     Raises:
-        ValueError: If `n_clusters` is not positive.
+        ValueError:
+            If `n_clusters` is not positive.
     """
     tree = cut_dendrogram_tree(linkage_matrix, n_clusters=n_clusters)
     labels = np.empty(len(tree.members), dtype=np.int64)
@@ -164,7 +184,8 @@ def leaf_order(linkage_matrix: LinkageMatrix) -> LeafOrder:
     """Return the observation index order used by the hierarchical dendrogram leaves.
 
     Args:
-        linkage_matrix: SciPy linkage matrix.
+        linkage_matrix:
+            SciPy linkage matrix.
 
     Returns:
         Integer array of original observation indices in leaf
@@ -182,8 +203,10 @@ def dendrogram_layout(
     """Return plotting-ready dendrogram coordinates without rendering a figure.
 
     Args:
-        linkage_matrix: SciPy linkage matrix.
-        labels: Optional labels for the original observations.
+        linkage_matrix:
+            SciPy linkage matrix.
+        labels:
+            Optional labels for the original observations.
 
     Returns:
         Dendrogram geometry and labels extracted from SciPy
@@ -219,13 +242,15 @@ def cluster_size_summary(labels: Sequence[int]) -> pd.DataFrame:
     """Return one row per cluster with the number and share of assigned observations.
 
     Args:
-        labels: Positive integer cluster labels.
+        labels:
+            Positive integer cluster labels.
 
     Returns:
         Dataframe with `cluster`, `n_observations`, and `share` columns.
 
     Raises:
-        ValueError: If any label is boolean or not
+        ValueError:
+            If any label is boolean or not
             positive.
     """
     label_tuple = _label_tuple(labels)
@@ -252,15 +277,18 @@ def cluster_state_distribution(
     """Return state counts and within-cluster shares for clustered sequences.
 
     Args:
-        sequences: State sequences assigned to clusters.
-        labels: Positive integer cluster labels aligned with `sequences`.
+        sequences:
+            State sequences assigned to clusters.
+        labels:
+            Positive integer cluster labels aligned with `sequences`.
 
     Returns:
         Dataframe with `cluster`, `state`, `count`, and `share`
         columns.
 
     Raises:
-        ValueError: If `sequences` and `labels` have
+        ValueError:
+            If `sequences` and `labels` have
             different lengths or a label is invalid.
     """
     materialized_sequences = athenspop._sequences.materialize_sequences(sequences)
@@ -296,15 +324,18 @@ def cluster_time_distribution(
     """Return temporal state shares by cluster and sequence time bin.
 
     Args:
-        sequences: Equal-length state sequences aligned with `labels`.
-        labels: Positive integer cluster labels aligned with `sequences`.
+        sequences:
+            Equal-length state sequences aligned with `labels`.
+        labels:
+            Positive integer cluster labels aligned with `sequences`.
 
     Returns:
         Dataframe with `cluster`, `bin_index`, `state`,
         `count`, and `share` columns.
 
     Raises:
-        ValueError: If `sequences` and `labels` have
+        ValueError:
+            If `sequences` and `labels` have
             different lengths or the sequences are not equal length.
     """
     materialized_sequences = athenspop._sequences.materialize_equal_length_sequences(
@@ -350,14 +381,17 @@ def cut_dendrogram_tree(
     instead of returning full-dendrogram geometry.
 
     Args:
-        linkage_matrix: SciPy linkage matrix.
-        n_clusters: Requested number of displayed clusters.
+        linkage_matrix:
+            SciPy linkage matrix.
+        n_clusters:
+            Requested number of displayed clusters.
 
     Returns:
         Root node of the displayed cut dendrogram.
 
     Raises:
-        ValueError: If `n_clusters` is not positive or
+        ValueError:
+            If `n_clusters` is not positive or
             `linkage_matrix` is empty.
     """
     validated_linkage = _validate_linkage_matrix(linkage_matrix)
@@ -389,8 +423,10 @@ def cophenetic_correlation(
     """Return the cophenetic correlation with the source dissimilarities.
 
     Args:
-        linkage_matrix: SciPy linkage matrix.
-        dissimilarity_matrix: Original square precomputed
+        linkage_matrix:
+            SciPy linkage matrix.
+        dissimilarity_matrix:
+            Original square precomputed
             dissimilarity matrix.
 
     Returns:

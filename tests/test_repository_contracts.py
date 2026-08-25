@@ -23,6 +23,14 @@ PYTHON_ROOTS: Final[tuple[pathlib.Path, ...]] = (
 )
 #: Standard-library modules that must remain qualified imports.
 MODULE_IMPORT_ONLY_STDLIB_MODULES: Final[frozenset[str]] = frozenset({"math", "random"})
+#: Standard-library typing modules imported through their public symbols.
+SYMBOL_IMPORT_STDLIB_MODULES: Final[frozenset[str]] = frozenset(
+    {"collections.abc", "typing"}
+)
+#: Structured docstring sections whose entries use hanging descriptions.
+STRUCTURED_DOCSTRING_SECTIONS: Final[frozenset[str]] = frozenset(
+    {"Args", "Attributes", "Raises", "Warns"}
+)
 #: Conventional aliases that preserve established third-party notation.
 ALLOWED_MODULE_ALIASES: Final[frozenset[tuple[str, str]]] = frozenset(
     {
@@ -195,6 +203,65 @@ def test_python_files_use_qualified_module_imports() -> None:
                 f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} imports symbols "
                 f"from {node.module}. Import the module and qualify each use."
             )
+
+    assert violations == []
+
+
+def test_python_files_use_symbol_imports_for_typing_contracts() -> None:
+    """Require direct symbol imports from typing and collections.abc."""
+    violations: list[str] = []
+    for path in _python_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Import):
+                continue
+            violations.extend(
+                f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} imports "
+                f"{alias.name} as a module. Import its symbols directly."
+                for alias in node.names
+                if alias.name in SYMBOL_IMPORT_STDLIB_MODULES
+            )
+
+    assert violations == []
+
+
+def test_structured_docstring_descriptions_use_separate_lines() -> None:
+    """Require hanging descriptions for arguments, attributes, and exceptions."""
+    violations: list[str] = []
+    for path in _python_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(
+                node,
+                ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+            ):
+                continue
+            docstring = ast.get_docstring(node, clean=True)
+            if docstring is None:
+                continue
+            lines = docstring.splitlines()
+            for index, line in enumerate(lines):
+                if not line.endswith(":") or (
+                    line[:-1] not in STRUCTURED_DOCSTRING_SECTIONS
+                ):
+                    continue
+                item_index = index + 1
+                while item_index < len(lines) and lines[item_index].strip():
+                    item_line = lines[item_index]
+                    if item_line.startswith("    ") and not item_line.startswith(
+                        "        "
+                    ):
+                        description_index = item_index + 1
+                        if not item_line.endswith(":") or (
+                            description_index >= len(lines)
+                            or not lines[description_index].startswith("        ")
+                        ):
+                            violations.append(
+                                f"{path.relative_to(PROJECT_ROOT)}:"
+                                f"{getattr(node, 'lineno', 1)} "
+                                f"places a {line[:-1]} description on its item line."
+                            )
+                    item_index += 1
 
     assert violations == []
 

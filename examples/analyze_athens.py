@@ -50,7 +50,8 @@ def unit_substitution_cost(
     """Return symmetric unit substitution costs for all observed states.
 
     Args:
-        chains: Symbolic purpose chains that define the cost-mapping states.
+        chains:
+            Symbolic purpose chains that define the cost-mapping states.
 
     Returns:
         Zero diagonal and unit off-diagonal costs.
@@ -69,7 +70,8 @@ def chain_frequency_table(
     """Summarize exact reported purpose-chain frequencies.
 
     Args:
-        chains: Purpose chains counted without imputation or completion.
+        chains:
+            Purpose chains counted without imputation or completion.
 
     Returns:
         Frequencies sorted by decreasing count and then by chain label.
@@ -95,8 +97,10 @@ def illustrative_cluster_labels(
     """Return an explicitly illustrative average-linkage cut of purpose chains.
 
     Args:
-        chains: Reported purpose chains compared by unnormalized optimal matching.
-        n_clusters: Analyst-selected display cut, not an estimated optimum.
+        chains:
+            Reported purpose chains compared by unnormalized optimal matching.
+        n_clusters:
+            Analyst-selected display cut, not an estimated optimum.
 
     Returns:
         One positive cluster label per input chain.
@@ -119,7 +123,8 @@ def plot_chain_frequencies(
     Args:
         frequencies:
             Table returned by `chain_frequency_table`.
-        limit: Maximum rows to display.
+        limit:
+            Maximum rows to display.
 
     Returns:
         Matplotlib figure using the active stylesheet.

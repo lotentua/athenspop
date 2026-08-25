@@ -4,11 +4,11 @@
 
 """Validate sequences for analysis and visualization internals."""
 
-import collections.abc
+from collections.abc import Sequence
 
 
 def materialize_equal_length_sequences(
-    sequences: collections.abc.Sequence[collections.abc.Sequence[str]],
+    sequences: Sequence[Sequence[str]],
 ) -> tuple[tuple[str, ...], ...]:
     """Materialize and validate non-empty equal-length state sequences."""
     materialized = materialize_sequences(sequences)
@@ -19,7 +19,7 @@ def materialize_equal_length_sequences(
 
 
 def materialize_sequences(
-    sequences: collections.abc.Sequence[collections.abc.Sequence[str]],
+    sequences: Sequence[Sequence[str]],
 ) -> tuple[tuple[str, ...], ...]:
     """Materialize and validate non-empty symbolic state sequences."""
     materialized = tuple(tuple(sequence) for sequence in sequences)

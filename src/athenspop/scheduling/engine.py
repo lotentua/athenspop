@@ -73,11 +73,16 @@ class SchedulingIssue:
     """A scheduler diagnostic for one diary or trip.
 
     Attributes:
-        code: Stable machine-readable issue code.
-        message: Explanation of the infeasibility or invalid callable result.
-        household_id: Household containing the affected diary.
-        person_id: Person associated with the affected diary.
-        trip_id: Affected trip, when the diagnostic is trip-specific.
+        code:
+            Stable machine-readable issue code.
+        message:
+            Explanation of the infeasibility or invalid callable result.
+        household_id:
+            Household containing the affected diary.
+        person_id:
+            Person associated with the affected diary.
+        trip_id:
+            Affected trip, when the diagnostic is trip-specific.
     """
 
     code: str
@@ -92,10 +97,14 @@ class SchedulingDiagnostics:
     """Summary of one scheduling pass.
 
     Attributes:
-        attempted_diaries: Number of diaries submitted to the scheduler.
-        scheduled_diaries: Number of diaries returned with concrete schedules.
-        infeasible_diaries: Identifiers for diaries that could not be scheduled.
-        issues: Detailed diagnostics for infeasible diaries.
+        attempted_diaries:
+            Number of diaries submitted to the scheduler.
+        scheduled_diaries:
+            Number of diaries returned with concrete schedules.
+        infeasible_diaries:
+            Identifiers for diaries that could not be scheduled.
+        issues:
+            Detailed diagnostics for infeasible diaries.
     """
 
     attempted_diaries: int
@@ -118,8 +127,10 @@ class ScheduledSurveyDataset:
     """A scheduled survey paired with realization diagnostics.
 
     Attributes:
-        dataset: Survey data containing only successfully scheduled diaries.
-        diagnostics: Counts and issues from the scheduling pass.
+        dataset:
+            Survey data containing only successfully scheduled diaries.
+        diagnostics:
+            Counts and issues from the scheduling pass.
     """
 
     dataset: athenspop.model.survey.SurveyDataset
@@ -136,10 +147,14 @@ def schedule_once(
     """Realize one concrete schedule from a validated survey dataset.
 
     Args:
-        dataset: Trusted survey data produced by validation or model loading.
-        seed: Optional seed for repeatable uniform departure draws.
-        config: Scheduling policy; omit to use the default policy.
-        travel_time_function: Optional callable returning positive integer travel
+        dataset:
+            Trusted survey data produced by validation or model loading.
+        seed:
+            Optional seed for repeatable uniform departure draws.
+        config:
+            Scheduling policy; omit to use the default policy.
+        travel_time_function:
+            Optional callable returning positive integer travel
             seconds for trips whose duration is not already concrete.
             When callable departure-window refinement is enabled, this function must
             make departure second plus travel time monotone nondecreasing over each
