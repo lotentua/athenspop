@@ -22,8 +22,24 @@ author = "Theodore Chatziioannou and National Technical University of Athens"
 extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+]
+
+#: Official object inventories used to link external types in API signatures.
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+}
+
+#: NumPy scalar types that are absent from its published object inventory.
+nitpick_ignore = [
+    ("py:class", "numpy.float64"),
+    ("py:class", "numpy.int64"),
 ]
 
 #: File extensions treated as documentation sources.

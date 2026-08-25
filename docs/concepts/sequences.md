@@ -1,54 +1,72 @@
 # Sequences and clustering
 
-Scheduled diaries can be represented as continuous episodes or fixed-interval symbolic sequences. The state vocabulary, observation window, interval width, edit costs, and cluster cut are analytical choices. They should be declared with the result because each choice can change the comparison.
+A scheduled diary says exactly when activities and trips occur. Sequence analysis offers a different view: it turns the day into an ordered series of symbolic states so that timing patterns can be compared across diaries.
 
-## Episodes and intervals
+That conversion is useful, but it is not neutral. The observation window, interval width, state vocabulary, edit costs, and cluster cut all influence the result. `athenspop` keeps those choices as function arguments so an analysis can report and vary them.
 
-`athenspop.sequence.episodes.episodes_from_diary` partitions an observation window into half-open activity and travel episodes $[s,e)$. The initial activity state covers the time before the first trip. Each trip contributes a travel state, and its destination purpose becomes the next activity state. The default travel label is `trip_{mode}`, which keeps movement labels distinct from activity labels.
+## From a schedule to episodes
 
-`athenspop.sequence.episodes.discretize_episodes` assigns each fixed-width interval to the state with the greatest total overlap. If several states have equal overlap, the state whose first contributing episode begins earliest wins. The last interval may be shorter when the window duration is not divisible by the interval width.
+{py:func}`athenspop.sequence.episodes.episodes_from_diary` divides the observation window into continuous activity and travel episodes. The state before the first trip is supplied by the caller. Every trip contributes a travel episode, and its destination purpose becomes the next activity.
 
-Short intervals preserve more temporal detail and produce longer sequences. Long intervals reduce temporal resolution and computation. The package does not choose a resolution from the data.
+For a home-to-work bus trip, a simple state history might look like:
 
-## Optimal-matching dissimilarity
+```text
+home | trip_bus | work | trip_bus | home
+```
 
-For sequences $x=(x_1,\ldots,x_n)$ and $y=(y_1,\ldots,y_m)$, `athenspop.sequence.distance.optimal_matching_dissimilarity` uses the Wagner-Fischer dynamic program. Let $D_{i,j}$ be the minimum edit cost between the first $i$ and $j$ states, let $g>0$ be the insertion/deletion cost, and let $c(x_i,y_j)\ge0$ be the substitution cost. The boundary conditions are
+Activity and travel labels remain distinct because the default travel label begins with `trip_`. A caller can provide another labeling function when mode, occupancy, or a coarser movement category better suits the analysis.
 
-$$
-D_{i,0}=ig, \qquad D_{0,j}=jg,
-$$
+Episodes use half-open intervals: a state includes its start time and excludes its end time. Adjacent episodes therefore meet at one boundary without overlapping.
 
-and the recurrence is
+## Choosing a temporal resolution
 
-$$
-D_{i,j}=\min\begin{cases}
-D_{i-1,j}+g,\\
-D_{i,j-1}+g,\\
-D_{i-1,j-1}+c(x_i,y_j).
-\end{cases}
-$$
+Most distance and clustering operations work on equal-width sequence bins rather than continuous episodes. {py:func}`athenspop.sequence.episodes.discretize_episodes` assigns each bin to the state that occupies the largest share of that interval. If two states occupy equal time, the state that begins first wins.
 
-The returned dissimilarity is $D_{n,m}$. Identical states have zero substitution cost. Pairwise matrices require symmetric costs because the output is a symmetric dissimilarity matrix. The implementation does not normalize by sequence length, so longer sequences can admit larger values under the same costs. The recurrence follows Wagner and Fischer's minimum-cost edit formulation [1].
+A 15-minute interval can preserve a short trip that a one-hour interval may absorb into the surrounding activity. Shorter intervals retain more temporal detail and create longer sequences; longer intervals are cheaper to compare and emphasize broad daily structure.
 
-## Average-linkage clustering
+There is no universally correct interval. Choose it in relation to the precision of the source times and the behavior the analysis needs to distinguish. Song and colleagues demonstrate this representation for activity-travel data and examine sensitivity to sampling intervals and cost schemes in [Visualizing, clustering, and characterizing activity-trip sequences](https://doi.org/10.1016/j.trc.2021.103007).
 
-`athenspop.clustering.hierarchical.average_linkage` converts a validated square dissimilarity matrix to SciPy's condensed form and performs agglomerative average linkage. For clusters $U$ and $V$, the inter-cluster dissimilarity is
+{py:func}`athenspop.sequence.episodes.state_sequence_from_diary` combines episode construction and discretization for the common case.
 
-$$
-d(U,V)=\frac{1}{|U||V|}\sum_{u\in U}\sum_{v\in V}d(u,v).
-$$
+## Comparing two sequences
 
-At each step, the algorithm merges a pair with minimum current inter-cluster dissimilarity. SciPy documents that tied minima can be resolved differently from some other implementations [2]. `optimal_ordering=True` changes leaf order for display. It does not change cluster membership or merge heights.
+Optimal matching asks for the cheapest way to transform one sequence into another using three operations:
 
-`flat_cluster_labels` cuts the hierarchy to an analyst-specified number of displayed clusters. That number is not estimated as an optimum. `cophenetic_correlation` measures the correlation between source dissimilarities and the hierarchy's cophenetic distances when both vary, but a high value alone does not establish an interpretable or substantively useful cut.
+- insert a state;
+- delete a state; or
+- substitute one state for another.
 
-## Summaries and visualization
+The insertion and deletion cost controls how readily the comparison shifts events in time. Substitution costs express which state differences matter. Treating `work` and `education` as closer than `work` and `trip_car`, for example, requires a smaller substitution cost for the first pair.
 
-`cluster_size_summary` counts observations. `cluster_state_distribution` counts all state tokens, so longer sequences contribute more tokens when sequence lengths differ. `cluster_time_distribution` requires equal-length sequences and reports within-cluster state shares at each bin.
+{py:func}`athenspop.sequence.distance.optimal_matching_dissimilarity` returns the minimum total edit cost. {py:func}`athenspop.sequence.distance.dissimilarity_matrix` applies the comparison to every pair and requires symmetric substitution costs because its output is a symmetric matrix.
 
-`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution` returns a Matplotlib figure with a normalized-height cut tree and aligned temporal state-share panels for the cut clusters. Dimensions, typography, default colors, tree-line width, and unspecified styling inherit the active Matplotlib stylesheet. Quantitative axes and bar geometry remain fixed. Optional style values are limited to a title and explicit state groups, colors, or labels. The caller owns display context, export format, and accessibility checks for any custom palette.
+The package does not estimate the costs or normalize the result by sequence length. Those choices change the meaning of distance and should be justified by the analysis. Abbott and Tsay's review, [Sequence Analysis and Optimal Matching Methods in Sociology](https://doi.org/10.1177/0049124100029001001), discusses coding, cost setting, temporality, and interpretation. The exact dynamic-programming recurrence appears in the [method reference](../reference/methods.md#optimal-matching).
 
-## References
+## From distances to a hierarchy
 
-1. R. A. Wagner and M. J. Fischer present the recurrence in [The string-to-string correction problem](https://doi.org/10.1145/321796.321811), published in *Journal of the ACM*, 21(1), 168-173 (1974).
-2. The SciPy community documents its linkage implementation in the [hierarchical clustering linkage reference](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html).
+{py:func}`athenspop.clustering.hierarchical.average_linkage` begins with one cluster per diary. At every step, it joins the two clusters with the smallest mean pairwise dissimilarity between their members. The process continues until all observations belong to one hierarchy.
+
+Average linkage creates the hierarchy; it does not decide where to cut it. {py:func}`athenspop.clustering.hierarchical.flat_cluster_labels` and {py:func}`athenspop.clustering.hierarchical.cut_dendrogram_tree` use a cluster count supplied by the analyst. A useful analysis treats that count as a decision to examine, not as a population fact.
+
+{py:func}`athenspop.clustering.hierarchical.cophenetic_correlation` measures how closely the tree's cophenetic distances preserve the input dissimilarities. It can reveal a poorly fitting hierarchy, but it does not select a cluster count or establish that the clusters are meaningful.
+
+SciPy's [linkage documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html) describes the underlying linkage matrix, tie behavior, and computational characteristics.
+
+## Summarizing and visualizing a cut
+
+The clustering module provides three complementary summaries:
+
+- {py:func}`athenspop.clustering.hierarchical.cluster_size_summary` counts observations in each cluster;
+- {py:func}`athenspop.clustering.hierarchical.cluster_state_distribution` counts state tokens; and
+- {py:func}`athenspop.clustering.hierarchical.cluster_time_distribution` reports state shares at each aligned sequence bin.
+
+{py:func}`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution` combines a normalized-height cut tree with the temporal state shares of its displayed clusters. It fixes the quantitative axes and unit-width bar geometry, while dimensions, typography, default colors, tree-line width, and other presentation choices follow the active Matplotlib configuration.
+
+The [synthetic workflow](../workflows/compose_schedule.md) shows the complete composition. The [Athens workflow](../workflows/athens_analysis.md) demonstrates a deliberately exploratory use of purpose chains and explains why unit costs and a chosen cluster count are only a starting point.
+
+## Further reading
+
+- Wagner and Fischer define the minimum-cost string edit recurrence in [The string-to-string correction problem](https://doi.org/10.1145/321796.321811).
+- Abbott and Tsay review optimal matching as a method for social sequence analysis in [Sequence Analysis and Optimal Matching Methods in Sociology](https://doi.org/10.1177/0049124100029001001).
+- Song and colleagues apply interval-based state sequences and weighted alignment to activity-travel diaries in [Visualizing, clustering, and characterizing activity-trip sequences](https://doi.org/10.1016/j.trc.2021.103007).
+- The SciPy documentation specifies the package behavior used for [hierarchical linkage](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html).

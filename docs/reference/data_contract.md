@@ -1,66 +1,78 @@
 # Data contract
 
-`athenspop` defines a generic dataframe boundary and additional semantics for the released Athens tables. The validator accepts pandas dataframes. File format, source-system parsing, category harmonization, clock-rollover handling, and disclosure control belong before this boundary.
+This page is the field-level reference for {py:func}`athenspop.validation.schema.validate_dataframes` and {py:meth}`athenspop.model.survey.SurveyDataset.from_dataframes`. For an explanation of the model and validation workflow, read [Data model and validation](../concepts/data_model.md).
 
-## Generic trip fields
+## Trip table
 
-| Field | Requirement | Type and rule |
+The trip table is required and contains one row per movement.
+
+| Field | Required | Accepted value |
 | --- | --- | --- |
-| `household_id` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `person_id` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `trip_id` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. The value must be unique with the household and person keys. |
-| `origin` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `destination` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `purpose` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `mode` | Yes | The validator normalizes this nonmissing scalar to a nonempty string. |
-| `trip_sequence` | Conditional | A unique nonnegative integer within a diary. Required when distinct concrete departures do not establish order. |
-| `departure_second` | Pattern-dependent | The value must be a nonnegative integer second from the diary time origin. |
-| `arrival_second` | Pattern-dependent | The value must be a nonnegative integer second that occurs strictly after its concrete departure. |
-| `travel_time_seconds` | Pattern-dependent | The value must be a positive integer duration. |
-| `earliest_departure_second` | Pattern-dependent | The value is an inclusive nonnegative integer lower bound. |
-| `latest_departure_second` | Pattern-dependent | The value is an inclusive nonnegative integer upper bound that cannot be below the earliest bound. |
+| `household_id` | Yes | Nonmissing scalar normalized to a nonempty string |
+| `person_id` | Yes | Nonmissing scalar normalized to a nonempty string |
+| `trip_id` | Yes | Nonmissing scalar normalized to a nonempty string; unique within household and person |
+| `origin` | Yes | Nonmissing scalar normalized to a nonempty string |
+| `destination` | Yes | Nonmissing scalar normalized to a nonempty string |
+| `purpose` | Yes | Nonmissing scalar normalized to a nonempty string |
+| `mode` | Yes | Nonmissing scalar normalized to a nonempty string |
+| `trip_sequence` | Conditional | Unique nonnegative integer within a diary; required unless distinct concrete departures establish order |
+| `departure_second` | Pattern-dependent | Nonnegative integer second from the diary origin |
+| `arrival_second` | Pattern-dependent | Nonnegative integer later than its concrete departure |
+| `travel_time_seconds` | Pattern-dependent | Positive integer duration |
+| `earliest_departure_second` | Pattern-dependent | Inclusive nonnegative integer lower bound |
+| `latest_departure_second` | Pattern-dependent | Inclusive nonnegative integer upper bound no earlier than the lower bound |
 
-See [Data model and validation](../concepts/data_model.md#timing-patterns) for the five permitted timing combinations. `earliest_arrival_second` and `latest_arrival_second` are rejected because arrival windows are not a supported scheduling input.
+Boolean values are rejected for integer time and sequence fields.
 
-Extra trip, person, and household columns may contain strings, integers, floats, booleans, NumPy equivalents, or missing values. Nested objects and other nonscalar values are rejected.
+### Valid timing combinations
 
-## Generic metadata tables
+Each trip must match exactly one row in this table. Timing fields not listed for that row must be absent or missing.
 
-`persons` requires `household_id` and `person_id`. `households` requires `household_id`. Their remaining scalar columns are preserved without assigning package-level meaning. The optional tables are relational metadata, not a requirement that every survey use household sampling.
+| Pattern | `departure_second` | `arrival_second` | `travel_time_seconds` | Departure bounds |
+| --- | :---: | :---: | :---: | :---: |
+| Concrete interval | Yes | Yes | No | No |
+| Concrete departure and duration | Yes | No | Yes | No |
+| Concrete departure and resolver | Yes | No | No | No |
+| Departure window and duration | No | No | Yes | Both |
+| Departure window and resolver | No | No | No | Both |
 
-## Released Athens tables
+The resolver patterns require a travel-time function during scheduling. Arrival windows are not supported; `earliest_arrival_second` and `latest_arrival_second` are rejected.
 
-The processed release is stored under `data/athens` and licensed separately under CC BY 4.0 International. Its complete field dictionary, privacy transformation, integrity hashes, and attribution text are in the [dataset README](https://github.com/lotentua/athenspop/blob/v2/data/athens/README.md).
+## Person and household tables
+
+The optional person table requires `household_id` and `person_id`. The optional household table requires `household_id`. Keys must be unique at their table level, and all supplied references must resolve.
+
+Additional columns in any table may contain strings, integers, floats, booleans, corresponding NumPy scalar values, or missing values. The normalized model preserves them as immutable metadata. Nested containers and other nonscalar values are rejected.
+
+## Diary-level checks
+
+Rows are grouped by household and person, then ordered by `trip_sequence` or by distinct concrete departures. Validation applies these diary checks:
+
+- duplicate sequence values are errors;
+- overlapping concrete trips are errors;
+- a trip origin that differs from the previous destination is a warning; and
+- joins to supplied person and household tables must resolve.
+
+Validation collects independent issues where possible. Errors prevent normalized tables; warnings do not. See the [validation API](../api/validation.md) for the report and issue objects.
+
+## Released Athens data
+
+The processed tables under `data/athens` implement the same generic contract:
 
 | File | Rows | Observation unit |
 | --- | ---: | --- |
-| `households.csv` | 513 | Each row is one structural grouping record for a respondent. |
-| `persons.csv` | 513 | Each row represents one respondent. |
-| `trips.csv` | 1,347 | Each row represents one reported trip. |
+| `households.csv` | 513 | One synthetic structural grouping per respondent |
+| `persons.csv` | 513 | One respondent |
+| `trips.csv` | 1,347 | One reported trip |
 
-Each synthetic household key contains one respondent. It cannot measure household composition. Zone values are synthetic labels from `z001` through `z036` without a geographic crosswalk.
+The complete field dictionary, controlled categories, missing-value counts, privacy transformation, hashes, and attribution are maintained in the [dataset README](https://github.com/lotentua/athenspop/blob/v2/data/athens/README.md).
 
-The person table uses controlled snake-case categories:
+### Athens timing transformation
 
-- `gender` accepts `female`, `male`, or a missing value.
-- `age_group_years` accepts `18_to_30`, `31_to_40`, `41_to_50`, `51_to_65`, `66_or_older`, or a missing value.
-- `education_level` accepts `primary_school`, `secondary_school`, `bachelors_degree`, `masters_or_doctoral_degree`, or a missing value.
-- `employment_status` accepts `employed`, `unemployed`, `student`, `not_in_labor_force`, or a missing value.
-- `monthly_income_eur_band` accepts `no_income`, `up_to_750_eur`, `750_to_1500_eur`, `1500_to_2500_eur`, `2500_eur_or_more`, or a missing value.
-- `owns_car` contains a Boolean value.
+The source survey recorded an integer clock hour. Hour `h` becomes an inclusive departure window from second `3600h` through second `3600(h + 1) - 1`. When the next reported hour is earlier than the preceding hour, the transformation adds one day to that trip and the trips that follow. This preserves reported order across midnight without claiming that the diary covers several observed days.
 
-The source income labels did not define shared band endpoints. The normalized labels preserve that unresolved boundary rather than implying a precise continuous-income interval.
+The release contains no travel durations, routes, or geographic zone crosswalk. Scheduling these records therefore requires a user-supplied travel-time function. Same-zone movements remain trips, and no return-home trip is added.
 
-The maintainers recorded the deterministic source-to-release mapping summarized here. Raw source files and preprocessing code are outside the public release. Female and male responses retain those labels. Exact adult ages become the five documented age bands; three values below 18 and four missing responses become missing. Primary school, high school, bachelor's degree, and master's or doctoral degree map to the four education labels in order. Active employment, unemployment, student, and inactive status map to `employed`, `unemployed`, `student`, and `not_in_labor_force`. The five source income responses map to the five released income labels in ascending order. Yes and no car-ownership responses become Boolean values. All missing optional responses remain missing.
+## Clock conversion
 
-## Athens timing transformation
-
-A reported integer clock hour $h$ becomes the inclusive interval
-
-$$
-[3600h,\ 3600(h+1)-1].
-$$
-
-Within a respondent's order, 86,400 seconds are added whenever the next clock hour is lower than the previous hour. This transformation preserves order across clock rollovers. It does not establish elapsed multi-day observation. The release supplies neither durations nor routes, so scheduling it requires a user-defined travel-time function.
-
-No return-home trip is added. A same-zone movement remains a trip and does not imply zero travel time. Users should preserve these distinctions when deriving analysis tables.
+{py:func}`athenspop.io.clock.convert_clock_columns` converts civil clock columns before validation. The default diary origin is 03:00. A clock value earlier than the origin wraps once into the following civil day. The [input conversion API](../api/io.md) lists accepted clock types and exceptions.

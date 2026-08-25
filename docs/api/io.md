@@ -1,6 +1,8 @@
 # Input conversion API
 
-Input helpers convert civil clock values and dataframe columns to integer seconds from a selected diary time origin. File parsing remains with pandas or the caller's storage layer.
+The input helpers convert civil clock values and dataframe columns into integer seconds from a chosen diary origin. Parsing CSV, database, or other storage formats remains the caller's responsibility.
+
+See [Clock conversion](../reference/data_contract.md#clock-conversion) for the diary-origin and rollover rules.
 
 ```{eval-rst}
 .. automodule:: athenspop.io.clock

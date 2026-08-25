@@ -1,11 +1,14 @@
 # Validation API
 
-Validation collects schema, key, join, timing, and diary-chain diagnostics before model construction. Errors prevent normalized tables. Warnings preserve a usable result while identifying a material data-quality condition.
+Validation checks schema, keys, joins, timing combinations, and diary continuity before model construction. It collects independent issues so an interface can present more than the first error.
+
+Errors prevent normalized tables. Warnings preserve a usable result while identifying a condition that may affect analysis. See [Inspect problems before building a model](../concepts/data_model.md#inspect-problems-before-building-a-model) for a complete example.
 
 ```{eval-rst}
 .. automodule:: athenspop.validation.schema
-   :members: NormalizedTables, ValidationResult, validate_dataframes
+   :members: IntegerSecondValue, NormalizedTables, ScalarValue,
+             ValidationResult, validate_dataframes
 
 .. automodule:: athenspop.validation.report
-   :members: ValidationError, ValidationIssue, ValidationReport
+   :members: Severity, ValidationError, ValidationIssue, ValidationReport
 ```

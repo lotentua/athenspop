@@ -1,6 +1,8 @@
 # Visualization API
 
-Visualization returns Matplotlib figures without writing files. The temporal dendrogram combines a normalized-height cut tree with aligned state-share axes for each cut cluster. Dimensions, typography, default colors, tree-line width, and unspecified styling inherit the active stylesheet. Quantitative axes and bar geometry remain fixed so the display preserves its meaning.
+The temporal dendrogram places a normalized-height cut tree above aligned state-share panels. Quantitative axes and unit-width bar geometry are fixed; dimensions, typography, default colors, tree-line width, and other presentation choices follow Matplotlib configuration.
+
+The function returns a Matplotlib figure and never writes a file. See [Summarizing and visualizing a cut](../concepts/sequences.md#summarizing-and-visualizing-a-cut) and the [synthetic workflow](../workflows/compose_schedule.md) for context.
 
 ```{eval-rst}
 .. automodule:: athenspop.visualization.dendrogram

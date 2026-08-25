@@ -1,84 +1,47 @@
-# Scheduling
+# Scheduling departure windows
 
-Scheduling realizes concrete departure and arrival seconds while preserving each validated diary's order and timing constraints. The operation is conditional on the supplied diary, policy, travel-time information, and random seed.
+A reported departure window says when a trip may begin, not when it did begin. Choosing a time independently for every trip can produce an impossible day: an early trip may arrive too late for a later fixed departure, or a late draw may leave less than the required activity time between trips.
 
-## Constraint system
+{py:func}`athenspop.scheduling.engine.schedule_once` avoids that problem by looking ahead before it draws any uncertain departure. It first works backward to discover how late each trip may leave, then works forward to choose departures and calculate arrivals.
 
-For trip $i$, let $d_i$ be its departure second, $a_i$ its arrival second, $[e_i,l_i]$ an applicable inclusive departure window, $t_i(d_i)$ its positive travel time, $m$ the minimum activity duration, and $H$ the observation-window end. A feasible realization satisfies the applicable constraints
+## The constraints in everyday terms
 
-$$
-e_i \le d_i \le l_i,
-$$
+Every scheduled diary preserves four kinds of information:
 
-$$
-a_i = d_i + t_i(d_i),
-$$
+- a concrete departure stays fixed, while a departure window remains inclusive at both ends;
+- arrival equals departure plus a positive travel duration;
+- each trip starts after the preceding trip has arrived and the minimum activity duration has elapsed; and
+- departures and arrivals stay inside the observation window unless the scheduling policy explicitly permits an exception.
 
-$$
-d_i \ge a_{i-1} + m \quad \text{for } i > 1.
-$$
+These rules come from the validated diary and {py:class}`athenspop.scheduling.engine.SchedulingConfig`. The scheduler does not add missing trips, change trip order, or infer a travel time when neither a fixed duration nor a travel-time function is available.
 
-By default, each departure and arrival must also satisfy $d_i \le H$ and $a_i \le H$. `allow_trips_after_observation_window` removes both horizon restrictions. `allow_final_trip_after_observation_window` permits only the final arrival to exceed $H$; the final departure must still occur by $H$.
+## Why scheduling needs a backward pass
 
-Concrete departures remain fixed. Window departures are drawn uniformly from the integer seconds that remain after the previous-arrival, successor, and horizon bounds are applied.
+Consider two 20-second trips. The first may depart between second 0 and second 100. The second may depart between second 90 and second 120. At least 10 seconds of activity must separate the first arrival from the second departure.
+
+The second trip can leave as late as second 120. Working backward, the first trip must therefore arrive by second 110, which means it must depart by second 90. Its reported window ended at second 100, but only the range from 0 through 90 can lead to a feasible continuation.
 
 ```{figure} ../_static/scheduling-flow.svg
-:alt: Two interval diagrams show a reverse pass tightening latest departures from right to left and a forward pass raising earliest departures from left to right.
+:alt: The reverse panel removes the end of the first departure window because the trip must arrive before the second trip. The forward panel removes the beginning of the second window after the first arrival is known.
 
-Reverse and forward scheduling passes for a two-trip diary. Shaded interval segments are removed by propagated constraints; points mark one valid realization.
+The reverse pass tightens latest departures from right to left. The forward pass then raises earliest departures from left to right and realizes one schedule.
 ```
 
-## Reverse bounds and forward realization
+This look-ahead is the main reason for the two-pass design. Without it, a valid but late first draw could make the second trip fail even though an earlier first departure would have produced a feasible diary.
 
-Let $E_i$ and $L_i$ denote trip $i$'s own inclusive departure bounds. A fixed departure has $E_i=L_i$. A reported window supplies both values, with $L_i$ capped by $H$ unless the policy permits every trip to exceed the observation window.
+## What happens in each pass
 
-The reverse pass visits trips from $n$ to $1$ and computes a latest admissible departure $B_i$. It begins with $B_i=L_i$. When a successor exists, the current trip must arrive by
+The reverse pass starts at the last trip. For each trip, it combines the trip's own latest departure with any limit imposed by the observation window and the next trip. When duration is fixed, the calculation subtracts the travel duration and minimum activity duration from the next latest departure. When duration depends on departure time, the scheduler can search the window for the latest departure that still arrives in time.
 
-$$
-C_i = B_{i+1} - m.
-$$
+The forward pass starts at the first trip. It raises the current earliest departure when the preceding realized arrival and minimum activity duration require a later start. It then draws an integer second from the remaining interval, calculates arrival, and carries that arrival into the next trip.
 
-The observation horizon contributes another arrival target when the current uncertain trip must arrive by $H$. When both targets apply, $C_i$ is their minimum. For a known duration $\tau_i$,
+A fixed departure is checked against the same forward and reverse limits but is never redrawn. If an interval becomes empty, the diary is infeasible under the supplied inputs and policy.
 
-$$
-B_i = \min\left(L_i, C_i - \tau_i\right).
-$$
+The [method reference](../reference/methods.md#schedule-realization) gives the exact recurrence for readers implementing or auditing the algorithm.
 
-For a deterministic FIFO travel-time function with arrival function $A_i(d)=d+t_i(d)$, bisection instead finds the greatest integer $d\in[E_i,L_i]$ satisfying
+## Time-dependent travel times
 
-$$
-A_i(d) \le C_i.
-$$
-
-That value caps $B_i$. A bound below $E_i$ leaves an empty interval, which the forward pass reports as infeasible.
-
-The forward pass visits trips from $1$ to $n$. Its lower bound comes from the preceding realized arrival:
-
-$$
-F_1=0,
-\qquad
-F_i=a_{i-1}+m \quad \text{for } i>1.
-$$
-
-For an uncertain departure, the scheduler draws uniformly over the inclusive integers
-
-$$
-d_i \sim \operatorname{Uniform}_{\mathbb Z}
-\left[
-\max(E_i,F_i),
-\min(L_i,B_i,H_d)
-\right],
-$$
-
-where $H_d$ is omitted only when departures after the observation window are allowed. It then evaluates $a_i=d_i+t_i(d_i)$ and uses that realized arrival to raise the next trip's lower bound. A fixed departure is accepted only when it lies between the applicable forward and reverse bounds.
-
-The figure uses $H=140$, $m=10$, and two 20-second trips with windows $[0,100]$ and $[90,120]$. The reverse pass gives $B_2=120$ and tightens $B_1$ to $90$. The illustrated forward draw chooses $d_1=80$, so $a_1=100$ raises the second lower bound from $90$ to $110$.
-
-This procedure prevents an early unconstrained draw from making a later trip infeasible when the scheduler can derive a tighter bound. It does not sample uniformly from the joint set of all feasible diary schedules. Repeated results from `athenspop.generation.schedules.generate_schedules` are conditional realizations of the same records, not new respondents or population replicates.
-
-## Travel-time functions
-
-A travel-time function has the contract
+A travel-time function receives the origin, destination, mode, and candidate departure second, then returns a positive integer duration:
 
 ```python
 def travel_time(
@@ -87,24 +50,33 @@ def travel_time(
     mode: str,
     departure_second: int,
 ) -> int:
-    """Return a positive integer travel duration in seconds."""
+    """Return a positive travel duration in seconds."""
 ```
 
-The scheduler validates each returned value. The callable can be stored on `SurveyDataset` or passed to `athenspop.scheduling.engine.schedule_once`, where the explicit argument takes precedence.
+Store the function on {py:class}`athenspop.model.survey.SurveyDataset` when it belongs to the dataset, or pass it directly to {py:func}`athenspop.scheduling.engine.schedule_once` for one call. The explicit argument takes precedence.
 
-The default `refine_callable_departure_windows=True` setting uses bisection to tighten a callable trip against a later arrival bound. This refinement requires a deterministic first-in, first-out callable over the searched window:
+By default, the reverse pass uses bisection to tighten windows with time-dependent durations. This search assumes deterministic first-in, first-out behavior: leaving later may produce the same arrival time or a later one, but never an earlier arrival. This is the standard FIFO property for time-dependent transportation networks; Brian Dean's report [Shortest Paths in FIFO Time-Dependent Networks](https://people.csail.mit.edu/bdean/tdsp.pdf) gives a broader treatment.
 
-$$
-d_1 \le d_2 \implies d_1 + t(d_1) \le d_2 + t(d_2).
-$$
+Disable callable refinement with `refine_callable_departure_windows=False` when the function does not satisfy that property. The scheduler will still evaluate the function at each selected departure. It simply cannot rule out every future conflict in advance, so one failed draw does not prove that all departures in the original window would fail.
 
-Disable refinement when that condition is not defensible. The scheduler will still evaluate the callable at the selected departure, but its reverse bound may then be only partially tightened. A failed draw in that mode does not prove that no other departure could produce a feasible diary.
+## Reproducibility and repeated schedules
 
-## Results and failures
+Window departures are uniform over the integer interval that remains when their turn is reached. They are not sampled uniformly from the set of complete feasible diaries. Earlier draws change the intervals available to later trips.
 
-`athenspop.scheduling.engine.schedule_once` does not mutate the input. It returns `ScheduledSurveyDataset`, which contains:
+Pass a seed to {py:func}`athenspop.scheduling.engine.schedule_once` for a reproducible realization. Use {py:func}`athenspop.generation.schedules.generate_schedules` to create several seeded realizations of the same validated records. Those outputs explore timing uncertainty in the supplied diaries; they are not additional respondents or population replicates.
 
-- `dataset` contains only diaries scheduled successfully, with matching person and household metadata.
-- `diagnostics` reports attempted and successful counts, infeasible diary identifiers, and structured issues.
+## Read the result before continuing
 
-The scheduler stops a diary at its first infeasibility. Inspect `diagnostics.has_errors` before treating the returned dataset as a complete realization of the input sample.
+Scheduling never mutates its input. The returned {py:class}`athenspop.scheduling.engine.ScheduledSurveyDataset` separates successful diaries from {py:class}`athenspop.scheduling.engine.SchedulingDiagnostics`.
+
+```python
+result = athenspop.scheduling.engine.schedule_once(diaries, seed=2026)
+
+if result.diagnostics.has_errors:
+    for issue in result.diagnostics.issues:
+        print(issue.diary_key, issue.code, issue.message)
+else:
+    continue_analysis(result.dataset)
+```
+
+The scheduler stops each diary at its first infeasibility. Check the diagnostics before treating the scheduled dataset as a complete realization of the input sample.

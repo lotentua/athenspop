@@ -1,72 +1,98 @@
 # Explore the released Athens diaries
 
-This workflow describes exact purpose-chain frequencies in the released processed Athens tables. It then shows how an analyst can compose optimal matching and average linkage as an explicitly exploratory extension. The executable source is [`examples/analyze_athens.py`](https://github.com/lotentua/athenspop/blob/v2/examples/analyze_athens.py).
+What journeys did respondents report, and which purpose chains occurred most often? This workflow answers those questions directly from the processed Athens tables before showing how the same chains can feed an exploratory sequence hierarchy.
 
-The release contains 1,347 reported trips from 513 respondents. It contains no routes, distances, or travel durations. The analysis therefore uses reported purpose order and does not require a routing product.
+The release contains 1,347 reported trips from 513 respondents. It contains purpose, mode, broad departure windows, and standardized demographic fields, but no routes, distances, travel durations, or geographic crosswalk. Purpose order is therefore the strongest self-contained signal for this example.
 
-## 1. Load validated purpose chains
+The executable analysis is [`examples/analyze_athens.py`](https://github.com/lotentua/athenspop/blob/v2/examples/analyze_athens.py).
+
+## 1. Load purpose chains
+
+The loader reads all three CSV files and passes them through {py:meth}`athenspop.model.survey.SurveyDataset.from_dataframes`. It then extracts destination purposes in validated trip order.
 
 ```{literalinclude} ../../examples/analyze_athens.py
 :language: python
 :pyobject: load_purpose_chains
 ```
 
-The three CSV files pass through the same dataframe validation boundary as user data. The returned sequence for each respondent contains destination-purpose labels in reported trip order.
+The result contains one tuple per respondent. A two-trip commute, for example, appears as `("work", "home")`.
 
-## 2. Count exact chains
+## 2. Count exact patterns
+
+Before introducing a distance metric or cluster model, count the chains exactly:
 
 ```{literalinclude} ../../examples/analyze_athens.py
 :language: python
 :pyobject: chain_frequency_table
 ```
 
-The 513 respondents produce 144 distinct ordered purpose chains. The twelve most frequent chains are:
+The 513 respondents reported 144 distinct chains. The most frequent was work followed by home, reported by 100 respondents. Work followed by work was second with 42.
 
 | Purpose chain | Respondents |
 | --- | ---: |
-| `work -> home` | 100 |
-| `work -> work` | 42 |
-| `recreation -> home` | 24 |
-| `recreation -> recreation` | 17 |
-| `other -> home` | 15 |
-| `education -> home` | 14 |
-| `work -> home -> recreation` | 14 |
-| `work -> recreation` | 13 |
-| `work -> home -> recreation -> home` | 10 |
-| `work -> work -> home` | 10 |
-| `work -> work -> recreation` | 10 |
-| `work -> market` | 9 |
+| `work → home` | 100 |
+| `work → work` | 42 |
+| `recreation → home` | 24 |
+| `recreation → recreation` | 17 |
+| `other → home` | 15 |
+| `education → home` | 14 |
+| `work → home → recreation` | 14 |
+| `work → recreation` | 13 |
+| `work → home → recreation → home` | 10 |
+| `work → work → home` | 10 |
+| `work → work → recreation` | 10 |
+| `work → market` | 9 |
 
 ```{figure} ../_static/athens-chain-frequencies.svg
-:alt: Horizontal bars show the twelve most frequent reported purpose chains. Work followed by home has 100 respondents, and work followed by work has 42. Every other displayed count is 24 or fewer.
+:alt: Horizontal bars rank the twelve most frequent reported purpose chains. Work then home has 100 respondents, work then work has 42, and all remaining displayed chains have 24 or fewer.
 
-The figure shows the exact frequencies of the twelve most common reported purpose chains among 513 released respondent records. No weighting or trip completion is applied.
+The twelve most common reported purpose chains. Counts describe released records only; no weighting or trip completion is applied.
 ```
 
-These are record-level descriptions, not estimates for the Athens population. Recruitment used broadcasting channels rather than probability sampling, demographic fields were optional, and younger respondents are overrepresented. The source study describes the 2022 survey and its limitations [1].
+The sharp drop after the first two chains is visible without clustering. This is why the workflow begins with exact counts: a simple summary should answer the simple question before a more flexible method is introduced.
 
-## 3. Add an exploratory hierarchy
+## 3. Compare chains approximately
 
-The example builds a complete symmetric unit substitution matrix for the observed states. Insertions and deletions also retain their default unit cost.
+Exact counts treat `("work", "home")` and `("work", "recreation", "home")` as unrelated labels. Optimal matching can instead compare their ordered states.
+
+The example assigns zero cost to equal purposes and unit cost to every unequal pair:
 
 ```{literalinclude} ../../examples/analyze_athens.py
 :language: python
 :pyobject: unit_substitution_cost
 ```
 
-It then computes unnormalized optimal-matching dissimilarities and cuts an average-linkage hierarchy at a caller-supplied cluster count.
+It then calls {py:func}`athenspop.sequence.distance.dissimilarity_matrix`, builds an {py:func}`athenspop.clustering.hierarchical.average_linkage` hierarchy, and requests a caller-selected cut:
 
 ```{literalinclude} ../../examples/analyze_athens.py
 :language: python
 :pyobject: illustrative_cluster_labels
 ```
 
-The function name and argument make the inferential boundary explicit. `n_clusters` is a display choice, not an estimated optimum or evidence of latent traveler types. Unit costs also encode a strong assumption: every unequal purpose substitution has the same consequence. A substantive analysis should justify both the cost structure and its cluster-selection procedure before interpreting groups.
+Unit costs are useful for demonstrating the mechanics, but they say that every purpose substitution matters equally. A substantive study may need costs informed by activity type, transition frequency, duration, or another explicit theory. Likewise, `n_clusters` is a value to investigate, not an estimate supplied by this workflow. [Sequences and clustering](../concepts/sequences.md) explains both choices and links to activity-travel sequence research.
 
-## Data limitations
+## What the released data can support
 
-The released chains include only reported trips. They are not completed daily schedules: 203 of 513 chains do not end at their first origin. Synthetic zone labels have no public geographic crosswalk, 373 movements retain the same origin and destination label, and clock-hour responses are represented as one-hour departure windows. These properties support order-based exploratory analysis but do not identify distance, route, precise departure, or travel duration.
+The tables support record-level descriptions of reported trip order, modes, broad departure periods, and available demographics. They do not support route, distance, precise travel-time, or population-level claims.
 
-## Reference
+Several details matter when interpreting the chains:
 
-1. E. Andrinopoulou and P. G. Tzouras report the study in [Applying spectral clustering to decode mobility patterns in Athens, Greece](https://doi.org/10.3390/app15073419), published in *Applied Sciences*, 15(7), 3419 (2025).
+- 203 of 513 chains do not return to their first origin;
+- 373 movements have the same synthetic origin and destination label;
+- departure times represent one-hour windows rather than exact seconds;
+- recruitment used broadcasting channels rather than probability sampling; and
+- optional demographics are missing for some respondents.
+
+These are characteristics of the released records, not defects that the package should silently repair.
+
+## Sources and next steps
+
+Andrinopoulou and Tzouras describe the 2022 survey, recruitment, and source analysis in [Applying spectral clustering to decode mobility patterns in Athens, Greece](https://doi.org/10.3390/app15073419). The [dataset README](https://github.com/lotentua/athenspop/blob/v2/data/athens/README.md) documents the released columns, privacy transformation, missing values, and integrity hashes.
+
+For methodological context, Song and colleagues apply interval-based state sequences and weighted alignment to activity-travel diaries in [Visualizing, clustering, and characterizing activity-trip sequences](https://doi.org/10.1016/j.trc.2021.103007).
+
+Run the workflow from the repository root:
+
+```console
+python examples/analyze_athens.py
+```

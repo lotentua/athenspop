@@ -1,59 +1,82 @@
 # Method reference
 
-This page records the package's computational definitions and their interpretation boundaries. Public API docstrings define argument-level behavior.
+This page records the computational definitions behind scheduling, episode discretization, optimal matching, and clustering. The concept guides explain when and why to use them; the API pages document signatures and return types.
 
 ## Schedule realization
 
-For each trip, $[E_i,L_i]$ is its own inclusive departure interval and $B_i$ is the latest departure retained by the reverse pass. Given a successor and known duration $\tau_i$,
+For trip `i`, let `[E_i, L_i]` be its own inclusive departure interval, `m` the minimum activity duration, and `B_i` the latest departure retained by the reverse pass.
+
+The reverse pass visits trips from last to first. When a successor exists, the current trip must arrive by `B_{i+1} - m`. An applicable observation horizon supplies another arrival limit; the scheduler uses the earlier limit as `C_i`. For a known duration `\tau_i`:
 
 $$
-B_i=\min\left(L_i, B_{i+1}-m-\tau_i\right),
+B_i = \min\left(L_i, C_i - \tau_i\right).
 $$
 
-with the applicable observation-horizon arrival target included in the same minimum. A deterministic FIFO travel-time function uses bisection to find the greatest departure whose arrival respects that target.
+Without a successor or applicable arrival horizon, `B_i=L_i`. For a deterministic FIFO travel-time function, bisection finds the greatest integer departure in `[E_i,L_i]` whose resulting arrival does not exceed `C_i`.
 
-The forward pass sets $F_1=0$ and $F_i=a_{i-1}+m$, then draws an uncertain departure from
+The forward pass visits trips from first to last. Its propagated lower limit is zero for the first trip and the preceding realized arrival plus `m` thereafter. An uncertain departure is drawn uniformly from the inclusive integers
 
 $$
 \left[
 \max(E_i,F_i),
 \min(L_i,B_i,H_d)
-\right]\cap\mathbb Z.
+\right],
 $$
 
-Concrete departures are checked rather than redrawn. Each random draw is uniform only over the current locally admissible interval. The resulting diary distribution is induced by sequential conditional draws, not a uniform distribution over complete feasible schedules. When callable refinement is unavailable or disabled, a failed realization does not establish global diary infeasibility.
+where `H_d` is included when the policy restricts departures to the observation window. Concrete departures are checked against the same interval and remain fixed.
 
-A fixed positive `travel_time_seconds` determines arrival directly. Otherwise, the scheduler evaluates a user-supplied `TravelTimeFunction(origin, destination, mode, departure_second)`. Callable refinement by bisection assumes deterministic first-in, first-out arrival behavior over the searched window. See [Scheduling](../concepts/scheduling.md) for the equations and policy boundaries.
+Each draw is uniform only over the interval available at that step. The procedure does not sample uniformly from the joint set of complete feasible schedules. If callable refinement is disabled, one failed realization does not establish that every departure in the original window would fail.
+
+See [Scheduling departure windows](../concepts/scheduling.md) for the two-pass explanation and figure, and {py:func}`athenspop.scheduling.engine.schedule_once` for the public operation.
 
 ## Episode discretization
 
-Episodes use half-open time intervals. For a sequence bin $B$, the selected state is
+{py:func}`athenspop.sequence.episodes.episodes_from_diary` produces half-open activity and travel episodes over the requested observation window.
 
-$$
-\operatorname*{arg\,max}_{s}\sum_{E:\,\operatorname{state}(E)=s}|E\cap B|.
-$$
-
-The sum permits several episodes with the same label to contribute within one bin. Ties are resolved by the earliest start among contributing episodes. This deterministic rule avoids dependence on container ordering, but it remains a representation choice rather than an empirical estimate.
+For each fixed-width bin, {py:func}`athenspop.sequence.episodes.discretize_episodes` totals the overlap contributed by every episode of each state. The state with the greatest total overlap wins. A tie goes to the state whose first contributing episode begins earliest. The final bin may be shorter than the requested width.
 
 ## Optimal matching
 
-The package implements the Wagner-Fischer recurrence stated in [Sequences and clustering](../concepts/sequences.md#optimal-matching-dissimilarity). `athenspop.sequence.distance.optimal_matching_dissimilarity` supports directed substitution mappings for one ordered comparison. `athenspop.sequence.distance.dissimilarity_matrix` additionally requires reverse costs to match within numerical tolerance because it constructs a symmetric matrix.
+For sequences `x=(x_1,\ldots,x_n)` and `y=(y_1,\ldots,y_m)`, let `D_{i,j}` be the minimum cost of transforming the first `i` and `j` states. Let `g` be the positive insertion and deletion cost, and `c(x_i,y_j)` the nonnegative substitution cost.
 
-The implementation uses two dynamic-programming rows for one comparison. Matrix construction encodes states once and batches equal-length targets. The mathematical result remains the minimum edit cost. It is not divided by sequence length.
+The boundary values are `D_{i,0}=ig` and `D_{0,j}=jg`. The recurrence is
 
-## Hierarchical clustering
+$$
+D_{i,j}=\min\begin{cases}
+D_{i-1,j}+g,\\
+D_{i,j-1}+g,\\
+D_{i-1,j-1}+c(x_i,y_j).
+\end{cases}
+$$
 
-`athenspop.clustering.hierarchical.average_linkage` delegates the hierarchy to `scipy.cluster.hierarchy.linkage` after validating a finite, symmetric, nonnegative matrix with a zero diagonal. Average linkage uses the mean of all cross-cluster pairwise dissimilarities. SciPy's linkage matrix records the merged child identifiers, merge height, and resulting observation count.
+{py:func}`athenspop.sequence.distance.optimal_matching_dissimilarity` returns `D_{n,m}`. One comparison may use directed substitution costs. {py:func}`athenspop.sequence.distance.dissimilarity_matrix` requires symmetric forward and reverse costs because it constructs a symmetric matrix. Results are not divided by sequence length.
 
-`flat_cluster_labels` constructs a top-down cut by splitting the currently displayed node with the largest merge height until the requested count is reached. Labels follow displayed leaf order and begin at one. A requested count cannot exceed the number of observations.
+The implementation stores two dynamic-programming rows for a scalar comparison and batches equal-length targets during matrix construction.
 
-`cophenetic_correlation` is the Pearson correlation between the source condensed dissimilarities and the cophenetic distances implied by the hierarchy. It is undefined when either vector is constant or has fewer than two values. It measures how the hierarchy preserves pairwise dissimilarities. It does not select a cluster count.
+## Average-linkage hierarchy
 
-## Complexity
+{py:func}`athenspop.clustering.hierarchical.average_linkage` validates a finite, symmetric, nonnegative dissimilarity matrix with a zero diagonal, converts it to SciPy's condensed form, and calls [`scipy.cluster.hierarchy.linkage`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html) with average linkage.
 
-For sequence lengths $n$ and $m$, one scalar optimal-matching comparison uses $O(nm)$ arithmetic and $O(m)$ dynamic-programming storage. Pairwise construction batches $B$ equal-length targets and uses $O(Bm)$ dynamic-programming working storage for that batch, in addition to the $O(N^2)$ output matrix for $N$ sequences. The complete matrix contains $N(N-1)/2$ comparisons. SciPy documents $O(N^2)$ time and memory for its average-linkage implementation [2]. These quadratic terms are the main scaling boundary for large diary collections.
+The distance between two clusters is the arithmetic mean of all pairwise dissimilarities with one observation in each cluster. SciPy records both merged child identifiers, the merge height, and the resulting observation count in each linkage row.
 
-## References
+{py:func}`athenspop.clustering.hierarchical.flat_cluster_labels` constructs a top-down cut by repeatedly splitting the displayed node with the greatest merge height. Labels follow displayed leaf order and begin at one.
 
-1. R. A. Wagner and M. J. Fischer present the recurrence in [The string-to-string correction problem](https://doi.org/10.1145/321796.321811), published in *Journal of the ACM*, 21(1), 168-173 (1974).
-2. The SciPy community documents its linkage implementation in the [hierarchical clustering linkage reference](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html).
+{py:func}`athenspop.clustering.hierarchical.cophenetic_correlation` computes the Pearson correlation between source dissimilarities and the cophenetic distances implied by the hierarchy. It returns an undefined result when either vector is constant or fewer than two values are available.
+
+## Scaling boundaries
+
+| Operation | Time | Additional working memory |
+| --- | --- | --- |
+| One optimal-matching comparison of lengths `n` and `m` | `O(nm)` | `O(m)` |
+| Pairwise matrix for `N` sequences | `N(N-1)/2` comparisons | `O(N^2)` output plus batch workspace |
+| SciPy average linkage for `N` observations | `O(N^2)` | `O(N^2)` |
+
+The pairwise matrix and linkage hierarchy are therefore the main scaling limits for large collections.
+
+## Sources
+
+- R. A. Wagner and M. J. Fischer, [The string-to-string correction problem](https://doi.org/10.1145/321796.321811), `Journal of the ACM` 21(1), 168–173 (1974).
+- A. Abbott and A. Tsay, [Sequence Analysis and Optimal Matching Methods in Sociology](https://doi.org/10.1177/0049124100029001001), `Sociological Methods & Research` 29(1), 3–33 (2000).
+- Y. Song and colleagues, [Visualizing, clustering, and characterizing activity-trip sequences via weighted sequence alignment and functional data analysis](https://doi.org/10.1016/j.trc.2021.103007), `Transportation Research Part C` 126, 103007 (2021).
+- B. C. Dean, [Shortest Paths in FIFO Time-Dependent Networks: Theory and Algorithms](https://people.csail.mit.edu/bdean/tdsp.pdf), technical report.
+- SciPy, [Hierarchical clustering linkage reference](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html).

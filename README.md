@@ -1,24 +1,41 @@
 # athenspop
 
-`athenspop` is a typed Python toolkit for composing travel-diary validation, scheduling, sequence analysis, hierarchical clustering, and visualization workflows. Each stage has a small public contract, so a workflow can stop after validation, substitute a project-specific travel-time function, or continue through symbolic sequence analysis.
+Build reproducible activity-travel schedules and sequence analyses from ordinary travel-diary tables.
+
+Travel surveys usually arrive as rows of trips, departure times, and respondent attributes. Before those records can support a schedule or a sequence comparison, someone has to decide whether the rows form a valid diary, how uncertain departure times should be realized, and how activities and trips should be represented over time. `athenspop` provides those operations as small, typed Python tools that can be used together or independently.
+
+```text
+dataframes → validated diaries → schedules → state sequences → distances → clusters
+```
+
+Use the package to:
+
+- validate related trip, person, and household tables and inspect all detected issues;
+- realize departure windows while respecting trip order, travel time, activity duration, and observation-window constraints;
+- convert scheduled diaries into continuous episodes or fixed-interval symbolic sequences;
+- compare sequences with configurable optimal-matching costs;
+- build and summarize average-linkage hierarchies; and
+- create a temporal dendrogram without adopting a package-defined publication style.
+
+Each arrow is optional. A data-quality tool can stop after validation, a simulator can stop after scheduling, and an exploratory analysis can continue through clustering and visualization.
 
 ## Installation
 
-From a source checkout, install the core package with Python 3.12 or later:
+`athenspop` requires Python 3.12 or later. Install the core package from a checkout with:
 
 ```console
-pip install .
+python -m pip install .
 ```
 
-Install the optional Matplotlib integration when a workflow creates figures:
+Add Matplotlib support when you want to create figures:
 
 ```console
-pip install ".[visualization]"
+python -m pip install ".[visualization]"
 ```
 
-## Quick start
+## A first schedule
 
-The canonical trip table is long form. Each row identifies one movement and supplies exactly one supported timing pattern. This example uses a concrete departure and arrival.
+The smallest input is a pandas `DataFrame` with one row per trip. This example describes a known bus trip from home to work.
 
 ```python
 import pandas as pd
@@ -42,30 +59,32 @@ trips = pd.DataFrame(
     ]
 )
 
-dataset = athenspop.model.survey.SurveyDataset.from_dataframes(trips)
-result = athenspop.scheduling.engine.schedule_once(dataset)
+diaries = athenspop.model.survey.SurveyDataset.from_dataframes(trips)
+result = athenspop.scheduling.engine.schedule_once(diaries)
 
-assert not result.diagnostics.has_errors
-assert result.dataset.diaries[0].trips[0].arrival_second == 30_600
+trip = result.dataset.diaries[0].trips[0]
+print(trip.departure_second, trip.arrival_second)
+# 28800 30600
 ```
 
-`athenspop.validation.schema.validate_dataframes` returns all discoverable dataframe diagnostics without constructing the model. `athenspop.scheduling.engine.schedule_once` realizes one feasible schedule, and `athenspop.generation.schedules.generate_schedules` produces repeated seeded realizations. `athenspop.sequence.episodes`, `athenspop.sequence.distance`, `athenspop.clustering.hierarchical`, and the optional `athenspop.visualization.dendrogram` module operate on those scheduled diaries without prescribing a complete analysis pipeline.
+Validation happens when the `SurveyDataset` is created. Scheduling preserves the concrete times above; when a row contains a departure window instead, the scheduler draws a feasible departure from that window.
 
-## Documentation and examples
+The [getting-started tutorial](docs/getting_started.md) develops this into a two-trip diary and a symbolic state sequence. The [synthetic workflow](docs/workflows/compose_schedule.md) continues through distance calculation, clustering, and visualization.
 
-The [documentation](https://github.com/lotentua/athenspop/blob/v2/docs/index.md) explains the data contract, scheduling constraints, sequence methods, clustering interpretation, and failure boundaries. Two executable, notebook-like workflows show how to compose the tools:
+## Documentation
 
-- [compose_schedule.py](https://github.com/lotentua/athenspop/blob/v2/examples/compose_schedule.py) builds and analyzes a synthetic diary with a caller-supplied travel-time function.
-- [analyze_athens.py](https://github.com/lotentua/athenspop/blob/v2/examples/analyze_athens.py) performs an exploratory purpose-chain analysis of the released Athens respondent diaries.
+- [Getting started](docs/getting_started.md) teaches the core workflow with a small example.
+- [Concepts](docs/index.md#understand-the-methods) explain the data model, scheduler, and sequence analysis choices.
+- [How-to workflows](docs/index.md#follow-a-complete-workflow) show a complete synthetic composition and an analysis of the released Athens data.
+- [API reference](docs/api/index.md) lists the public classes and functions by task.
+- [Contributing](CONTRIBUTING.md) covers the development environment, tests, style, and documentation workflow.
 
-The processed [Athens respondent travel diaries](https://github.com/lotentua/athenspop/blob/v2/data/athens/README.md) are a separate data product licensed under CC BY 4.0 International. The software does not include a routing matrix or geographic zone crosswalk.
+The repository also includes [513 processed Athens respondent diaries](data/athens/README.md) as a separate CC BY 4.0 data product. The accompanying workflow analyzes reported purpose order without routes, distances, or a geographic crosswalk.
 
-## Scope
+## What athenspop leaves to you
 
-The package supplies composable operations rather than a policy model or an inference framework. Scheduling reports infeasible diaries instead of silently repairing them. Cluster cuts describe an analyst-selected partition. They do not establish latent population types. Statistical claims remain the responsibility of the workflow that selects a sample, travel-time source, cost model, and interpretation.
+`athenspop` does not recover unreported trips, choose a routing source, estimate population weights, or decide how many clusters are substantively meaningful. Those choices depend on the survey, the research question, and the evidence available to the analysis. The package keeps them visible instead of hiding them inside a fixed pipeline.
 
-## Development
+## License
 
-The project uses `uv`, Ruff, ty, pytest, coverage.py, Sphinx, and Hatch. See [CONTRIBUTING.md](https://github.com/lotentua/athenspop/blob/v2/CONTRIBUTING.md) for the complete local checks.
-
-Software is released under the [MIT License](https://github.com/lotentua/athenspop/blob/v2/LICENSE). Theodore Chatziioannou holds the 2022 software copyright, and National Technical University of Athens holds the 2026 software copyright.
+The software is available under the [MIT License](LICENSE). Copyright belongs to Theodore Chatziioannou for 2022 and the National Technical University of Athens for 2026. The processed Athens tables have their own [CC BY 4.0 International license](data/athens/LICENSE).

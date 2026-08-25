@@ -1,20 +1,24 @@
-# Getting started
+# Build your first diary schedule
 
-From a source checkout, install the core package with Python 3.12 or later:
+This tutorial starts with two rows in a pandas dataframe and ends with a half-hour activity-travel sequence. Along the way, you will see where validation ends, where scheduling begins, and how to handle a diary that cannot be scheduled.
+
+The example uses fixed travel durations, so it runs without a routing service or external data.
+
+## Install the package
+
+From a source checkout, install `athenspop` with Python 3.12 or later:
 
 ```console
 python -m pip install .
 ```
 
-Install the optional plotting dependency when an analysis needs the visualization API:
+The plotting dependency is not needed for this tutorial. Install `.[visualization]` when you reach the [visualization workflow](workflows/compose_schedule.md).
 
-```console
-python -m pip install ".[visualization]"
-```
+## Describe a day as trip rows
 
-## Build a trusted dataset
+`athenspop` accepts [pandas dataframes](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html). Each trip row identifies a movement, its destination purpose and mode, and one supported description of its timing.
 
-The smallest useful input is a long-form trip table. Each row identifies one movement and supplies exactly one supported timing pattern.
+Here, one respondent travels from home to work in the morning and returns in the evening. Each departure may occur anywhere inside a 30-minute window, while each bus ride lasts 30 minutes.
 
 ```python
 import pandas as pd
@@ -52,34 +56,70 @@ trips = pd.DataFrame(
     ]
 )
 
-dataset = athenspop.model.survey.SurveyDataset.from_dataframes(trips)
+diaries = athenspop.model.survey.SurveyDataset.from_dataframes(trips)
 ```
 
-`athenspop.model.survey.SurveyDataset.from_dataframes` validates and normalizes the table before it constructs model objects. Use `athenspop.validation.schema.validate_dataframes` directly when an application needs to display all collected diagnostics instead of raising an exception.
+{py:meth}`athenspop.model.survey.SurveyDataset.from_dataframes` checks column types, identifiers, timing combinations, trip order, and relationships between tables. It returns immutable model objects only after the input satisfies that contract.
 
-## Schedule and discretize the diary
+```python
+diary = diaries.diaries[0]
+print(diary.person_id, len(diary.trips))
+# p1 2
+```
+
+If you are building a user interface and want to display every detected issue at once, call {py:func}`athenspop.validation.schema.validate_dataframes` instead. The [validation guide](concepts/data_model.md#inspect-problems-before-building-a-model) shows that workflow.
+
+## Realize the departure windows
+
+Scheduling chooses concrete departure seconds that respect the reported windows, travel durations, trip order, and configured minimum activity duration.
 
 ```python
 import athenspop.scheduling.engine
-import athenspop.sequence.episodes
 
-scheduled = athenspop.scheduling.engine.schedule_once(dataset, seed=2026)
-if scheduled.diagnostics.has_errors:
-    for issue in scheduled.diagnostics.issues:
-        print(issue.code, issue.message)
-else:
-    states = athenspop.sequence.episodes.state_sequence_from_diary(
-        scheduled.dataset.diaries[0],
-        initial_activity_state="home",
-        interval_seconds=1_800,
-    )
+result = athenspop.scheduling.engine.schedule_once(diaries, seed=2026)
 ```
 
-Successful diaries are available through `scheduled.dataset`. Infeasible diaries are excluded from that dataset and described by `scheduled.diagnostics`.
+The seed makes the random choices reproducible. The returned {py:class}`athenspop.scheduling.engine.ScheduledSurveyDataset` keeps successful diaries in `result.dataset` and structured failures in `result.diagnostics`.
 
-## Choose the next stage
+```python
+if result.diagnostics.has_errors:
+    for issue in result.diagnostics.issues:
+        print(issue.code, issue.message)
+else:
+    for trip in result.dataset.diaries[0].trips:
+        print(trip.trip_id, trip.departure_second, trip.arrival_second)
+```
 
-- Read [Data model and validation](concepts/data_model.md) before adapting an external survey.
-- Read [Scheduling](concepts/scheduling.md) before supplying a time-dependent travel-time function.
-- Read [Sequences and clustering](concepts/sequences.md) before choosing state definitions or costs.
-- Follow [Compose a synthetic schedule](workflows/compose_schedule.md) for a complete executable workflow.
+Always inspect the diagnostics before assuming that the scheduled dataset contains every input diary. The [scheduling explanation](concepts/scheduling.md) shows how future trips can tighten an earlier departure window and why the scheduler works in two passes.
+
+## Turn the schedule into states
+
+A schedule is continuous in time. Many sequence methods instead need one state per fixed interval. The next call labels each 30-minute interval as an activity or a trip.
+
+```python
+import athenspop.sequence.episodes
+
+scheduled_diary = result.dataset.diaries[0]
+states = athenspop.sequence.episodes.state_sequence_from_diary(
+    scheduled_diary,
+    initial_activity_state="home",
+    window_start_second=27_000,
+    window_end_second=64_800,
+    interval_seconds=1_800,
+)
+
+print(len(states), sorted(set(states)))
+# 21 ['home', 'trip_bus', 'work']
+```
+
+This window runs from 07:30 through 18:00, so it produces 21 half-hour states. The result contains home, work, and bus travel without requiring a separate state table.
+
+{py:func}`athenspop.sequence.episodes.state_sequence_from_diary` first creates continuous episodes and then assigns each interval to the state that occupies it for the longest time. A shorter interval preserves more timing detail; a longer interval produces a smaller, coarser sequence. The [sequence guide](concepts/sequences.md) explains that tradeoff.
+
+## Where to go next
+
+- Adapt a real survey with [Data model and validation](concepts/data_model.md).
+- Learn how departure windows are tightened in [Scheduling departure windows](concepts/scheduling.md).
+- Compare several diaries in [Sequences and clustering](concepts/sequences.md).
+- Run the complete [synthetic composition workflow](workflows/compose_schedule.md).
+- Look up signatures in the [API reference](api/index.md).

@@ -1,54 +1,80 @@
-# Compose a synthetic schedule
+# Compose a synthetic activity-travel analysis
 
-This workflow combines every analytical stage on a self-contained three-respondent dataset. It is structured as notebook cells, but the same code is maintained as [`examples/compose_schedule.py`](https://github.com/lotentua/athenspop/blob/v2/examples/compose_schedule.py).
+This workflow connects every main stage of `athenspop`:
 
-The values are deliberately synthetic. The result demonstrates interface composition and does not represent observed travel behavior.
+```text
+tables → diaries → schedules → sequences → distances → hierarchy → figure
+```
 
-## 1. Define the travel-time boundary
+You will build three simple home-based diaries, give each travel mode a fixed 15-minute duration, schedule the departure windows, and compare the resulting activity-travel sequences. The data are synthetic so the example stays self-contained and each analytical choice remains visible.
 
-The example uses a deterministic 15-minute duration for every movement. A real application can replace this function with any callable that satisfies the documented contract.
+The executable version is [`examples/compose_schedule.py`](https://github.com/lotentua/athenspop/blob/v2/examples/compose_schedule.py).
+
+## 1. Provide travel times
+
+Scheduling needs a duration for every trip. A duration may already be present in the trip row, or a function may calculate it from origin, destination, mode, and departure time.
+
+The example uses the same 15-minute duration for every movement:
 
 ```{literalinclude} ../../examples/compose_schedule.py
 :language: python
 :pyobject: travel_time
 ```
 
-## 2. Build long-form tables
+A real application can connect this boundary to observed durations, a calibrated model, or a routing service. The callable contract and its FIFO assumption are explained in [Time-dependent travel times](../concepts/scheduling.md#time-dependent-travel-times).
 
-The table builder creates two departure-window trips for each respondent and attaches one metadata value to each person.
+## 2. Create three diaries
+
+Each respondent leaves home, visits one activity, and returns home. Their destinations and modes differ so the final sequences contain both shared and contrasting states.
 
 ```{literalinclude} ../../examples/compose_schedule.py
 :language: python
 :pyobject: example_tables
 ```
 
-Each diary begins at `home`, visits one activity, and returns home. The explicit `trip_sequence` establishes order. The first departure window extends to 8,000 seconds, but the reverse pass tightens its latest admissible departure to 7,200 seconds so that the return trip can still depart by 9,000 seconds after the required dwell time.
+The first departure window extends to second 8,000, but the return trip must leave by second 9,000. With a 15-minute trip and a 15-minute minimum activity, the scheduler tightens the first latest departure to second 7,200. This is a small, visible example of the reverse pass described in [Scheduling departure windows](../concepts/scheduling.md).
 
-## 3. Compose the operations
+## 3. Compose the analysis
 
-The complete function validates the dataframes through `SurveyDataset`, schedules one realization, turns successful diaries into 15-minute state sequences, calculates unit-cost optimal-matching dissimilarities, performs average-linkage clustering, and returns a two-cluster temporal dendrogram.
+The complete function:
+
+1. builds a {py:class}`athenspop.model.survey.SurveyDataset` from the two dataframes;
+2. calls {py:func}`athenspop.scheduling.engine.schedule_once` with a reproducible seed;
+3. converts every successful diary with {py:func}`athenspop.sequence.episodes.state_sequence_from_diary`;
+4. calculates {py:func}`athenspop.sequence.distance.dissimilarity_matrix` using unit edit costs;
+5. builds an {py:func}`athenspop.clustering.hierarchical.average_linkage` hierarchy; and
+6. returns a figure from {py:func}`athenspop.visualization.dendrogram.plot_cut_dendrogram_state_distribution`.
 
 ```{literalinclude} ../../examples/compose_schedule.py
 :language: python
 :pyobject: build_figure
 ```
 
-The error branch is material: later operations must not silently proceed when scheduling has excluded a diary. In a production workflow, report `scheduled.diagnostics.issues` with the source records instead of replacing the diagnostic with a generic exception.
+The diagnostic check is part of the composition, not incidental error handling. Sequence construction should not continue silently with a subset of respondents when scheduling has excluded a diary.
 
 ```{figure} ../_static/composed-schedule.svg
-:alt: The figure shows a normalized-height two-cluster dendrogram above aligned activity-state and travel-state share charts for three synthetic scheduled diaries.
+:alt: A two-cluster hierarchy appears above activity and travel state-share panels. One synthetic diary forms the first cluster, while two form the second.
 
-Synthetic composition result. Dimensions, typography, default colors, tree-line width, and unspecified styling inherit from the active Matplotlib stylesheet. Quantitative axes and bar geometry remain fixed.
+The three synthetic schedules after a two-cluster cut. The upper tree shows the hierarchy; the lower panels show which activity and travel states occupy each 15-minute bin. Cluster membership illustrates the mechanics only and has no population interpretation.
 ```
 
-## 4. Adapt the composition
+The plotting function owns the quantitative axes and bar geometry. Figure dimensions, typography, default colors, tree-line width, and other presentation choices follow the active Matplotlib configuration.
 
-Change one analytical boundary at a time:
+## 4. Adapt one boundary at a time
 
-- Supply observed durations instead of a travel-time function when those durations belong to the input data.
-- Change `initial_activity_state`, `interval_seconds`, or the travel-state labeler when the research question requires another state representation.
-- Replace unit substitution costs with a documented domain cost matrix.
-- Select and justify a cluster cut outside the package; `n_clusters=2` here only makes the three-row example visible.
-- Omit clustering and visualization when schedules or episodes are the desired output.
+The example is deliberately easy to modify:
 
-The source example calls `plt.show()` only in its script entry point. Reusable functions return data or a figure and leave display and export to the caller.
+- Replace `travel_time` while leaving validation and scheduling unchanged.
+- Change `interval_seconds` to study the effect of temporal resolution.
+- Replace unit substitution costs with costs justified by the states and research question.
+- Stop after scheduling if the desired output is a concrete diary.
+- Stop after episode construction for continuous time-allocation summaries.
+- Compare several cluster cuts before interpreting a hierarchy.
+
+Run the complete example from the repository root:
+
+```console
+python examples/compose_schedule.py
+```
+
+The script displays the figure. Its reusable functions return data or Matplotlib objects and leave file export to the caller.

@@ -1,9 +1,17 @@
 # Model API
 
-Model objects represent validated tables as immutable diaries, trips, time windows, and optional respondent and household metadata. Construct `SurveyDataset` through `from_dataframes` unless a caller already owns the trusted-object boundary.
+The model layer contains the immutable objects used after dataframe validation: trips, diaries, timing windows, metadata, and the complete survey dataset.
+
+Construct a dataset with {py:meth}`athenspop.model.survey.SurveyDataset.from_dataframes` unless your application already owns a trusted object boundary. See [Data model and validation](../concepts/data_model.md) for the relationship between input tables and these objects.
 
 ```{eval-rst}
 .. automodule:: athenspop.model.survey
-   :members: Diary, HouseholdMetadata, PersonMetadata, SurveyDataset,
-      TimeWindow, Trip
+   :members: Diary, HouseholdMetadata, Metadata, MetadataValue, PersonMetadata,
+      SurveyDataset, TimeWindow, Trip
+
+.. automodule:: athenspop.schema
+   :members: TimingPattern
+
+.. automodule:: athenspop.types
+   :members: DissimilarityMatrix, TravelTimeFunction
 ```
