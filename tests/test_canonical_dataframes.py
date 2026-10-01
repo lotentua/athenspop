@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import athenspop.diagnostics
 import athenspop.model.survey
 import athenspop.scheduling.engine
 import athenspop.types
@@ -169,7 +170,10 @@ def test_scheduler_resolves_the_dataset_travel_time_function() -> None:
         trips, travel_time_function=_constant_travel_time(0)
     )
     invalid = athenspop.scheduling.engine.schedule_once(invalid_dataset)
-    assert invalid.diagnostics.issues[0].code == "invalid_travel_time_function_result"
+    assert (
+        invalid.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.INVALID_TRAVEL_TIME_FUNCTION_RESULT
+    )
 
 
 def test_callable_resolution_preserves_a_later_fixed_trip() -> None:
@@ -233,10 +237,10 @@ def test_validation_collects_join_and_timing_errors_without_cascade() -> None:
     persons = pd.DataFrame([{"household_id": "h1", "person_id": "p1"}])
     result = athenspop.validation.schema.validate_dataframes(trips, persons=persons)
     codes = [issue.code for issue in result.report.errors]
-    assert "null_key" in codes
-    assert "negative_second" not in codes
-    assert "orphan_trip_person" in codes
-    assert "non_positive_travel_duration" in codes
+    assert athenspop.diagnostics.IssueCode.NULL_KEY in codes
+    assert athenspop.diagnostics.IssueCode.NEGATIVE_SECOND not in codes
+    assert athenspop.diagnostics.IssueCode.ORPHAN_TRIP_PERSON in codes
+    assert athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION in codes
 
 
 def test_ambiguous_timing_pattern_raises_concise_validation_error() -> None:
@@ -258,7 +262,13 @@ def test_ambiguous_timing_pattern_raises_concise_validation_error() -> None:
         ]
     )
     result = athenspop.validation.schema.validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["invalid_timing_pattern"]
+    assert isinstance(
+        result.report.errors[0].severity, athenspop.diagnostics.IssueSeverity
+    )
+    assert isinstance(result.report.errors[0].code, athenspop.diagnostics.IssueCode)
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.INVALID_TIMING_PATTERN
+    ]
     with pytest.raises(athenspop.validation.report.ValidationError):
         result.report.raise_if_invalid()
 
@@ -269,7 +279,7 @@ def test_table_level_validation_diagnostic_codes_are_reported() -> None:
         cast("pd.DataFrame", object())
     )
     assert [issue.code for issue in not_dataframe.report.errors] == [
-        "table_not_dataframe"
+        athenspop.diagnostics.IssueCode.TABLE_NOT_DATAFRAME
     ]
 
     duplicate_columns = pd.DataFrame(
@@ -280,14 +290,14 @@ def test_table_level_validation_diagnostic_codes_are_reported() -> None:
         duplicate_columns
     )
     assert [issue.code for issue in duplicate_result.report.errors] == [
-        "duplicate_columns"
+        athenspop.diagnostics.IssueCode.DUPLICATE_COLUMNS
     ]
 
     missing_columns = athenspop.validation.schema.validate_dataframes(
         pd.DataFrame([{"household_id": "h1"}])
     )
     assert [issue.code for issue in missing_columns.report.errors] == [
-        "missing_required_columns"
+        athenspop.diagnostics.IssueCode.MISSING_REQUIRED_COLUMNS
     ]
 
 
@@ -307,7 +317,9 @@ def test_invalid_optional_table_type_returns_validation_report(
         )
     )
 
-    assert [issue.code for issue in result.report.errors] == ["table_not_dataframe"]
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.TABLE_NOT_DATAFRAME
+    ]
     assert result.normalized_tables is None
 
 
@@ -327,7 +339,9 @@ def test_duplicate_dataframe_index_is_rejected_before_row_mutation() -> None:
 
     result = athenspop.validation.schema.validate_dataframes(trips)
 
-    assert [issue.code for issue in result.report.errors] == ["duplicate_index"]
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.DUPLICATE_INDEX
+    ]
 
 
 def test_metadata_column_names_must_be_unique_after_string_normalization() -> None:
@@ -339,7 +353,7 @@ def test_metadata_column_names_must_be_unique_after_string_normalization() -> No
     result = athenspop.validation.schema.validate_dataframes(trips)
 
     assert [issue.code for issue in result.report.errors] == [
-        "normalized_column_collision"
+        athenspop.diagnostics.IssueCode.NORMALIZED_COLUMN_COLLISION
     ]
 
 
@@ -372,7 +386,9 @@ def test_float_seconds_are_rejected_even_when_integer_valued() -> None:
         ]
     )
     result = athenspop.validation.schema.validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["invalid_second"]
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.INVALID_SECOND
+    ]
 
 
 def test_duplicate_keys_are_checked_after_string_normalization() -> None:
@@ -405,8 +421,8 @@ def test_duplicate_keys_are_checked_after_string_normalization() -> None:
     )
     result = athenspop.validation.schema.validate_dataframes(trips)
     assert [issue.code for issue in result.report.errors] == [
-        "duplicate_key",
-        "duplicate_key",
+        athenspop.diagnostics.IssueCode.DUPLICATE_KEY,
+        athenspop.diagnostics.IssueCode.DUPLICATE_KEY,
     ]
 
 
@@ -417,7 +433,9 @@ def test_identity_keys_must_contain_nonblank_text(key: str) -> None:
         pd.DataFrame([_trip_row(**{key: "  "})])
     )
 
-    assert [issue.code for issue in result.report.errors] == ["blank_key"]
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.BLANK_KEY
+    ]
 
 
 def test_non_scalar_key_and_movement_values_are_rejected_at_boundary() -> None:
@@ -439,7 +457,7 @@ def test_non_scalar_key_and_movement_values_are_rejected_at_boundary() -> None:
     )
     key_result = athenspop.validation.schema.validate_dataframes(non_scalar_key_trips)
     assert [issue.code for issue in key_result.report.errors] == [
-        "unsupported_key_value"
+        athenspop.diagnostics.IssueCode.UNSUPPORTED_KEY_VALUE
     ]
 
     non_scalar_origin_trips = pd.DataFrame(
@@ -461,14 +479,14 @@ def test_non_scalar_key_and_movement_values_are_rejected_at_boundary() -> None:
         non_scalar_origin_trips
     )
     assert [issue.code for issue in origin_result.report.errors] == [
-        "unsupported_trip_value"
+        athenspop.diagnostics.IssueCode.UNSUPPORTED_TRIP_VALUE
     ]
 
     non_scalar_second = athenspop.validation.schema.validate_dataframes(
         pd.DataFrame([_trip_row(departure_second=[0])])
     )
     assert [issue.code for issue in non_scalar_second.report.errors] == [
-        "invalid_second"
+        athenspop.diagnostics.IssueCode.INVALID_SECOND
     ]
 
 
@@ -478,21 +496,21 @@ def test_trip_row_domain_diagnostic_codes_are_reported_once() -> None:
         pd.DataFrame([_trip_row(origin="")])
     )
     assert [issue.code for issue in missing_value.report.errors] == [
-        "missing_trip_value"
+        athenspop.diagnostics.IssueCode.MISSING_TRIP_VALUE
     ]
 
     arrival_window = athenspop.validation.schema.validate_dataframes(
         pd.DataFrame([_trip_row(earliest_arrival_second=100)])
     )
     assert [issue.code for issue in arrival_window.report.errors] == [
-        "unsupported_arrival_window"
+        athenspop.diagnostics.IssueCode.UNSUPPORTED_ARRIVAL_WINDOW
     ]
 
     negative_second = athenspop.validation.schema.validate_dataframes(
         pd.DataFrame([_trip_row(departure_second=-1)])
     )
     assert [issue.code for issue in negative_second.report.errors] == [
-        "negative_second"
+        athenspop.diagnostics.IssueCode.NEGATIVE_SECOND
     ]
 
 
@@ -570,7 +588,7 @@ def test_non_scalar_metadata_is_rejected_at_validation_boundary() -> None:
     )
     result = athenspop.validation.schema.validate_dataframes(trips, persons=persons)
     assert [issue.code for issue in result.report.errors] == [
-        "unsupported_metadata_value"
+        athenspop.diagnostics.IssueCode.UNSUPPORTED_METADATA_VALUE
     ]
     with pytest.raises(athenspop.validation.report.ValidationError, match="1 error"):
         athenspop.model.survey.SurveyDataset.from_dataframes(trips, persons=persons)
@@ -607,7 +625,9 @@ def test_origin_mismatch_is_warning_not_hard_error() -> None:
     result = athenspop.validation.schema.validate_dataframes(trips)
     assert not result.report.has_errors
     assert result.report.has_warnings
-    assert [issue.code for issue in result.report.warnings] == ["origin_mismatch"]
+    assert [issue.code for issue in result.report.warnings] == [
+        athenspop.diagnostics.IssueCode.ORIGIN_MISMATCH
+    ]
     result.report.raise_if_invalid()
 
 
@@ -752,7 +772,9 @@ def test_departure_window_requires_explicit_trip_sequence() -> None:
         ]
     )
     result = athenspop.validation.schema.validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["unresolved_trip_order"]
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.UNRESOLVED_TRIP_ORDER
+    ]
     assert result.report.invalid_chains == ("household_id=h1; person_id=p1",)
 
 
@@ -785,7 +807,9 @@ def test_duplicate_concrete_departures_require_trip_sequence() -> None:
         ]
     )
     result = athenspop.validation.schema.validate_dataframes(trips)
-    assert [issue.code for issue in result.report.errors] == ["unresolved_trip_order"]
+    assert [issue.code for issue in result.report.errors] == [
+        athenspop.diagnostics.IssueCode.UNRESOLVED_TRIP_ORDER
+    ]
 
 
 def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
@@ -811,7 +835,7 @@ def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
         for issue in athenspop.validation.schema.validate_dataframes(
             invalid
         ).report.errors
-    ] == ["invalid_trip_sequence"]
+    ] == [athenspop.diagnostics.IssueCode.INVALID_TRIP_SEQUENCE]
     duplicate = pd.DataFrame(
         [
             {
@@ -845,7 +869,7 @@ def test_trip_sequence_must_be_integer_and_unique_within_chain() -> None:
         for issue in athenspop.validation.schema.validate_dataframes(
             duplicate
         ).report.errors
-    ] == ["duplicate_trip_sequence"]
+    ] == [athenspop.diagnostics.IssueCode.DUPLICATE_TRIP_SEQUENCE]
 
 
 def test_join_and_chain_diagnostic_codes_are_reported() -> None:
@@ -855,7 +879,7 @@ def test_join_and_chain_diagnostic_codes_are_reported() -> None:
         households=pd.DataFrame([{"household_id": "known"}]),
     )
     assert [issue.code for issue in orphan_household.report.errors] == [
-        "orphan_trip_household"
+        athenspop.diagnostics.IssueCode.ORPHAN_TRIP_HOUSEHOLD
     ]
 
     orphan_person_household = athenspop.validation.schema.validate_dataframes(
@@ -869,7 +893,7 @@ def test_join_and_chain_diagnostic_codes_are_reported() -> None:
         households=pd.DataFrame([{"household_id": "known"}]),
     )
     assert [issue.code for issue in orphan_person_household.report.errors] == [
-        "orphan_person_household"
+        athenspop.diagnostics.IssueCode.ORPHAN_PERSON_HOUSEHOLD
     ]
 
     missing_sequence = pd.DataFrame([_trip_row(trip_sequence=None)])
@@ -878,7 +902,7 @@ def test_join_and_chain_diagnostic_codes_are_reported() -> None:
         for issue in athenspop.validation.schema.validate_dataframes(
             missing_sequence
         ).report.errors
-    ] == ["missing_trip_sequence"]
+    ] == [athenspop.diagnostics.IssueCode.MISSING_TRIP_SEQUENCE]
 
     overlapping = pd.DataFrame(
         [
@@ -901,4 +925,4 @@ def test_join_and_chain_diagnostic_codes_are_reported() -> None:
         for issue in athenspop.validation.schema.validate_dataframes(
             overlapping
         ).report.errors
-    ] == ["overlapping_trips"]
+    ] == [athenspop.diagnostics.IssueCode.OVERLAPPING_TRIPS]

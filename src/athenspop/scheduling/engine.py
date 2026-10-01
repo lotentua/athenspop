@@ -6,10 +6,19 @@
 
 import dataclasses
 import random
+from typing import Final
 
+import athenspop.diagnostics
 import athenspop.model.survey
 import athenspop.time_units
 import athenspop.types
+
+#: Default policy for trips outside the observation window.
+DEFAULT_ALLOW_TRIPS_AFTER_OBSERVATION_WINDOW: Final[bool] = False
+#: Default policy for the final arrival outside the observation window.
+DEFAULT_ALLOW_FINAL_TRIP_AFTER_OBSERVATION_WINDOW: Final[bool] = False
+#: Default policy for refining callable departure windows.
+DEFAULT_REFINE_CALLABLE_DEPARTURE_WINDOWS: Final[bool] = True
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -37,9 +46,13 @@ class SchedulingConfig:
     observation_window_seconds: int = (
         athenspop.time_units.DEFAULT_OBSERVATION_WINDOW_SECONDS
     )
-    allow_trips_after_observation_window: bool = False
-    allow_final_trip_after_observation_window: bool = False
-    refine_callable_departure_windows: bool = True
+    allow_trips_after_observation_window: bool = (
+        DEFAULT_ALLOW_TRIPS_AFTER_OBSERVATION_WINDOW
+    )
+    allow_final_trip_after_observation_window: bool = (
+        DEFAULT_ALLOW_FINAL_TRIP_AFTER_OBSERVATION_WINDOW
+    )
+    refine_callable_departure_windows: bool = DEFAULT_REFINE_CALLABLE_DEPARTURE_WINDOWS
 
     def __post_init__(self) -> None:
         """Validate scheduler policy values at the public construction boundary."""
@@ -85,7 +98,7 @@ class SchedulingIssue:
             Affected trip, when the diagnostic is trip-specific.
     """
 
-    code: str
+    code: athenspop.diagnostics.IssueCode
     message: str
     household_id: str
     person_id: str
@@ -234,7 +247,7 @@ def _schedule_diary(
         return latest_departure_bounds
     for index, trip in enumerate(diary.trips):
         earliest_allowed = (
-            0
+            athenspop.time_units.DEFAULT_WINDOW_START_SECOND
             if previous_arrival_second is None
             else previous_arrival_second + config.min_activity_duration_seconds
         )
@@ -261,7 +274,7 @@ def _schedule_diary(
             and not (config.allow_final_trip_after_observation_window and is_final_trip)
         ):
             return _issue(
-                "arrival_after_observation_window",
+                athenspop.diagnostics.IssueCode.ARRIVAL_AFTER_OBSERVATION_WINDOW,
                 f"The trip arrives at {arrival_second}, after the observation "
                 f"window end at {config.observation_window_seconds}.",
                 realized,
@@ -287,21 +300,21 @@ def _realize_trip(
             and not config.allow_trips_after_observation_window
         ):
             return _issue(
-                "departure_after_observation_window",
+                athenspop.diagnostics.IssueCode.DEPARTURE_AFTER_OBSERVATION_WINDOW,
                 f"The trip departs at {trip.departure_second}, after the "
                 f"observation window end at {config.observation_window_seconds}.",
                 trip,
             )
         if trip.departure_second < earliest_allowed_second:
             return _issue(
-                "activity_duration_too_short",
+                athenspop.diagnostics.IssueCode.ACTIVITY_DURATION_TOO_SHORT,
                 f"The trip departs at {trip.departure_second}, before the earliest "
                 f"feasible departure {earliest_allowed_second}.",
                 trip,
             )
         if trip.departure_second > latest_allowed_second:
             return _issue(
-                "infeasible_future_departure",
+                athenspop.diagnostics.IssueCode.INFEASIBLE_FUTURE_DEPARTURE,
                 f"The trip departs at {trip.departure_second}, after the latest "
                 f"feasible departure {latest_allowed_second} implied by later trips.",
                 trip,
@@ -313,7 +326,7 @@ def _realize_trip(
         )
     if trip.departure_window is None:
         return _issue(
-            "missing_departure",
+            athenspop.diagnostics.IssueCode.MISSING_DEPARTURE,
             "The trip has neither a concrete departure time nor a departure window.",
             trip,
         )
@@ -323,7 +336,7 @@ def _realize_trip(
         latest = min(latest, config.observation_window_seconds)
     if earliest > latest:
         return _issue(
-            "infeasible_departure_window",
+            athenspop.diagnostics.IssueCode.INFEASIBLE_DEPARTURE_WINDOW,
             "The feasible departure window is empty after constraints: earliest "
             f"{earliest}, latest {latest}.",
             trip,
@@ -347,7 +360,7 @@ def _with_arrival(
         travel_time_seconds = trip.arrival_second - departure_second
         if travel_time_seconds <= 0:
             return _issue(
-                "non_positive_travel_duration",
+                athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION,
                 f"The trip arrives at {trip.arrival_second}, which is not after "
                 f"departure {departure_second}.",
                 trip,
@@ -361,7 +374,7 @@ def _with_arrival(
     if trip.travel_time_seconds is not None:
         if trip.travel_time_seconds <= 0:
             return _issue(
-                "non_positive_travel_duration",
+                athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION,
                 f"The trip travel time is {trip.travel_time_seconds}; movement trips "
                 "require a positive duration.",
                 trip,
@@ -374,7 +387,7 @@ def _with_arrival(
         )
     if travel_time_function is None:
         return _issue(
-            "missing_travel_time_function",
+            athenspop.diagnostics.IssueCode.MISSING_TRAVEL_TIME_FUNCTION,
             "This trip requires a travel-time function but none was supplied to "
             "`schedule_once`.",
             trip,
@@ -456,7 +469,7 @@ def _own_earliest_departure(trip: athenspop.model.survey.Trip) -> int:
         return trip.departure_second
     if trip.departure_window is not None:
         return trip.departure_window.earliest_second
-    return 0
+    return athenspop.time_units.DEFAULT_WINDOW_START_SECOND
 
 
 def _own_latest_departure(
@@ -534,20 +547,20 @@ def _call_travel_time_function(
         )
     except Exception as error:
         return _issue(
-            "travel_time_function_error",
+            athenspop.diagnostics.IssueCode.TRAVEL_TIME_FUNCTION_ERROR,
             f"`travel_time_function` failed for departure {departure_second}: {error}.",
             trip,
         )
     if isinstance(result, bool) or not isinstance(result, int):
         return _issue(
-            "invalid_travel_time_function_result",
+            athenspop.diagnostics.IssueCode.INVALID_TRAVEL_TIME_FUNCTION_RESULT,
             f"`travel_time_function` returned {result!r}; it must return a strictly "
             "positive integer number of seconds.",
             trip,
         )
     if result <= 0:
         return _issue(
-            "invalid_travel_time_function_result",
+            athenspop.diagnostics.IssueCode.INVALID_TRAVEL_TIME_FUNCTION_RESULT,
             f"`travel_time_function` returned {result}; movement trips require a "
             "positive travel time.",
             trip,
@@ -556,7 +569,9 @@ def _call_travel_time_function(
 
 
 def _issue(
-    code: str, message: str, trip: athenspop.model.survey.Trip
+    code: athenspop.diagnostics.IssueCode,
+    message: str,
+    trip: athenspop.model.survey.Trip,
 ) -> SchedulingIssue:
     """Create a scheduler issue from a trip while preserving diary identity fields."""
     return SchedulingIssue(

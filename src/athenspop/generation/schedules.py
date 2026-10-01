@@ -5,10 +5,14 @@
 """Generate repeated stochastic realizations from one validated survey dataset."""
 
 import random
+from typing import Final
 
 import athenspop.model.survey
 import athenspop.scheduling.engine
 import athenspop.types
+
+#: Exclusive upper bound for derived pseudorandom child seeds.
+_CHILD_SEED_STOP: Final[int] = 2**63
 
 
 def generate_schedules(
@@ -57,7 +61,7 @@ def generate_schedules(
     return tuple(
         athenspop.scheduling.engine.schedule_once(
             dataset,
-            seed=rng.randrange(0, 2**63),
+            seed=rng.randrange(_CHILD_SEED_STOP),
             config=config,
             travel_time_function=travel_time_function,
         )

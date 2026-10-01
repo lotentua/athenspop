@@ -6,6 +6,8 @@ Read [Scheduling departure windows](../concepts/scheduling.md) for the two-pass 
 
 ```{eval-rst}
 .. automodule:: athenspop.scheduling.engine
-   :members: ScheduledSurveyDataset, SchedulingConfig, SchedulingDiagnostics,
-      SchedulingIssue, schedule_once
+   :members: DEFAULT_ALLOW_FINAL_TRIP_AFTER_OBSERVATION_WINDOW,
+      DEFAULT_ALLOW_TRIPS_AFTER_OBSERVATION_WINDOW,
+      DEFAULT_REFINE_CALLABLE_DEPARTURE_WINDOWS, ScheduledSurveyDataset,
+      SchedulingConfig, SchedulingDiagnostics, SchedulingIssue, schedule_once
 ```

@@ -6,6 +6,7 @@ The API is organized by the stage of the analysis rather than by one required pi
 | --- | --- | --- |
 | Build immutable diaries | [Model](model.md) | {py:meth}`athenspop.model.survey.SurveyDataset.from_dataframes` |
 | Convert civil clock columns | [Input conversion](io.md) | {py:func}`athenspop.io.clock.convert_clock_columns` |
+| Handle structured issues | [Diagnostic vocabulary](diagnostics.md) | {py:class}`athenspop.diagnostics.IssueCode` |
 | Inspect dataframe problems | [Validation](validation.md) | {py:func}`athenspop.validation.schema.validate_dataframes` |
 | Realize one schedule | [Scheduling](scheduling.md) | {py:func}`athenspop.scheduling.engine.schedule_once` |
 | Generate repeated schedules | [Generation](generation.md) | {py:func}`athenspop.generation.schedules.generate_schedules` |
@@ -23,6 +24,7 @@ Use the [getting-started tutorial](../getting_started.md) to learn the workflow 
 
 model
 io
+diagnostics
 validation
 scheduling
 generation

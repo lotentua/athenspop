@@ -12,6 +12,7 @@ from typing import Final, cast
 import numpy as np
 import pandas as pd
 
+import athenspop.diagnostics
 import athenspop.schema
 import athenspop.validation.report
 
@@ -256,14 +257,14 @@ def _validate_table_shape(
     """Validate a table before row-level checks."""
     if not isinstance(frame, pd.DataFrame):
         builder.add_error(
-            code="table_not_dataframe",
+            code=athenspop.diagnostics.IssueCode.TABLE_NOT_DATAFRAME,
             table=table,
             message=f"`{table}` must be a pandas DataFrame.",
         )
         return False
     if not frame.index.is_unique:
         builder.add_error(
-            code="duplicate_index",
+            code=athenspop.diagnostics.IssueCode.DUPLICATE_INDEX,
             table=table,
             message=(
                 f"`{table}` must have a unique dataframe index so diagnostics "
@@ -276,7 +277,7 @@ def _validate_table_shape(
     ]
     if duplicated_columns:
         builder.add_error(
-            code="duplicate_columns",
+            code=athenspop.diagnostics.IssueCode.DUPLICATE_COLUMNS,
             table=table,
             message=(
                 f"`{table}` has duplicate column names: "
@@ -290,7 +291,7 @@ def _validate_table_shape(
     )
     if normalized_duplicates:
         builder.add_error(
-            code="normalized_column_collision",
+            code=athenspop.diagnostics.IssueCode.NORMALIZED_COLUMN_COLLISION,
             table=table,
             message=(
                 f"`{table}` has column names that collide after string "
@@ -303,7 +304,7 @@ def _validate_table_shape(
     ]
     if missing_columns:
         builder.add_error(
-            code="missing_required_columns",
+            code=athenspop.diagnostics.IssueCode.MISSING_REQUIRED_COLUMNS,
             table=table,
             message=(
                 f"`{table}` is missing required column(s): "
@@ -331,7 +332,7 @@ def _validate_keys(
             raw_value = row[column]
             if not pd.api.types.is_scalar(raw_value):
                 builder.add_error(
-                    code="unsupported_key_value",
+                    code=athenspop.diagnostics.IssueCode.UNSUPPORTED_KEY_VALUE,
                     table=table,
                     row_identifier=row_identifier,
                     column=column,
@@ -345,7 +346,7 @@ def _validate_keys(
             value = cast("ScalarValue", raw_value)
             if _is_missing(value):
                 builder.add_error(
-                    code="null_key",
+                    code=athenspop.diagnostics.IssueCode.NULL_KEY,
                     table=table,
                     row_identifier=row_identifier,
                     column=column,
@@ -359,7 +360,7 @@ def _validate_keys(
             normalized_value = str(value).strip()
             if not normalized_value:
                 builder.add_error(
-                    code="blank_key",
+                    code=athenspop.diagnostics.IssueCode.BLANK_KEY,
                     table=table,
                     row_identifier=row_identifier,
                     column=column,
@@ -382,7 +383,7 @@ def _validate_keys(
         for row_index in valid_key_frame.index[duplicate_mask]:
             row_identifier = _row_identifier(table, row_index)
             builder.add_error(
-                code="duplicate_key",
+                code=athenspop.diagnostics.IssueCode.DUPLICATE_KEY,
                 table=table,
                 row_identifier=row_identifier,
                 column=", ".join(key_columns),
@@ -418,7 +419,7 @@ def _validate_joins(
                 not in valid_person_keys
             ):
                 builder.add_error(
-                    code="orphan_trip_person",
+                    code=athenspop.diagnostics.IssueCode.ORPHAN_TRIP_PERSON,
                     table=athenspop.schema.TRIPS_TABLE,
                     row_identifier=_row_identifier(
                         athenspop.schema.TRIPS_TABLE, row_index
@@ -443,7 +444,7 @@ def _validate_joins(
                 not in valid_household_keys
             ):
                 builder.add_error(
-                    code="orphan_trip_household",
+                    code=athenspop.diagnostics.IssueCode.ORPHAN_TRIP_HOUSEHOLD,
                     table=athenspop.schema.TRIPS_TABLE,
                     row_identifier=_row_identifier(
                         athenspop.schema.TRIPS_TABLE, row_index
@@ -473,7 +474,7 @@ def _validate_joins(
                     not in valid_household_keys
                 ):
                     builder.add_error(
-                        code="orphan_person_household",
+                        code=athenspop.diagnostics.IssueCode.ORPHAN_PERSON_HOUSEHOLD,
                         table=athenspop.schema.PERSONS_TABLE,
                         row_identifier=row_identifier,
                         column=", ".join(athenspop.schema.HOUSEHOLD_KEY_COLUMNS),
@@ -503,7 +504,7 @@ def _validate_metadata_values(
         for column in metadata_columns:
             if not pd.api.types.is_scalar(row[column]):
                 builder.add_error(
-                    code="unsupported_metadata_value",
+                    code=athenspop.diagnostics.IssueCode.UNSUPPORTED_METADATA_VALUE,
                     table=table,
                     row_identifier=row_identifier,
                     column=str(column),
@@ -523,7 +524,7 @@ def _validate_metadata_values(
                 str | int | float | bool | np.integer | np.floating | np.bool_,
             ):
                 builder.add_error(
-                    code="unsupported_metadata_value",
+                    code=athenspop.diagnostics.IssueCode.UNSUPPORTED_METADATA_VALUE,
                     table=table,
                     row_identifier=row_identifier,
                     column=str(column),
@@ -574,7 +575,7 @@ def _normalize_trip_labels(
         raw_value = row[column]
         if not pd.api.types.is_scalar(raw_value):
             builder.add_error(
-                code="unsupported_trip_value",
+                code=athenspop.diagnostics.IssueCode.UNSUPPORTED_TRIP_VALUE,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=column,
@@ -589,7 +590,7 @@ def _normalize_trip_labels(
         normalized_value = "" if _is_missing(value) else str(value).strip()
         if not normalized_value:
             builder.add_error(
-                code="missing_trip_value",
+                code=athenspop.diagnostics.IssueCode.MISSING_TRIP_VALUE,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=column,
@@ -617,7 +618,7 @@ def _validate_second_values(
         raw_value = row[column]
         if not pd.api.types.is_scalar(raw_value):
             builder.add_error(
-                code="invalid_second",
+                code=athenspop.diagnostics.IssueCode.INVALID_SECOND,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=column,
@@ -633,7 +634,7 @@ def _validate_second_values(
         second_value = _integer_second_value(value)
         if not _is_missing(value) and second_value is None:
             builder.add_error(
-                code="invalid_second",
+                code=athenspop.diagnostics.IssueCode.INVALID_SECOND,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=column,
@@ -647,7 +648,7 @@ def _validate_second_values(
             return False
         if second_value is not None and int(second_value) < 0:
             builder.add_error(
-                code="negative_second",
+                code=athenspop.diagnostics.IssueCode.NEGATIVE_SECOND,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column=column,
@@ -671,7 +672,7 @@ def _classify_trip_timing(
     """Classify one supported timing pattern and report semantic errors."""
     if _has_any_value(row, athenspop.schema.UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS):
         builder.add_error(
-            code="unsupported_arrival_window",
+            code=athenspop.diagnostics.IssueCode.UNSUPPORTED_ARRIVAL_WINDOW,
             table=athenspop.schema.TRIPS_TABLE,
             row_identifier=row_identifier,
             column=", ".join(athenspop.schema.UNSUPPORTED_ARRIVAL_WINDOW_COLUMNS),
@@ -685,7 +686,7 @@ def _classify_trip_timing(
     pattern = _detect_timing_pattern(row)
     if pattern is None:
         builder.add_error(
-            code="invalid_timing_pattern",
+            code=athenspop.diagnostics.IssueCode.INVALID_TIMING_PATTERN,
             table=athenspop.schema.TRIPS_TABLE,
             row_identifier=row_identifier,
             column=", ".join(athenspop.schema.TRIP_TIMING_COLUMNS),
@@ -743,7 +744,7 @@ def _validate_trip_chains(
             origin = str(row["origin"])
             if previous_destination is not None and origin != previous_destination:
                 builder.add_warning(
-                    code="origin_mismatch",
+                    code=athenspop.diagnostics.IssueCode.ORIGIN_MISMATCH,
                     table=athenspop.schema.TRIPS_TABLE,
                     row_identifier=row_identifier,
                     column="origin",
@@ -769,7 +770,7 @@ def _validate_trip_chains(
                 and departure_second < previous_arrival
             ):
                 builder.add_error(
-                    code="overlapping_trips",
+                    code=athenspop.diagnostics.IssueCode.OVERLAPPING_TRIPS,
                     table=athenspop.schema.TRIPS_TABLE,
                     row_identifier=_row_identifier(
                         athenspop.schema.TRIPS_TABLE, row_index
@@ -813,7 +814,7 @@ def _resolve_trip_sequence_order(
         sequence = _integer_second_value(value)
         if _is_missing(value):
             builder.add_error(
-                code="missing_trip_sequence",
+                code=athenspop.diagnostics.IssueCode.MISSING_TRIP_SEQUENCE,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column="trip_sequence",
@@ -829,7 +830,7 @@ def _resolve_trip_sequence_order(
             return None
         if sequence is None or int(sequence) < 0:
             builder.add_error(
-                code="invalid_trip_sequence",
+                code=athenspop.diagnostics.IssueCode.INVALID_TRIP_SEQUENCE,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column="trip_sequence",
@@ -845,7 +846,7 @@ def _resolve_trip_sequence_order(
         sequence_int = int(sequence)
         if sequence_int in seen_sequences:
             builder.add_error(
-                code="duplicate_trip_sequence",
+                code=athenspop.diagnostics.IssueCode.DUPLICATE_TRIP_SEQUENCE,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column="trip_sequence",
@@ -874,7 +875,7 @@ def _resolve_concrete_departure_order(
         departure_second = _optional_int(row, "departure_second")
         if departure_second is None:
             builder.add_error(
-                code="unresolved_trip_order",
+                code=athenspop.diagnostics.IssueCode.UNRESOLVED_TRIP_ORDER,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column="trip_sequence",
@@ -889,7 +890,7 @@ def _resolve_concrete_departure_order(
             return None
         if departure_second in seen_departures:
             builder.add_error(
-                code="unresolved_trip_order",
+                code=athenspop.diagnostics.IssueCode.UNRESOLVED_TRIP_ORDER,
                 table=athenspop.schema.TRIPS_TABLE,
                 row_identifier=row_identifier,
                 column="trip_sequence",
@@ -918,14 +919,14 @@ def _detect_timing_pattern(row: pd.Series) -> athenspop.schema.TimingPattern | N
 
 def _validate_timing_semantics(
     row: pd.Series, pattern: athenspop.schema.TimingPattern
-) -> tuple[str, str, str] | None:
+) -> tuple[athenspop.diagnostics.IssueCode, str, str] | None:
     """Validate timing inequalities that depend on the detected timing pattern."""
     if pattern == athenspop.schema.TimingPattern.DEPARTURE_ARRIVAL:
         departure_second = _required_int(row, "departure_second")
         arrival_second = _required_int(row, "arrival_second")
         if arrival_second <= departure_second:
             return (
-                "non_positive_travel_duration",
+                athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION,
                 "arrival_second",
                 f"arrives at {arrival_second}, which must be after "
                 f"departure_second={departure_second}.",
@@ -934,7 +935,7 @@ def _validate_timing_semantics(
         travel_time_seconds = _required_int(row, "travel_time_seconds")
         if travel_time_seconds <= 0:
             return (
-                "non_positive_travel_duration",
+                athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION,
                 "travel_time_seconds",
                 f"has travel_time_seconds={travel_time_seconds}. Movement travel time "
                 "must be strictly positive.",
@@ -945,14 +946,14 @@ def _validate_timing_semantics(
         travel_time_seconds = _required_int(row, "travel_time_seconds")
         if latest < earliest:
             return (
-                "invalid_departure_window",
+                athenspop.diagnostics.IssueCode.INVALID_DEPARTURE_WINDOW,
                 "latest_departure_second",
                 f"has latest_departure_second={latest} before "
                 f"earliest_departure_second={earliest}.",
             )
         if travel_time_seconds <= 0:
             return (
-                "non_positive_travel_duration",
+                athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION,
                 "travel_time_seconds",
                 f"has travel_time_seconds={travel_time_seconds}. Movement travel time "
                 "must be strictly positive.",
@@ -962,7 +963,7 @@ def _validate_timing_semantics(
         latest = _required_int(row, "latest_departure_second")
         if latest < earliest:
             return (
-                "invalid_departure_window",
+                athenspop.diagnostics.IssueCode.INVALID_DEPARTURE_WINDOW,
                 "latest_departure_second",
                 f"has latest_departure_second={latest} before "
                 f"earliest_departure_second={earliest}.",

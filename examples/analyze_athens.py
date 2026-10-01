@@ -20,6 +20,8 @@ import athenspop.sequence.distance
 DEFAULT_DATA_DIRECTORY: Final[pathlib.Path] = (
     pathlib.Path(__file__).resolve().parents[1] / "data" / "athens"
 )
+#: Default number of purpose-chain frequencies shown in output.
+DEFAULT_DISPLAYED_CHAIN_LIMIT: Final[int] = 12
 
 
 def load_purpose_chains(
@@ -116,7 +118,7 @@ def illustrative_cluster_labels(
 
 
 def plot_chain_frequencies(
-    frequencies: pd.DataFrame, *, limit: int = 12
+    frequencies: pd.DataFrame, *, limit: int = DEFAULT_DISPLAYED_CHAIN_LIMIT
 ) -> matplotlib.figure.Figure:
     """Plot the most frequent exact purpose chains using the active stylesheet.
 
@@ -147,7 +149,7 @@ def main() -> None:
     """Print the primary frequency result and display its minimally styled plot."""
     chains = load_purpose_chains()
     frequencies = chain_frequency_table(chains)
-    print(frequencies.head(12).to_string(index=False))
+    print(frequencies.head(DEFAULT_DISPLAYED_CHAIN_LIMIT).to_string(index=False))
     plot_chain_frequencies(frequencies)
     plt.show()
 

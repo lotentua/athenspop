@@ -6,7 +6,7 @@
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import Final, cast
 
 import numpy as np
 
@@ -20,13 +20,16 @@ type EncodedTargetMatrix = np.ndarray[tuple[int, int], np.dtype[np.int64]]
 #: Dissimilarities from one source to each target sequence.
 type DistanceVector = np.ndarray[tuple[int], np.dtype[np.float64]]
 
+#: Default insertion and deletion cost for optimal matching.
+DEFAULT_INDEL_COST: Final[float] = 1.0
+
 
 def optimal_matching_dissimilarity(
     first: Sequence[str],
     second: Sequence[str],
     *,
     substitution_cost: Mapping[tuple[str, str], float],
-    indel_cost: float = 1.0,
+    indel_cost: float = DEFAULT_INDEL_COST,
 ) -> float:
     """Compute Wagner-Fischer optimal-matching dissimilarity for two sequences.
 
@@ -75,7 +78,7 @@ def dissimilarity_matrix(
     sequences: Sequence[Sequence[str]],
     *,
     substitution_cost: Mapping[tuple[str, str], float],
-    indel_cost: float = 1.0,
+    indel_cost: float = DEFAULT_INDEL_COST,
 ) -> athenspop.types.DissimilarityMatrix:
     """Compute a symmetric pairwise optimal-matching dissimilarity matrix.
 

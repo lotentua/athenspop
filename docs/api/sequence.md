@@ -11,6 +11,6 @@ Read [Sequences and clustering](../concepts/sequences.md) before choosing an int
              trip_mode_state
 
 .. automodule:: athenspop.sequence.distance
-   :members: CostMatrix, DistanceVector, EncodedTargetMatrix,
+   :members: CostMatrix, DEFAULT_INDEL_COST, DistanceVector, EncodedTargetMatrix,
              dissimilarity_matrix, optimal_matching_dissimilarity
 ```

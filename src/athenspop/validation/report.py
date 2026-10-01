@@ -5,10 +5,8 @@
 """Collect validation diagnostics at dataframe boundaries."""
 
 import dataclasses
-from typing import Literal
 
-#: Severity of one structured validation issue.
-type Severity = Literal["error", "warning"]
+import athenspop.diagnostics
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -36,8 +34,8 @@ class ValidationIssue:
             value.
     """
 
-    severity: Severity
-    code: str
+    severity: athenspop.diagnostics.IssueSeverity
+    code: athenspop.diagnostics.IssueCode
     table: str
     message: str
     row_identifier: str | None = None
@@ -164,7 +162,7 @@ class ValidationReportBuilder:
     def add_error(
         self,
         *,
-        code: str,
+        code: athenspop.diagnostics.IssueCode,
         table: str,
         message: str,
         row_identifier: str | None = None,
@@ -196,7 +194,7 @@ class ValidationReportBuilder:
         """
         self.errors.append(
             ValidationIssue(
-                severity="error",
+                severity=athenspop.diagnostics.IssueSeverity.ERROR,
                 code=code,
                 table=table,
                 message=message,
@@ -213,7 +211,7 @@ class ValidationReportBuilder:
     def add_warning(
         self,
         *,
-        code: str,
+        code: athenspop.diagnostics.IssueCode,
         table: str,
         message: str,
         row_identifier: str | None = None,
@@ -241,7 +239,7 @@ class ValidationReportBuilder:
         """
         self.warnings.append(
             ValidationIssue(
-                severity="warning",
+                severity=athenspop.diagnostics.IssueSeverity.WARNING,
                 code=code,
                 table=table,
                 message=message,

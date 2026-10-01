@@ -12,6 +12,7 @@ from typing import cast
 import pandas as pd
 import pytest
 
+import athenspop.diagnostics
 import athenspop.generation.schedules
 import athenspop.model.survey
 import athenspop.scheduling.engine
@@ -70,7 +71,7 @@ def _trusted_dataset(
 
 
 @pytest.mark.parametrize(
-    ("factory", "error_type", "message"),
+    ("factory", "error_type", "message_pattern"),
     [
         (
             functools.partial(
@@ -133,10 +134,10 @@ def _trusted_dataset(
 def test_scheduling_config_rejects_invalid_policy_values(
     factory: Callable[[], athenspop.scheduling.engine.SchedulingConfig],
     error_type: type[Exception],
-    message: str,
+    message_pattern: str,
 ) -> None:
     """Reject invalid scheduling policy types and ranges during construction."""
-    with pytest.raises(error_type, match=message):
+    with pytest.raises(error_type, match=message_pattern):
         factory()
 
 
@@ -182,7 +183,13 @@ def test_schedule_once_reports_missing_departure_for_trusted_model() -> None:
 
     scheduled = athenspop.scheduling.engine.schedule_once(dataset)
 
-    assert scheduled.diagnostics.issues[0].code == "missing_departure"
+    assert isinstance(
+        scheduled.diagnostics.issues[0].code, athenspop.diagnostics.IssueCode
+    )
+    assert (
+        scheduled.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.MISSING_DEPARTURE
+    )
 
 
 def test_schedule_once_reports_non_positive_duration() -> None:
@@ -197,7 +204,10 @@ def test_schedule_once_reports_non_positive_duration() -> None:
 
     scheduled = athenspop.scheduling.engine.schedule_once(dataset)
 
-    assert scheduled.diagnostics.issues[0].code == "non_positive_travel_duration"
+    assert (
+        scheduled.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.NON_POSITIVE_TRAVEL_DURATION
+    )
 
 
 def test_schedule_once_reports_activity_duration_too_short() -> None:
@@ -228,7 +238,10 @@ def test_schedule_once_reports_activity_duration_too_short() -> None:
         travel_time_function=_constant_travel_time(100),
     )
 
-    assert scheduled.diagnostics.issues[0].code == "activity_duration_too_short"
+    assert (
+        scheduled.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.ACTIVITY_DURATION_TOO_SHORT
+    )
 
 
 def test_schedule_once_reports_missing_travel_time_function() -> None:
@@ -247,7 +260,10 @@ def test_schedule_once_reports_missing_travel_time_function() -> None:
 
     scheduled = athenspop.scheduling.engine.schedule_once(dataset, seed=1)
 
-    assert scheduled.diagnostics.issues[0].code == "missing_travel_time_function"
+    assert (
+        scheduled.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.MISSING_TRAVEL_TIME_FUNCTION
+    )
 
 
 def test_schedule_once_reports_travel_time_function_error() -> None:
@@ -277,7 +293,10 @@ def test_schedule_once_reports_travel_time_function_error() -> None:
         travel_time_function=failing_travel_time,
     )
 
-    assert scheduled.diagnostics.issues[0].code == "travel_time_function_error"
+    assert (
+        scheduled.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.TRAVEL_TIME_FUNCTION_ERROR
+    )
 
 
 def test_schedule_once_contains_runtime_error_from_user_callable() -> None:
@@ -307,7 +326,10 @@ def test_schedule_once_contains_runtime_error_from_user_callable() -> None:
         travel_time_function=failing_travel_time,
     )
 
-    assert scheduled.diagnostics.issues[0].code == "travel_time_function_error"
+    assert (
+        scheduled.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.TRAVEL_TIME_FUNCTION_ERROR
+    )
 
 
 @pytest.mark.parametrize(
@@ -547,7 +569,10 @@ def test_schedule_once_applies_activity_duration_constraint() -> None:
     assert infeasible.diagnostics.infeasible_diaries == (
         "household_id=h1; person_id=p1",
     )
-    assert infeasible.diagnostics.issues[0].code == "infeasible_future_departure"
+    assert (
+        infeasible.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.INFEASIBLE_FUTURE_DEPARTURE
+    )
 
 
 def test_schedule_once_refines_fixed_duration_future_windows() -> None:
@@ -769,7 +794,10 @@ def test_schedule_once_checks_travel_time_function_at_scheduler_boundary() -> No
         travel_time_function=_constant_travel_time(0),
     )
     assert invalid.diagnostics.scheduled_diaries == 0
-    assert invalid.diagnostics.issues[0].code == "invalid_travel_time_function_result"
+    assert (
+        invalid.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.INVALID_TRAVEL_TIME_FUNCTION_RESULT
+    )
 
 
 def test_generate_schedules_uses_shared_scheduler_with_repeatable_seed() -> None:
@@ -832,7 +860,10 @@ def test_schedule_once_can_allow_final_arrival_after_observation_window() -> Non
     dataset = athenspop.model.survey.SurveyDataset.from_dataframes(trips)
     rejected = athenspop.scheduling.engine.schedule_once(dataset)
     assert rejected.diagnostics.scheduled_diaries == 0
-    assert rejected.diagnostics.issues[0].code == "arrival_after_observation_window"
+    assert (
+        rejected.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.ARRIVAL_AFTER_OBSERVATION_WINDOW
+    )
     scheduled = athenspop.scheduling.engine.schedule_once(
         dataset,
         config=athenspop.scheduling.engine.SchedulingConfig(
@@ -885,7 +916,10 @@ def test_schedule_once_can_allow_nonfinal_trips_after_observation_window() -> No
     dataset = athenspop.model.survey.SurveyDataset.from_dataframes(trips)
     rejected = athenspop.scheduling.engine.schedule_once(dataset)
     assert rejected.diagnostics.scheduled_diaries == 0
-    assert rejected.diagnostics.issues[0].code == "infeasible_departure_window"
+    assert (
+        rejected.diagnostics.issues[0].code
+        == athenspop.diagnostics.IssueCode.INFEASIBLE_DEPARTURE_WINDOW
+    )
     scheduled = athenspop.scheduling.engine.schedule_once(
         dataset,
         seed=7,

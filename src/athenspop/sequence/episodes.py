@@ -60,7 +60,7 @@ def overlap_duration(
 def discretize_episodes(
     episodes: Sequence[Episode],
     *,
-    window_start_second: int = 0,
+    window_start_second: int = athenspop.time_units.DEFAULT_WINDOW_START_SECOND,
     window_end_second: int = athenspop.time_units.DEFAULT_OBSERVATION_WINDOW_SECONDS,
     interval_seconds: int = athenspop.time_units.DEFAULT_SEQUENCE_INTERVAL_SECONDS,
 ) -> tuple[str, ...]:
@@ -113,7 +113,7 @@ def episodes_from_diary(
     *,
     initial_activity_state: str,
     travel_state_labeler: TravelStateLabeler | None = None,
-    window_start_second: int = 0,
+    window_start_second: int = athenspop.time_units.DEFAULT_WINDOW_START_SECOND,
     window_end_second: int = athenspop.time_units.DEFAULT_OBSERVATION_WINDOW_SECONDS,
 ) -> tuple[Episode, ...]:
     """Build continuous activity and travel episodes from one scheduled diary.
@@ -253,7 +253,7 @@ def state_sequence_from_diary(
     *,
     initial_activity_state: str,
     travel_state_labeler: TravelStateLabeler | None = None,
-    window_start_second: int = 0,
+    window_start_second: int = athenspop.time_units.DEFAULT_WINDOW_START_SECOND,
     window_end_second: int = athenspop.time_units.DEFAULT_OBSERVATION_WINDOW_SECONDS,
     interval_seconds: int = athenspop.time_units.DEFAULT_SEQUENCE_INTERVAL_SECONDS,
 ) -> tuple[str, ...]:

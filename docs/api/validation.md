@@ -10,5 +10,5 @@ Errors prevent normalized tables. Warnings preserve a usable result while identi
              ValidationResult, validate_dataframes
 
 .. automodule:: athenspop.validation.report
-   :members: Severity, ValidationError, ValidationIssue, ValidationReport
+   :members: ValidationError, ValidationIssue, ValidationReport
 ```

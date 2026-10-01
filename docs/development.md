@@ -41,6 +41,8 @@ uv run ty check src tests examples docs/conf.py
 
 The project follows the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). Use qualified module imports for project code, document public contracts with Google-style docstrings, and keep runtime checks at untrusted boundaries.
 
+Use an enumeration for a closed, machine-readable vocabulary such as diagnostic codes or severities. Use a documented `Final` constant for a public policy default, a meaningful invariant, or a value shared by multiple call sites. Keep one-off arithmetic values and contextual error prose beside the condition they explain. Contract tests should compare {py:class}`athenspop.diagnostics.IssueCode` members; they may match a short message fragment only when the wording itself is observable behavior.
+
 ## Test contracts rather than helper structure
 
 Tests use [pytest](https://docs.pytest.org/) in importlib mode. They should exercise behavior a user or adjacent module can observe:

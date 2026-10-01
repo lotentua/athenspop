@@ -14,6 +14,8 @@ SECONDS_PER_HOUR: Final[int] = 60 * SECONDS_PER_MINUTE
 SECONDS_PER_DAY: Final[int] = 24 * SECONDS_PER_HOUR
 #: Default clock origin for elapsed-second conversions.
 DEFAULT_TIME_ORIGIN_CLOCK: Final[str] = "00:00"
+#: Default observation-window start in elapsed seconds.
+DEFAULT_WINDOW_START_SECOND: Final[int] = 0
 #: Default diary observation-window duration.
 DEFAULT_OBSERVATION_WINDOW_SECONDS: Final[int] = SECONDS_PER_DAY
 #: Default discrete-sequence interval width.
